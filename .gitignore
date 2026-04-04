@@ -3,6 +3,9 @@ videos/
 data/uploads/
 data/results/
 
+# Env
+.env
+
 # Python
 __pycache__/
 *.pyc

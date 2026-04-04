@@ -205,10 +205,12 @@ def update_status(video_id: str, status: PipelineStatus, progress: dict | None =
         _videos[video_id].progress = progress
 
 
-def _cleanup_rally_files(video_id: str) -> None:
-    """Remove rally detection result and all rally clips."""
-    rallies_json = settings.RESULTS_DIR / f"{video_id}_rallies.json"
-    rallies_json.unlink(missing_ok=True)
+def _cleanup_derived_files(video_id: str) -> None:
+    """Remove point detection results and all derived clips."""
+    for pattern in [f"{video_id}_points.json", f"{video_id}_rallies.json"]:
+        (settings.RESULTS_DIR / pattern).unlink(missing_ok=True)
+    for clip in settings.RESULTS_DIR.glob(f"{video_id}_point_*.mp4"):
+        clip.unlink(missing_ok=True)
     for clip in settings.RESULTS_DIR.glob(f"{video_id}_rally_*.mp4"):
         clip.unlink(missing_ok=True)
 
@@ -220,7 +222,7 @@ def clear_annotations(video_id: str) -> None:
     corrections = settings.RESULTS_DIR / f"{video_id}_corrections.json"
     for p in [result_video, result_data, corrections]:
         p.unlink(missing_ok=True)
-    _cleanup_rally_files(video_id)
+    _cleanup_derived_files(video_id)
     if video_id in _videos:
         _videos[video_id].status = PipelineStatus.PENDING
         _videos[video_id].progress = None
@@ -229,7 +231,7 @@ def clear_annotations(video_id: str) -> None:
 def delete_video(video_id: str) -> bool:
     if video_id not in _videos:
         return False
-    _cleanup_rally_files(video_id)
+    _cleanup_derived_files(video_id)
     upload_path = get_upload_path(video_id)
     result_video = get_result_video_path(video_id)
     result_data = get_result_data_path(video_id)

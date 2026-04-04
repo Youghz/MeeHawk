@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     VIDEOS_DIR: Path = Path(__file__).resolve().parents[3] / "videos"
     ALLOWED_EXTENSIONS: set[str] = {".mp4", ".avi", ".mov", ".mkv"}
     MAX_FILE_SIZE: int = 500 * 1024 * 1024  # 500MB
-    CORS_ORIGINS: list[str] = ["http://localhost:5173"]
+    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:8080"]
 
 
 settings = Settings()

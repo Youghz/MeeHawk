@@ -35,7 +35,7 @@ class VideoInfo(BaseModel):
     original_name: str
     status: PipelineStatus = PipelineStatus.PENDING
     progress: dict | None = None
-    parent_id: str | None = None  # set for rally clips
+    parent_id: str | None = None
 
 
 class VideoUploadResponse(BaseModel):
@@ -55,9 +55,7 @@ class CorrectionEntry(BaseModel):
     """A single correction on one frame."""
 
     frame_number: int
-    # Remap tracker IDs: old_id -> new_id
     id_swaps: dict[int, int] = {}
-    # Tracker IDs to remove (false positives)
     removed_ids: list[int] = []
 
 
@@ -68,22 +66,11 @@ class CorrectionSet(BaseModel):
     corrections: list[CorrectionEntry] = []
 
 
-# --- Rally detection ---
+# --- Point detection ---
 
 
-class RallyDetectionConfig(BaseModel):
-    smoothing_window_seconds: float = 0.75
-    threshold_factor: float = 0.5
-    merge_gap_seconds: float = 2.0
-    min_rally_duration_seconds: float = 3.0
-    padding_seconds: float = 2.0
-    min_confidence: float = 0.3
-
-
-class Rally(BaseModel):
-    rally_id: int
-    start_frame: int
-    end_frame: int
+class PointSegment(BaseModel):
+    point_id: int
     start_time: float
     end_time: float
     duration: float
@@ -91,7 +78,6 @@ class Rally(BaseModel):
     padded_end_time: float
 
 
-class RallyDetectionResult(BaseModel):
+class PointDetectionResult(BaseModel):
     video_id: str
-    config: RallyDetectionConfig
-    rallies: list[Rally]
+    points: list[PointSegment]
