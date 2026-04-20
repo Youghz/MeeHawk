@@ -1,239 +1,156 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/match_data.dart';
+import '../models/match_state.dart';
 
-final matchProvider = NotifierProvider<MatchNotifier, MatchState>(MatchNotifier.new);
-
-class MatchState {
-  final MatchData? match;
-  final PendingPoint pending;
-  final bool isSetup;
-  final bool needsServerPick;
-
-  MatchState({
-    this.match,
-    PendingPoint? pending,
-    this.isSetup = true,
-    this.needsServerPick = false,
-  }) : pending = pending ?? PendingPoint();
-
-  MatchState copyWith({
-    MatchData? match,
-    PendingPoint? pending,
-    bool? isSetup,
-    bool? needsServerPick,
-  }) =>
-      MatchState(
-        match: match ?? this.match,
-        pending: pending ?? this.pending,
-        isSetup: isSetup ?? this.isSetup,
-        needsServerPick: needsServerPick ?? this.needsServerPick,
-      );
-}
+final matchProvider =
+    NotifierProvider<MatchNotifier, MatchState>(MatchNotifier.new);
 
 class MatchNotifier extends Notifier<MatchState> {
   @override
-  MatchState build() => MatchState();
+  MatchState build() => initialMatchState();
 
   void startMatch({
-    required String playerA,
-    required String playerB,
-    required String opponentA,
-    required String opponentB,
-    required int pointsPerSet,
-    String teamUsName = 'Equipe A',
-    String teamThemName = 'Equipe B',
+    required String teamE1Name,
+    required String teamE2Name,
+    required String p1,
+    required String p2,
+    required String p3,
+    required String p4,
+    required String initialServerId,
   }) {
-    state = MatchState(
-      match: MatchData(
-        teamUsName: teamUsName,
-        teamThemName: teamThemName,
-        playerA: playerA,
-        playerB: playerB,
-        opponentA: opponentA,
-        opponentB: opponentB,
-        pointsPerSet: pointsPerSet,
-      ),
-      isSetup: false,
-      needsServerPick: true,
+    state = initialMatchState(
+      teamE1Name: teamE1Name,
+      teamE2Name: teamE2Name,
+      p1: p1,
+      p2: p2,
+      p3: p3,
+      p4: p4,
+      initialServerId: initialServerId,
     );
   }
 
-  void pickServer(String playerName) {
-    final match = state.match;
-    if (match == null) return;
+  void addPoint({
+    required String winner,
+    List<Annotation> annotations = const [],
+  }) {
+    final servingTeam = state.teamOfPlayer(state.servingPlayerId)!;
+    String newServerId;
+    final nextIdx = Map<String, int>.of(state.nextServerIndex);
 
-    match.servingPlayer = playerName;
-
-    // Record as last server for this team
-    if (match.servingTeam == 'us') {
-      match.lastUsServer = playerName;
+    if (winner == servingTeam) {
+      newServerId = state.servingPlayerId;
     } else {
-      match.lastThemServer = playerName;
+      final team = state.teams[winner]!;
+      final idx = state.nextServerIndex[winner]!;
+      newServerId = team.players[idx % team.players.length].id;
+      nextIdx[winner] = (idx + 1) % team.players.length;
     }
 
-    state = state.copyWith(match: match, needsServerPick: false);
-  }
+    final newScoreE1 = state.scoreE1 + (winner == 'e1' ? 1 : 0);
+    final newScoreE2 = state.scoreE2 + (winner == 'e2' ? 1 : 0);
+    final point = PointRecord(
+      winner: winner,
+      annotations: annotations,
+      scoreE1: newScoreE1,
+      scoreE2: newScoreE2,
+      serverId: newServerId,
+    );
+    final total = newScoreE1 + newScoreE2;
+    final shouldPrompt =
+        !state.changeSidePromptDismissed && total > 0 && total % 7 == 0;
 
-  void setTeamUsName(String name) {
-    state.match?.teamUsName = name;
-    state = state.copyWith(match: state.match);
-  }
-
-  void setTeamThemName(String name) {
-    state.match?.teamThemName = name;
-    state = state.copyWith(match: state.match);
-  }
-
-  void setPlayerA(String name) {
-    state.match?.playerA = name;
-    state = state.copyWith(match: state.match);
-  }
-
-  void setPlayerB(String name) {
-    state.match?.playerB = name;
-    state = state.copyWith(match: state.match);
-  }
-
-  void setOpponentA(String name) {
-    state.match?.opponentA = name;
-    state = state.copyWith(match: state.match);
-  }
-
-  void setOpponentB(String name) {
-    state.match?.opponentB = name;
-    state = state.copyWith(match: state.match);
-  }
-
-  void setServeZone(String zone) {
-    state.pending.serveZone = zone;
-    state = state.copyWith(pending: state.pending);
-  }
-
-  void setReceiver(String receiver) {
-    state.pending.receiver = receiver;
-    state = state.copyWith(pending: state.pending);
-  }
-
-  void setAttackType(String? type) {
-    state.pending.attackType = state.pending.attackType == type ? null : type;
-    state = state.copyWith(pending: state.pending);
-  }
-
-  void setBlockDirection(String? dir) {
-    state.pending.blockDirection = state.pending.blockDirection == dir ? null : dir;
-    state = state.copyWith(pending: state.pending);
-  }
-
-  void scorePoint(String result) {
-    final match = state.match;
-    if (match == null || match.servingPlayer == null) return;
-
-    // Set already won — don't score more
-    if (match.scoreUs >= match.pointsPerSet ||
-        match.scoreThem >= match.pointsPerSet) {
-      return;
-    }
-
-    if (result == 'us') {
-      match.scoreUs++;
-    } else {
-      match.scoreThem++;
-    }
-
-    match.points.add(PointRecord(
-      pointNumber: match.points.length + 1,
-      setNumber: match.currentSet,
-      serveZone: state.pending.serveZone,
-      receiver: state.pending.receiver,
-      attackType: state.pending.attackType,
-      blockDirection: state.pending.blockDirection,
-      result: result,
-      servingTeam: match.servingTeam,
-      servingPlayer: match.servingPlayer!,
-      scoreUs: match.scoreUs,
-      scoreThem: match.scoreThem,
-    ));
-
-    // The team that wins the point serves next
-    final newServingTeam = result;
-    final teamChanged = newServingTeam != match.servingTeam;
-    match.servingTeam = newServingTeam;
-
-    if (teamChanged) {
-      // Service goes to the other team — pick the next server
-      final lastServer = newServingTeam == 'us'
-          ? match.lastUsServer
-          : match.lastThemServer;
-
-      if (lastServer == null) {
-        // First time this team serves — ask user to pick
-        match.servingPlayer = null;
-        state.pending.reset();
-        state = state.copyWith(
-            match: match, pending: state.pending, needsServerPick: true);
-        return;
-      }
-
-      // Alternate: the OTHER player serves (not the one who served last)
-      if (newServingTeam == 'us') {
-        match.servingPlayer =
-            lastServer == match.playerA ? match.playerB : match.playerA;
-        match.lastUsServer = match.servingPlayer;
-      } else {
-        match.servingPlayer =
-            lastServer == match.opponentA ? match.opponentB : match.opponentA;
-        match.lastThemServer = match.servingPlayer;
-      }
-    }
-    // If same team keeps serving, same player continues
-
-    state.pending.reset();
-    state = state.copyWith(match: match, pending: state.pending);
-  }
-
-  void undo() {
-    final match = state.match;
-    if (match == null || match.points.isEmpty) return;
-
-    final last = match.points.removeLast();
-    if (last.result == 'us') {
-      match.scoreUs--;
-    } else {
-      match.scoreThem--;
-    }
-    match.servingTeam = last.servingTeam;
-    match.servingPlayer = last.servingPlayer;
-
-    // Restore lastServer for the team that was serving
-    if (last.servingTeam == 'us') {
-      match.lastUsServer = last.servingPlayer;
-    } else {
-      match.lastThemServer = last.servingPlayer;
-    }
-
-    state.pending.reset();
     state = state.copyWith(
-        match: match, pending: state.pending, needsServerPick: false);
+      history: [...state.history, point],
+      servingPlayerId: newServerId,
+      nextServerIndex: nextIdx,
+      popup: null,
+      changeSidePromptOpen: shouldPrompt,
+    );
   }
 
-  void nextSet() {
-    final match = state.match;
-    if (match == null) return;
-    match.currentSet++;
-    match.scoreUs = 0;
-    match.scoreThem = 0;
-    state = state.copyWith(match: match);
+  void undoPoint() {
+    if (state.history.isEmpty) return;
+    final newHistory = state.history.sublist(0, state.history.length - 1);
+    final replay = _replay(newHistory);
+    state = state.copyWith(
+      history: newHistory,
+      selectedPointIndex: null,
+      servingPlayerId: replay.$1,
+      nextServerIndex: replay.$2,
+    );
   }
 
-  void toggleServing() {
-    final match = state.match;
-    if (match == null) return;
-    match.servingTeam = match.servingTeam == 'us' ? 'them' : 'us';
-    match.servingPlayer = null;
-    state = state.copyWith(match: match, needsServerPick: true);
+  (String, Map<String, int>) _replay(List<PointRecord> history) {
+    String servingPlayerId = state.initialServerId;
+    final servingE1 =
+        servingPlayerId == 'p1' || servingPlayerId == 'p2';
+    final nextServerIndex = <String, int>{
+      'e1': servingE1 ? (servingPlayerId == 'p1' ? 1 : 0) : 0,
+      'e2': servingE1 ? 0 : (servingPlayerId == 'p3' ? 1 : 0),
+    };
+
+    for (final p in history) {
+      final servingTeam = state.teamOfPlayer(servingPlayerId)!;
+      if (p.winner == servingTeam) continue;
+      final team = state.teams[p.winner]!;
+      final idx = nextServerIndex[p.winner]!;
+      servingPlayerId = team.players[idx % team.players.length].id;
+      nextServerIndex[p.winner] = (idx + 1) % team.players.length;
+    }
+    return (servingPlayerId, nextServerIndex);
   }
 
-  void endMatch() {
-    state = MatchState();
+  void selectPoint(int index) =>
+      state = state.copyWith(selectedPointIndex: index);
+
+  void clearSelection() => state = state.copyWith(selectedPointIndex: null);
+
+  void movePlayer(String playerId, CourtPos pos) {
+    final newPos = Map<String, CourtPos>.of(state.positions);
+    newPos[playerId] = pos;
+    state = state.copyWith(positions: newPos);
   }
+
+  void setNotes(String notes) => state = state.copyWith(notes: notes);
+
+  void swapSides() {
+    final mirrored = <String, CourtPos>{};
+    state.positions.forEach((id, p) {
+      mirrored[id] = CourtPos(1 - p.x, p.y);
+    });
+    state = state.copyWith(
+      positions: mirrored,
+      sidesSwapped: !state.sidesSwapped,
+      changeSidePromptOpen: false,
+    );
+  }
+
+  void dismissChangeSideForever() => state = state.copyWith(
+        changeSidePromptOpen: false,
+        changeSidePromptDismissed: true,
+      );
+
+  void closeChangeSidePrompt() =>
+      state = state.copyWith(changeSidePromptOpen: false);
+
+  void renamePlayer(String playerId, String name) {
+    final teams = <String, Team>{};
+    state.teams.forEach((tk, team) {
+      teams[tk] = team.copyWith(
+        players: team.players
+            .map((p) => p.id == playerId ? p.copyWith(name: name) : p)
+            .toList(),
+      );
+    });
+    state = state.copyWith(teams: teams);
+  }
+
+  void renameTeam(String teamKey, String name) {
+    final teams = Map<String, Team>.of(state.teams);
+    teams[teamKey] = teams[teamKey]!.copyWith(name: name);
+    state = state.copyWith(teams: teams);
+  }
+
+  void showPopup(MatchPopup popup) => state = state.copyWith(popup: popup);
+
+  void dismissPopup() => state = state.copyWith(popup: null);
 }

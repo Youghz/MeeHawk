@@ -12,155 +12,234 @@ class MatchSetupScreen extends ConsumerStatefulWidget {
 }
 
 class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
-  final _us1 = TextEditingController(text: 'Joueur 1');
-  final _us2 = TextEditingController(text: 'Joueur 2');
-  final _them1 = TextEditingController(text: 'Joueur 1');
-  final _them2 = TextEditingController(text: 'Joueur 2');
-  final _teamUs = TextEditingController(text: 'Equipe A');
-  final _teamThem = TextEditingController(text: 'Equipe B');
-  int _pointsPerSet = 21;
+  final _team1 = TextEditingController(text: 'Équipe 1');
+  final _team2 = TextEditingController(text: 'Équipe 2');
+  final _p1 = TextEditingController(text: 'Ana');
+  final _p2 = TextEditingController(text: 'Sara');
+  final _p3 = TextEditingController(text: 'Léa');
+  final _p4 = TextEditingController(text: 'Marie');
+  String _initialServerId = 'p3';
 
   @override
   void dispose() {
-    _us1.dispose(); _us2.dispose();
-    _them1.dispose(); _them2.dispose();
-    _teamUs.dispose(); _teamThem.dispose();
+    _team1.dispose();
+    _team2.dispose();
+    _p1.dispose();
+    _p2.dispose();
+    _p3.dispose();
+    _p4.dispose();
     super.dispose();
   }
 
+  String _pickerLabel(String id) {
+    switch (id) {
+      case 'p1':
+        return _p1.text.trim().isEmpty ? 'Joueur 1' : _p1.text.trim();
+      case 'p2':
+        return _p2.text.trim().isEmpty ? 'Joueur 2' : _p2.text.trim();
+      case 'p3':
+        return _p3.text.trim().isEmpty ? 'Joueur 3' : _p3.text.trim();
+      default:
+        return _p4.text.trim().isEmpty ? 'Joueur 4' : _p4.text.trim();
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textSecondary),
-          onPressed: () => Navigator.of(context).pop(),
+  Widget build(BuildContext context) => Scaffold(
+        backgroundColor: MH.paper,
+        appBar: AppBar(
+          backgroundColor: MH.paper,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: MH.ink),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
         ),
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 440),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Center(
-                  child: Text('Nouveau match',
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
-                ),
-                const SizedBox(height: 32),
-                _teamSection(AppColors.green, _teamUs, _us1, _us2),
-                const SizedBox(height: 24),
-                _teamSection(AppColors.red, _teamThem, _them1, _them2),
-                const SizedBox(height: 24),
-                // Points per set
-                Row(
-                  children: [
-                    Text('Points par set',
-                        style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
-                    const Spacer(),
-                    SegmentedButton<int>(
-                      segments: const [
-                        ButtonSegment(value: 15, label: Text('15')),
-                        ButtonSegment(value: 21, label: Text('21')),
-                        ButtonSegment(value: 25, label: Text('25')),
-                      ],
-                      selected: {_pointsPerSet},
-                      onSelectionChanged: (v) => setState(() => _pointsPerSet = v.first),
-                      style: const ButtonStyle(visualDensity: VisualDensity.compact),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 36),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _start,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accent,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
-                    ),
-                    child: const Text('Commencer la partie',
-                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: SingleChildScrollView(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Text('Nouveau match',
+                        style: MH.sans(
+                          size: 22,
+                          weight: FontWeight.w700,
+                          color: MH.ink,
+                        )),
                   ),
-                ),
-                const SizedBox(height: 24),
-              ],
+                  const SizedBox(height: 32),
+                  _teamSection(MH.them, _team1, _p1, _p2),
+                  const SizedBox(height: 16),
+                  _teamSection(MH.us, _team2, _p3, _p4),
+                  const SizedBox(height: 24),
+                  _serverPicker(),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _start,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: MH.ink,
+                        foregroundColor: MH.paper,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Text('Commencer la partie',
+                          style: MH.sans(
+                            size: 16,
+                            weight: FontWeight.w600,
+                            color: MH.paper,
+                          )),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
-  }
+      );
 
-  Widget _teamSection(Color color, TextEditingController teamCtrl,
-      TextEditingController p1, TextEditingController p2) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Container(width: 4, height: 18, decoration: BoxDecoration(
-                color: color, borderRadius: BorderRadius.circular(2))),
-            const SizedBox(width: 10),
-            Expanded(child: _field(teamCtrl, style: TextStyle(
-                fontSize: 15, color: color, fontWeight: FontWeight.w600))),
-          ]),
-          const SizedBox(height: 10),
-          Row(children: [
-            Expanded(child: _field(p1, hint: 'Joueur 1')),
-            const SizedBox(width: 10),
-            Expanded(child: _field(p2, hint: 'Joueur 2')),
-          ]),
-        ],
-      ),
-    );
-  }
+  Widget _teamSection(
+      Color color,
+      TextEditingController team,
+      TextEditingController pA,
+      TextEditingController pB,
+    ) =>
+      Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: MH.paper,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.5), width: 1.5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _field(
+                    team,
+                    style: MH.sans(
+                      size: 15,
+                      weight: FontWeight.w700,
+                      color: color,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(child: _field(pA, hint: 'Joueur 1')),
+              const SizedBox(width: 10),
+              Expanded(child: _field(pB, hint: 'Joueur 2')),
+            ]),
+          ],
+        ),
+      );
 
-  Widget _field(TextEditingController c, {TextStyle? style, String? hint}) {
-    return TextField(
-      controller: c,
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 13),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: AppColors.border)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: AppColors.border)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: AppColors.accent)),
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        filled: true,
-        fillColor: AppColors.surfaceLight,
-      ),
-      style: style ?? const TextStyle(fontSize: 14),
-      onTap: () => c.selection = TextSelection(baseOffset: 0, extentOffset: c.text.length),
+  Widget _field(TextEditingController c, {TextStyle? style, String? hint}) =>
+      TextField(
+        controller: c,
+        style: style ?? MH.sans(size: 14, color: MH.ink),
+        onChanged: (_) => setState(() {}),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: MH.sans(size: 13, color: MH.pencil),
+          isDense: true,
+          filled: true,
+          fillColor: MH.sand,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: MH.rule),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: MH.rule),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: MH.ink, width: 1.5),
+          ),
+        ),
+      );
+
+  Widget _serverPicker() {
+    final options = ['p1', 'p2', 'p3', 'p4'];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Qui sert au départ ?',
+            style: MH.sans(
+              size: 13,
+              weight: FontWeight.w600,
+              color: MH.inkSoft,
+            )),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: options.map((id) {
+            final selected = id == _initialServerId;
+            final color =
+                (id == 'p1' || id == 'p2') ? MH.them : MH.us;
+            return ChoiceChip(
+              label: Text(
+                _pickerLabel(id),
+                style: MH.sans(
+                  size: 12,
+                  weight: FontWeight.w600,
+                  color: selected ? MH.paper : color,
+                ),
+              ),
+              selected: selected,
+              selectedColor: color,
+              backgroundColor: MH.paper,
+              side: BorderSide(color: color, width: 1.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(999),
+              ),
+              onSelected: (_) => setState(() => _initialServerId = id),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 
   void _start() {
     ref.read(matchProvider.notifier).startMatch(
-      teamUsName: _teamUs.text.trim().isEmpty ? 'Equipe A' : _teamUs.text.trim(),
-      teamThemName: _teamThem.text.trim().isEmpty ? 'Equipe B' : _teamThem.text.trim(),
-      playerA: _us1.text.trim().isEmpty ? 'Joueur 1' : _us1.text.trim(),
-      playerB: _us2.text.trim().isEmpty ? 'Joueur 2' : _us2.text.trim(),
-      opponentA: _them1.text.trim().isEmpty ? 'Joueur 1' : _them1.text.trim(),
-      opponentB: _them2.text.trim().isEmpty ? 'Joueur 2' : _them2.text.trim(),
-      pointsPerSet: _pointsPerSet,
-    );
+          teamE1Name:
+              _team1.text.trim().isEmpty ? 'Équipe 1' : _team1.text.trim(),
+          teamE2Name:
+              _team2.text.trim().isEmpty ? 'Équipe 2' : _team2.text.trim(),
+          p1: _p1.text.trim().isEmpty ? 'Ana' : _p1.text.trim(),
+          p2: _p2.text.trim().isEmpty ? 'Sara' : _p2.text.trim(),
+          p3: _p3.text.trim().isEmpty ? 'Léa' : _p3.text.trim(),
+          p4: _p4.text.trim().isEmpty ? 'Marie' : _p4.text.trim(),
+          initialServerId: _initialServerId,
+        );
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const MatchScreen()),
     );
