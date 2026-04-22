@@ -208,10 +208,10 @@ class PointRecord {
 
 ### 5.5 `MatchPopup`
 
-Dialogue ouvert (attack/fault/outsideFault/block/pickServer).
+Dialogue ouvert (fault/outsideFault/block/pickServer).
 
 ```dart
-enum PopupKind { attack, fault, pickServer, outsideFault, block }
+enum PopupKind { fault, pickServer, outsideFault, block }
 
 class MatchPopup {
   PopupKind kind;
@@ -223,6 +223,10 @@ class MatchPopup {
                                   // le commit du point
 }
 ```
+
+Le cas **attack** a été supprimé : le long-press intérieur commit
+directement le point sans popup, puisque le scoreur (= dernier
+toucheur) et le type d'attaque sont auto-dérivés.
 
 ### 5.6 `MatchState`
 
@@ -298,17 +302,44 @@ Un modal `ChangeSidePrompt` s'ouvre automatiquement quand `(scoreE1 + scoreE2) %
 
 ## 7. Carte des gestes (Court et PlayerDot)
 
+Chaque geste qui touche le terrain **enregistre un `BallImpact`** avec auto-attribution au joueur le plus proche du côté du tap. La popup éventuelle ne sert plus à saisir un joueur (il est déjà connu par le dernier impact), seulement à qualifier l'action (type de faute, direction de bloc).
+
 | Geste | Cible | Effet |
 |---|---|---|
-| **Tap simple** | Terrain (intérieur) | Ajoute un `BallImpact` (isOutside=false). Marker orange numéroté. |
-| **Tap simple** | Marge extérieure | Ajoute un `BallImpact` (isOutside=true). Marker rouge numéroté. |
-| **Long-press** | Terrain (intérieur) | Ouvre `AttackPopup` (2-step joueur → type) ancré au tap. L'équipe qui marque = opposée au côté du tap. |
-| **Long-press** | Marge extérieure | Ouvre `OutsideFaultPopup` (2-step joueur fautif → type). |
-| **Double-tap** | Zone filet (±18% autour du centre) | Ouvre `BlockPopup` (2-step bloqueur → direction Ligne/Diagonale). N'incrémente pas le score. |
+| **Tap simple** | Terrain (intérieur) | `BallImpact` (isOutside=false). Marker orange numéroté. Si le côté change vs l'impact précédent, auto-annotation `Attaque <type>` (ou `Service <type>` pour le 1er cross). |
+| **Tap simple** | Marge extérieure | `BallImpact` (isOutside=true). Marker rouge numéroté. |
+| **Long-press** | Terrain (intérieur) | `BallImpact` + **commit direct** du point à l'équipe opposée au côté du tap. Pas de popup. Type d'attaque auto-dérivé. |
+| **Long-press** | Marge extérieure | `BallImpact` + ouverture d'`OutsideFaultPopup` (1-step : type de faute). Faulteur = dernier toucheur avant l'impact out. |
+| **Double-tap** | Zone filet (±18% autour du centre) | `BallImpact` au point du tap + ouverture de `BlockPopup` (1-step : Ligne/Diagonale). Bloqueur = joueur auto-attribué à l'impact. **N'incrémente pas le score.** |
 | **Tap simple** | Pastille joueur | Ouvre `FaultPopup` (Filet/Double/Contrôle). Point à l'équipe adverse. Cadre rouge peu importe l'équipe. |
-| **Long-press + drag** | Pastille joueur | Active le swap vers le coéquipier. Preview live (le coéquipier glisse vers l'origine) dès que l'on passe le seuil « plus proche du coéquipier ». Relâcher en état armé commit le swap. |
-| **Tap** | Cellule de la timeline | Sélectionne le point → ouvre `ReplayPanel`. |
+| **Long-press + drag** | Pastille joueur | Active le swap vers le coéquipier. Preview live dès que l'on passe le seuil « plus proche du coéquipier ». Relâcher en état armé commit le swap. |
+| **Tap** | Cellule de la timeline | Sélectionne le point → passe le terrain en **mode replay**. |
+| **Geste** | Terrain pendant un replay | Quitte le mode replay (remet l'état live). |
 | **Tap hors popup** | Scrim / fond | Ferme la popup ouverte. |
+
+### 7.1 Auto-dérivation du type d'attaque
+
+À chaque `BallImpact` qui change de `teamSide` vs le précédent, le notifier calcule le type à partir de :
+- la position du dernier toucheur (`prev.x, prev.y`) = attaquant
+- la position d'atterrissage (`current.x, current.y`)
+
+| `depth = |current.x - 0.5|` | Latéralité (y attaquant vs y impact) | Type |
+|---|---|---|
+| `< 0.22` (court) | même demi-court en y | `Shot` |
+| `< 0.22` (court) | demi-court opposé | `Cut` |
+| `≥ 0.22` (fond) | même demi-court | `Ligne` |
+| `≥ 0.22` (fond) | demi-court opposé | `Diag` |
+
+Le seuil 0.22 correspond à peu près à la mi-profondeur du demi-terrain opposé dans la frame extérieure normalisée. L'annotation ajoutée est `Attaque <type> · <nom>` (ou `Service <type> · <nom>` pour le premier passage du filet du point).
+
+### 7.2 Mode replay
+
+Quand l'utilisateur clique une cellule de la timeline (`selectedPointIndex` non nul) :
+- Le terrain affiche les impacts du `PointRecord` sélectionné (au lieu du `rallyImpacts` live).
+- Les pastilles joueurs sont masquées (les positions historiques ne sont pas mémorisées).
+- Des lignes pointillées relient chaque impact au suivant (via `_TrajectoryPainter`) pour visualiser la trajectoire.
+- Tout geste sur le terrain dismisse le replay (retour en mode live).
+- La carte `ReplayPanel` sous le terrain liste les annotations dans l'ordre.
 
 ---
 

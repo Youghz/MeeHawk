@@ -28,6 +28,14 @@ class _CourtState extends ConsumerState<Court> {
     final leftColor = leftTeam == 'e1' ? MH.them : MH.us;
     final rightColor = rightTeam == 'e1' ? MH.them : MH.us;
 
+    // Replay mode: when a historical point is selected, show that point's
+    // trajectory instead of the current rally, hide players, disable
+    // gestures. Tap anywhere in replay mode clears the selection.
+    final replayIdx = state.selectedPointIndex;
+    final isReplay = replayIdx != null && replayIdx < state.history.length;
+    final impactsToShow =
+        isReplay ? state.history[replayIdx].impacts : state.rallyImpacts;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: LayoutBuilder(builder: (ctx, constraints) {
@@ -46,8 +54,8 @@ class _CourtState extends ConsumerState<Court> {
                   behavior: HitTestBehavior.opaque,
                   onTapUp: (d) => _onOutsideTap(
                       d.localPosition, outerW, outerH),
-                  onLongPressStart: (d) =>
-                      _onOutsideLongPress(d.localPosition, outerW, state),
+                  onLongPressStart: (d) => _onOutsideLongPress(
+                      d.localPosition, outerW, outerH, state),
                   child: const ColoredBox(color: MH.paper),
                 ),
               ),
@@ -64,10 +72,10 @@ class _CourtState extends ConsumerState<Court> {
                       behavior: HitTestBehavior.opaque,
                       onTapUp: (d) =>
                           _onInsideTap(d.localPosition, outerW, outerH),
-                      onLongPressStart: (d) =>
-                          _openAttackPopup(d.localPosition, innerW, state),
+                      onLongPressStart: (d) => _onInsideLongPress(
+                          d.localPosition, outerW, outerH, innerW, state),
                       onDoubleTapDown: (d) =>
-                          _onDoubleTap(d.localPosition, innerW, state),
+                          _onDoubleTap(d.localPosition, outerW, outerH, innerW),
                       onDoubleTap: () {},
                       child: RepaintBoundary(
                         child: _CourtCanvas(
@@ -81,27 +89,38 @@ class _CourtState extends ConsumerState<Court> {
                       ),
                     ),
                   ),
-                  ...['p1', 'p2', 'p3', 'p4'].map((id) => PlayerDot(
-                        key: ValueKey('dot-$id'),
-                        playerId: id,
-                        courtWidth: innerW,
-                        courtHeight: innerH,
-                      )),
+                  if (!isReplay)
+                    ...['p1', 'p2', 'p3', 'p4'].map((id) => PlayerDot(
+                          key: ValueKey('dot-$id'),
+                          playerId: id,
+                          courtWidth: innerW,
+                          courtHeight: innerH,
+                        )),
                 ]),
               ),
-              for (int i = 0; i < state.rallyImpacts.length; i++)
-                Positioned(
-                  left: state.rallyImpacts[i].x * outerW - 11,
-                  top: state.rallyImpacts[i].y * outerH - 11,
+              if (impactsToShow.length > 1)
+                Positioned.fill(
                   child: IgnorePointer(
-                    child: _ImpactMarker(
-                      index: i + 1,
-                      isOutside: state.rallyImpacts[i].isOutside,
+                    child: CustomPaint(
+                      painter: _TrajectoryPainter(
+                        impacts: impactsToShow,
+                        outerW: outerW,
+                        outerH: outerH,
+                      ),
                     ),
                   ),
                 ),
-              if (state.popup?.kind == PopupKind.attack)
-                const Positioned.fill(child: AttackPopup()),
+              for (int i = 0; i < impactsToShow.length; i++)
+                Positioned(
+                  left: impactsToShow[i].x * outerW - 11,
+                  top: impactsToShow[i].y * outerH - 11,
+                  child: IgnorePointer(
+                    child: _ImpactMarker(
+                      index: i + 1,
+                      isOutside: impactsToShow[i].isOutside,
+                    ),
+                  ),
+                ),
               if (state.popup?.kind == PopupKind.fault)
                 const Positioned.fill(child: FaultPopup()),
               if (state.popup?.kind == PopupKind.pickServer)
@@ -118,24 +137,48 @@ class _CourtState extends ConsumerState<Court> {
   }
 
   void _onInsideTap(Offset p, double outerW, double outerH) {
+    if (_maybeDismissReplay()) return;
     final nx = (p.dx + _margin) / outerW;
     final ny = (p.dy + _margin) / outerH;
     _recordImpact(nx, ny, isOutside: false);
   }
 
-  void _openAttackPopup(Offset p, double w, MatchState state) {
-    final isLeftSide = p.dx < w / 2;
+  /// Long-press inside = the rally ended with the ball landing on this
+  /// side. Record the landing impact (which auto-annotates the winning
+  /// attack via addBallImpact's cross detection) then commit the point
+  /// to the opposite team.
+  void _onInsideLongPress(
+    Offset p,
+    double outerW,
+    double outerH,
+    double innerW,
+    MatchState state,
+  ) {
+    if (_maybeDismissReplay()) return;
+    final nx = (p.dx + _margin) / outerW;
+    final ny = (p.dy + _margin) / outerH;
+    _recordImpact(nx, ny, isOutside: false);
+    final isLeftSide = p.dx < innerW / 2;
     final leftTeam = state.sidesSwapped ? 'e2' : 'e1';
     final rightTeam = state.sidesSwapped ? 'e1' : 'e2';
     final winner = isLeftSide ? rightTeam : leftTeam;
-    final anchor = Offset(p.dx + _margin, p.dy + _margin);
-    ref.read(matchProvider.notifier).showPopup(
-          MatchPopup(kind: PopupKind.attack, winner: winner, tapPos: anchor),
-        );
+    ref
+        .read(matchProvider.notifier)
+        .addPoint(winner: winner);
   }
 
   void _onOutsideTap(Offset p, double outerW, double outerH) {
+    if (_maybeDismissReplay()) return;
     _recordImpact(p.dx / outerW, p.dy / outerH, isOutside: true);
+  }
+
+  bool _maybeDismissReplay() {
+    final sel = ref.read(matchProvider).selectedPointIndex;
+    if (sel != null) {
+      ref.read(matchProvider.notifier).clearSelection();
+      return true;
+    }
+    return false;
   }
 
   /// Record a ball impact with auto-computed team side and nearest-player
@@ -200,27 +243,42 @@ class _CourtState extends ConsumerState<Court> {
     return best;
   }
 
-  void _onDoubleTap(Offset p, double innerW, MatchState state) {
-    final xNorm = p.dx / innerW;
+  void _onDoubleTap(
+    Offset p,
+    double outerW,
+    double outerH,
+    double innerW,
+  ) {
+    if (_maybeDismissReplay()) return;
+    final xInnerNorm = p.dx / innerW;
     const netZone = 0.18;
-    if ((xNorm - 0.5).abs() > netZone) return;
-    final isLeftSide = xNorm < 0.5;
-    final leftTeam = state.sidesSwapped ? 'e2' : 'e1';
-    final rightTeam = state.sidesSwapped ? 'e1' : 'e2';
-    final blockerTeam = isLeftSide ? leftTeam : rightTeam;
-    // Double-tap fires inside the inner court, but the popup is placed in
-    // the outer stack → add the inner-court offset so the anchor matches.
-    final anchor = Offset(p.dx + _margin, p.dy + _margin);
+    if ((xInnerNorm - 0.5).abs() > netZone) return;
+    final nx = (p.dx + _margin) / outerW;
+    final ny = (p.dy + _margin) / outerH;
+    // Record the block as an impact first; playerId is auto-attributed to
+    // the nearest player on that side (= the blocker). The popup then only
+    // asks for direction.
+    _recordImpact(nx, ny, isOutside: false);
     ref.read(matchProvider.notifier).showPopup(
           MatchPopup(
             kind: PopupKind.block,
-            winner: blockerTeam,
-            tapPos: anchor,
+            winner: ref.read(matchProvider).rallyImpacts.last.teamSide,
+            tapPos: Offset(p.dx + _margin, p.dy + _margin),
           ),
         );
   }
 
-  void _onOutsideLongPress(Offset p, double outerW, MatchState state) {
+  /// Long-press outside = ball left the court while being played. Record
+  /// the outside impact then open the fault-type popup. The faulter is
+  /// the last recorded touch (auto-attributed).
+  void _onOutsideLongPress(
+    Offset p,
+    double outerW,
+    double outerH,
+    MatchState state,
+  ) {
+    if (_maybeDismissReplay()) return;
+    _recordImpact(p.dx / outerW, p.dy / outerH, isOutside: true);
     final isLeft = p.dx < outerW / 2;
     final leftTeam = state.sidesSwapped ? 'e2' : 'e1';
     final rightTeam = state.sidesSwapped ? 'e1' : 'e2';
@@ -233,6 +291,54 @@ class _CourtState extends ConsumerState<Court> {
           ),
         );
   }
+}
+
+/// Draws dashed lines between consecutive impact markers to visualize the
+/// ball trajectory during the rally or the replay of a historical point.
+class _TrajectoryPainter extends CustomPainter {
+  final List<BallImpact> impacts;
+  final double outerW;
+  final double outerH;
+  _TrajectoryPainter({
+    required this.impacts,
+    required this.outerW,
+    required this.outerH,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (impacts.length < 2) return;
+    final paint = Paint()
+      ..color = MH.pencil.withValues(alpha: 0.5)
+      ..strokeWidth = 1.2
+      ..strokeCap = StrokeCap.round;
+    for (var i = 1; i < impacts.length; i++) {
+      final a = Offset(impacts[i - 1].x * outerW, impacts[i - 1].y * outerH);
+      final b = Offset(impacts[i].x * outerW, impacts[i].y * outerH);
+      _drawDashedLine(canvas, paint, a, b);
+    }
+  }
+
+  void _drawDashedLine(Canvas canvas, Paint paint, Offset a, Offset b) {
+    const dash = 5.0;
+    const gap = 4.0;
+    final delta = b - a;
+    final dist = delta.distance;
+    if (dist == 0) return;
+    final unit = delta / dist;
+    double traveled = 0;
+    while (traveled < dist) {
+      final segEnd = (traveled + dash).clamp(0.0, dist);
+      canvas.drawLine(a + unit * traveled, a + unit * segEnd, paint);
+      traveled += dash + gap;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TrajectoryPainter old) =>
+      old.impacts != impacts ||
+      old.outerW != outerW ||
+      old.outerH != outerH;
 }
 
 class _ImpactMarker extends StatelessWidget {

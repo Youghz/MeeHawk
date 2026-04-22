@@ -112,7 +112,7 @@ class PointRecord {
   }
 }
 
-enum PopupKind { attack, fault, pickServer, outsideFault, block }
+enum PopupKind { fault, pickServer, outsideFault, block }
 
 class MatchPopup {
   final PopupKind kind;

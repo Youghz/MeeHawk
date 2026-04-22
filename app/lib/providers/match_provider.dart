@@ -119,10 +119,53 @@ class MatchNotifier extends Notifier<MatchState> {
     );
   }
 
+  /// Record a ball impact during the current rally. If this impact lands on
+  /// the opposite side of the net from the previous one, auto-annotate the
+  /// attack (or the serve, for the first crossing) with an inferred type.
   void addBallImpact(BallImpact impact) {
+    final prev = state.rallyImpacts.isNotEmpty
+        ? state.rallyImpacts.last
+        : null;
+    var annotations = state.rallyAnnotations;
+    if (prev != null && prev.teamSide != impact.teamSide) {
+      final type = _inferAttackType(prev, impact);
+      final attacker = prev.playerId != null
+          ? state.playerById(prev.playerId!)?.name ?? '—'
+          : '—';
+      final isService = state.rallyImpacts.length == 1;
+      final label = isService ? 'Service' : 'Attaque';
+      annotations = [
+        ...state.rallyAnnotations,
+        Annotation(
+          type: isService ? 'service' : 'attack',
+          text: '$label $type · $attacker',
+          team: prev.teamSide,
+        ),
+      ];
+    }
     state = state.copyWith(
       rallyImpacts: [...state.rallyImpacts, impact],
+      rallyAnnotations: annotations,
     );
+  }
+
+  /// Infer attack type from the attacker's position (previous impact) and
+  /// the ball landing position (current impact).
+  ///
+  /// - Depth along the x-axis relative to the net at x=0.5 in outer-frame
+  ///   normalized coordinates. The team half-depth in outer coords is
+  ///   roughly 0.44 on small screens and 0.47 on wide ones, so we use 0.22
+  ///   (≈ mid-court) as the short/deep threshold.
+  /// - Lateral: same y-half as the attacker (Ligne/Shot) vs opposite
+  ///   (Diag/Cut).
+  static String _inferAttackType(BallImpact from, BallImpact to) {
+    final depth = (to.x - 0.5).abs();
+    final isShort = depth < 0.22;
+    final lateralSame = (from.y - 0.5) * (to.y - 0.5) > 0;
+    if (isShort && lateralSame) return 'Shot';
+    if (isShort && !lateralSame) return 'Cut';
+    if (!isShort && lateralSame) return 'Ligne';
+    return 'Diag';
   }
 
   void undoPoint() {

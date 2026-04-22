@@ -4,60 +4,8 @@ import '../models/match_state.dart';
 import '../providers/match_provider.dart';
 import '../theme.dart';
 
-const _attackTypes = ['Cut', 'Line', 'Shot', 'Power', 'Ace', 'Bloc'];
 const _faultTypes = ['Filet', 'Double', 'Contrôle'];
 const _blockDirections = ['Ligne', 'Diagonale'];
-
-class AttackPopup extends ConsumerStatefulWidget {
-  const AttackPopup({super.key});
-
-  @override
-  ConsumerState<AttackPopup> createState() => _AttackPopupState();
-}
-
-class _AttackPopupState extends ConsumerState<AttackPopup> {
-  String? _scorerId;
-
-  @override
-  Widget build(BuildContext context) {
-    final state = ref.watch(matchProvider);
-    final popup = state.popup!;
-    final color = popup.winner == 'e1' ? MH.them : MH.us;
-    final notifier = ref.read(matchProvider.notifier);
-    final winningTeam = state.teams[popup.winner]!;
-
-    if (_scorerId == null) {
-      return _AnchoredDropdown(
-        anchor: popup.tapPos ?? Offset.zero,
-        color: color,
-        items: [for (final p in winningTeam.players) p.name],
-        onPick: (name) {
-          final match = winningTeam.players.firstWhere((p) => p.name == name);
-          setState(() => _scorerId = match.id);
-        },
-        onDismiss: notifier.dismissPopup,
-      );
-    }
-
-    final scorer = state.playerById(_scorerId!);
-    return _AnchoredDropdown(
-      anchor: popup.tapPos ?? Offset.zero,
-      color: color,
-      items: _attackTypes,
-      onPick: (t) => notifier.addPoint(
-        winner: popup.winner,
-        annotations: [
-          Annotation(
-            type: 'attack',
-            text: 'Attaque $t · ${scorer?.name ?? ''}',
-            team: popup.winner,
-          ),
-        ],
-      ),
-      onDismiss: notifier.dismissPopup,
-    );
-  }
-}
 
 class _AnchoredDropdown extends StatelessWidget {
   final Offset anchor;
@@ -230,31 +178,17 @@ class BlockPopup extends ConsumerStatefulWidget {
 }
 
 class _BlockPopupState extends ConsumerState<BlockPopup> {
-  String? _blockerId;
-
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(matchProvider);
     final popup = state.popup!;
     final notifier = ref.read(matchProvider.notifier);
     final teamKey = popup.winner;
-    final team = state.teams[teamKey]!;
     final color = teamKey == 'e1' ? MH.them : MH.us;
-
-    if (_blockerId == null) {
-      return _AnchoredDropdown(
-        anchor: popup.tapPos ?? Offset.zero,
-        color: color,
-        items: [for (final p in team.players) p.name],
-        onPick: (name) {
-          final match = team.players.firstWhere((p) => p.name == name);
-          setState(() => _blockerId = match.id);
-        },
-        onDismiss: notifier.dismissPopup,
-      );
-    }
-
-    final blocker = state.playerById(_blockerId!);
+    // Blocker = nearest player attributed on the double-tap impact (last one).
+    final blocker = state.rallyImpacts.isNotEmpty
+        ? state.playerById(state.rallyImpacts.last.playerId ?? '')
+        : null;
     return _AnchoredDropdown(
       anchor: popup.tapPos ?? Offset.zero,
       color: color,
@@ -262,7 +196,7 @@ class _BlockPopupState extends ConsumerState<BlockPopup> {
       onPick: (dir) => notifier.addRallyAnnotation(
         Annotation(
           type: 'block',
-          text: 'Bloc $dir · ${blocker?.name ?? ''}',
+          text: 'Bloc $dir · ${blocker?.name ?? '—'}',
           team: teamKey,
         ),
       ),
@@ -279,8 +213,6 @@ class OutsideFaultPopup extends ConsumerStatefulWidget {
 }
 
 class _OutsideFaultPopupState extends ConsumerState<OutsideFaultPopup> {
-  String? _faulterId;
-
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(matchProvider);
@@ -288,23 +220,15 @@ class _OutsideFaultPopupState extends ConsumerState<OutsideFaultPopup> {
     final notifier = ref.read(matchProvider.notifier);
     final winner = popup.winner;
     final faultTeamKey = winner == 'e1' ? 'e2' : 'e1';
-    final faultTeam = state.teams[faultTeamKey]!;
-    const color = MH.them;
-
-    if (_faulterId == null) {
-      return _AnchoredDropdown(
-        anchor: popup.tapPos ?? Offset.zero,
-        color: color,
-        items: [for (final p in faultTeam.players) p.name],
-        onPick: (name) {
-          final match = faultTeam.players.firstWhere((p) => p.name == name);
-          setState(() => _faulterId = match.id);
-        },
-        onDismiss: notifier.dismissPopup,
-      );
-    }
-
-    final faulter = state.playerById(_faulterId!);
+    const color = MH.bad;
+    // Faulter = last touch before the ball went out (previous impact; the
+    // outside impact itself was just recorded so its playerId is a nearest-
+    // defender heuristic — not the faulter).
+    final faulter = state.rallyImpacts.length >= 2
+        ? state.playerById(
+            state.rallyImpacts[state.rallyImpacts.length - 2].playerId ?? '',
+          )
+        : null;
     return _AnchoredDropdown(
       anchor: popup.tapPos ?? Offset.zero,
       color: color,
@@ -314,7 +238,7 @@ class _OutsideFaultPopupState extends ConsumerState<OutsideFaultPopup> {
         annotations: [
           Annotation(
             type: 'fault',
-            text: 'Faute $t · ${faulter?.name ?? ''}',
+            text: 'Faute $t · ${faulter?.name ?? '—'}',
             team: faultTeamKey,
           ),
         ],
