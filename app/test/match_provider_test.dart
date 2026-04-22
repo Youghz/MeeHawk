@@ -1,0 +1,369 @@
+// Behavior tests for volleyball scoring rules and annotation logic.
+//
+// These tests document expected behavior as an executable spec. They drive
+// the MatchNotifier directly (no UI) so they are fast and deterministic.
+
+import 'package:app/features/match/domain/match_state.dart';
+import 'package:app/features/match/providers/match_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+MatchNotifier notifier(ProviderContainer c) => c.read(matchProvider.notifier);
+MatchState state(ProviderContainer c) => c.read(matchProvider);
+
+ProviderContainer newMatch({String firstServer = 'p3'}) {
+  final c = ProviderContainer();
+  addTearDown(c.dispose);
+  notifier(c).startMatch(
+    teamE1Name: 'E1',
+    teamE2Name: 'E2',
+    p1: 'A', p2: 'B', p3: 'C', p4: 'D',
+    initialServerId: firstServer,
+  );
+  return c;
+}
+
+BallImpact impact(double x, double y,
+        {required TeamSide side, bool out = false, String? playerId}) =>
+    BallImpact(x: x, y: y, isOutside: out, teamSide: side, playerId: playerId);
+
+/// Award `count` points to `winner`, resolving pickFirstServer popups by
+/// defaulting to the first player of the winning team. Use for quickly
+/// building up a set state.
+void awardPoints(ProviderContainer c, TeamSide winner, int count) {
+  for (var i = 0; i < count; i++) {
+    notifier(c).addPoint(winner: winner);
+    if (state(c).popup?.kind == PopupKind.pickServer) {
+      final team = state(c).teams[winner]!;
+      notifier(c).pickFirstServer(team.players.first.id);
+    }
+  }
+}
+
+void main() {
+  group('Service rotation', () {
+    test('same player keeps serving while his team wins', () {
+      final c = newMatch();
+      expect(state(c).servingPlayerId, 'p3');
+      notifier(c).addPoint(winner: TeamSide.e2);
+      expect(state(c).servingPlayerId, 'p3');
+      notifier(c).addPoint(winner: TeamSide.e2);
+      expect(state(c).servingPlayerId, 'p3');
+    });
+
+    test('first side-out triggers pickServer popup, not a committed point', () {
+      final c = newMatch();
+      notifier(c).addPoint(winner: TeamSide.e1);
+      expect(state(c).popup?.kind, PopupKind.pickServer);
+      expect(state(c).popup?.winner, TeamSide.e1);
+      expect(state(c).history, isEmpty);
+      expect(state(c).scoreE1, 0);
+    });
+
+    test('pickFirstServer commits the pending point and sets server', () {
+      final c = newMatch();
+      notifier(c).addPoint(winner: TeamSide.e1);
+      notifier(c).pickFirstServer('p2');
+      expect(state(c).popup, isNull);
+      expect(state(c).history.length, 1);
+      expect(state(c).servingPlayerId, 'p2');
+      expect(state(c).scoreE1, 1);
+    });
+
+    test('2nd side-out back to a team alternates to the other player', () {
+      final c = newMatch();
+      notifier(c).addPoint(winner: TeamSide.e1);
+      notifier(c).pickFirstServer('p1');
+      notifier(c).addPoint(winner: TeamSide.e2);
+      expect(state(c).servingPlayerId, 'p4');
+      notifier(c).addPoint(winner: TeamSide.e1);
+      expect(state(c).servingPlayerId, 'p2');
+      notifier(c).addPoint(winner: TeamSide.e1);
+      expect(state(c).servingPlayerId, 'p2');
+      notifier(c).addPoint(winner: TeamSide.e2);
+      expect(state(c).servingPlayerId, 'p3');
+    });
+
+    test('pickFirstServer ignored when no popup is open', () {
+      final c = newMatch();
+      notifier(c).pickFirstServer('p1');
+      expect(state(c).history, isEmpty);
+    });
+  });
+
+  group('Score tracking', () {
+    test('addPoint increments the right team score', () {
+      final c = newMatch();
+      notifier(c).addPoint(winner: TeamSide.e2);
+      notifier(c).addPoint(winner: TeamSide.e2);
+      expect(state(c).scoreE2, 2);
+      expect(state(c).scoreE1, 0);
+    });
+
+    test('history records per-set score and serverId', () {
+      final c = newMatch();
+      notifier(c).addPoint(winner: TeamSide.e2);
+      final p = state(c).history.last;
+      expect(p.scoreE2, 1);
+      expect(p.serverId, 'p3');
+      expect(p.setNumber, 1);
+    });
+  });
+
+  group('Undo', () {
+    test('undo removes last point', () {
+      final c = newMatch();
+      notifier(c).addPoint(winner: TeamSide.e2);
+      notifier(c).addPoint(winner: TeamSide.e2);
+      notifier(c).undoPoint();
+      expect(state(c).scoreE2, 1);
+      expect(state(c).history.length, 1);
+    });
+
+    test('undo reconstructs the correct server after side-outs', () {
+      final c = newMatch();
+      notifier(c).addPoint(winner: TeamSide.e1);
+      notifier(c).pickFirstServer('p1');
+      notifier(c).addPoint(winner: TeamSide.e2);
+      notifier(c).addPoint(winner: TeamSide.e1);
+      expect(state(c).servingPlayerId, 'p2');
+      notifier(c).undoPoint();
+      expect(state(c).servingPlayerId, 'p4');
+      notifier(c).undoPoint();
+      expect(state(c).servingPlayerId, 'p1');
+    });
+
+    test('undo on empty history is a no-op', () {
+      final c = newMatch();
+      notifier(c).undoPoint();
+      expect(state(c).history, isEmpty);
+    });
+
+    test('undo after a won set restores set state', () {
+      final c = newMatch();
+      awardPoints(c, TeamSide.e2, 20);
+      awardPoints(c, TeamSide.e1, 1);
+      // e1 must pick first server before committing the point.
+      if (state(c).popup?.kind == PopupKind.pickServer) {
+        notifier(c).pickFirstServer('p1');
+      }
+      expect(state(c).scoreE1, 1);
+      expect(state(c).scoreE2, 20);
+      // Two more for e2 → 21, set over.
+      awardPoints(c, TeamSide.e2, 1);
+      expect(state(c).popup?.kind, PopupKind.setEnd);
+      notifier(c).undoPoint();
+      expect(state(c).popup, isNull);
+      expect(state(c).scoreE2, 20);
+      expect(state(c).sets, isEmpty);
+      expect(state(c).setNumber, 1);
+    });
+  });
+
+  group('Rally impacts & auto-annotation', () {
+    test('first cross-net impact is annotated as Service', () {
+      final c = newMatch();
+      notifier(c)
+          .addBallImpact(impact(0.75, 0.5, side: TeamSide.e2, playerId: 'p3'));
+      notifier(c).addBallImpact(impact(0.25, 0.5, side: TeamSide.e1));
+      final annots = state(c).rallyAnnotations;
+      expect(annots.length, 1);
+      expect(annots.first.type, 'service');
+      expect(annots.first.text, contains('Service'));
+    });
+
+    test('subsequent cross-net impact is annotated as Attaque', () {
+      final c = newMatch();
+      notifier(c)
+          .addBallImpact(impact(0.75, 0.5, side: TeamSide.e2, playerId: 'p3'));
+      notifier(c).addBallImpact(impact(0.25, 0.5, side: TeamSide.e1));
+      notifier(c)
+          .addBallImpact(impact(0.30, 0.5, side: TeamSide.e1, playerId: 'p1'));
+      notifier(c).addBallImpact(impact(0.70, 0.5, side: TeamSide.e2));
+      final annots = state(c).rallyAnnotations;
+      expect(annots.length, 2);
+      expect(annots.last.type, 'attack');
+      expect(annots.last.text, contains('Attaque'));
+    });
+
+    test('same-side consecutive impacts are not annotated', () {
+      final c = newMatch();
+      notifier(c)
+          .addBallImpact(impact(0.25, 0.3, side: TeamSide.e1, playerId: 'p1'));
+      notifier(c)
+          .addBallImpact(impact(0.25, 0.5, side: TeamSide.e1, playerId: 'p2'));
+      notifier(c)
+          .addBallImpact(impact(0.25, 0.7, side: TeamSide.e1, playerId: 'p1'));
+      expect(state(c).rallyAnnotations, isEmpty);
+    });
+
+    test('impacts cleared on point commit', () {
+      final c = newMatch();
+      notifier(c).addBallImpact(impact(0.75, 0.5, side: TeamSide.e2));
+      notifier(c).addBallImpact(impact(0.25, 0.5, side: TeamSide.e1));
+      expect(state(c).rallyImpacts.length, 2);
+      notifier(c).addPoint(winner: TeamSide.e2);
+      expect(state(c).rallyImpacts, isEmpty);
+      expect(state(c).rallyAnnotations, isEmpty);
+    });
+
+    test('netCrossings counts net crossings (not touches)', () {
+      final c = newMatch();
+      notifier(c).addBallImpact(impact(0.75, 0.5, side: TeamSide.e2)); // serve
+      notifier(c).addBallImpact(impact(0.25, 0.5, side: TeamSide.e1)); // +1
+      notifier(c).addBallImpact(impact(0.20, 0.4, side: TeamSide.e1));
+      notifier(c).addBallImpact(impact(0.30, 0.5, side: TeamSide.e1));
+      notifier(c).addBallImpact(impact(0.70, 0.5, side: TeamSide.e2)); // +2
+      notifier(c).addBallImpact(impact(0.30, 0.5, side: TeamSide.e1)); // +3
+      notifier(c).addPoint(winner: TeamSide.e2);
+      expect(state(c).history.last.netCrossings, 3);
+    });
+
+    test('rallyImpacts preserved in point record', () {
+      final c = newMatch();
+      notifier(c).addBallImpact(impact(0.75, 0.5, side: TeamSide.e2));
+      notifier(c).addBallImpact(impact(0.25, 0.5, side: TeamSide.e1));
+      notifier(c).addPoint(winner: TeamSide.e2);
+      expect(state(c).history.last.impacts.length, 2);
+    });
+  });
+
+  group('Change-side prompt', () {
+    test('regular set: every 7 total points', () {
+      final c = newMatch();
+      for (var i = 0; i < 6; i++) {
+        notifier(c).addPoint(winner: TeamSide.e2);
+      }
+      expect(state(c).changeSidePromptOpen, isFalse);
+      notifier(c).addPoint(winner: TeamSide.e2);
+      expect(state(c).changeSidePromptOpen, isTrue);
+    });
+
+    test('deciding set 3: every 5 total points', () {
+      final c = newMatch();
+      // Win set 1 for e2 (21-0).
+      awardPoints(c, TeamSide.e2, 21);
+      expect(state(c).popup?.kind, PopupKind.setEnd);
+      notifier(c).startNextSet();
+      // Win set 2 for e1 (21-0).
+      awardPoints(c, TeamSide.e1, 21);
+      notifier(c).startNextSet();
+      expect(state(c).setNumber, 3);
+      // In set 3, prompt at total = 5.
+      awardPoints(c, TeamSide.e2, 4);
+      expect(state(c).changeSidePromptOpen, isFalse);
+      awardPoints(c, TeamSide.e2, 1);
+      expect(state(c).changeSidePromptOpen, isTrue);
+    });
+
+    test('dismissChangeSideForever prevents future prompts within set', () {
+      final c = newMatch();
+      for (var i = 0; i < 7; i++) {
+        notifier(c).addPoint(winner: TeamSide.e2);
+      }
+      expect(state(c).changeSidePromptOpen, isTrue);
+      notifier(c).dismissChangeSideForever();
+      for (var i = 0; i < 7; i++) {
+        notifier(c).addPoint(winner: TeamSide.e2);
+      }
+      expect(state(c).changeSidePromptOpen, isFalse);
+    });
+  });
+
+  group('Set / match end', () {
+    test('set is won at 21 with 2-point lead', () {
+      final c = newMatch();
+      awardPoints(c, TeamSide.e2, 20);
+      awardPoints(c, TeamSide.e1, 20);
+      if (state(c).popup?.kind == PopupKind.pickServer) {
+        notifier(c).pickFirstServer('p1');
+      }
+      expect(state(c).scoreE1, 20);
+      expect(state(c).scoreE2, 20);
+      notifier(c).addPoint(winner: TeamSide.e1);
+      // 21-20 — not enough gap yet.
+      expect(state(c).popup, isNull);
+      expect(state(c).scoreE1, 21);
+      notifier(c).addPoint(winner: TeamSide.e2);
+      // 21-21 — still no.
+      expect(state(c).popup, isNull);
+      notifier(c).addPoint(winner: TeamSide.e1);
+      notifier(c).addPoint(winner: TeamSide.e1);
+      // 23-21 → set over.
+      expect(state(c).popup?.kind, PopupKind.setEnd);
+      expect(state(c).sets.length, 1);
+      expect(state(c).sets.first.winner, TeamSide.e1);
+    });
+
+    test('startNextSet resets points, bumps set number, auto-swaps sides', () {
+      final c = newMatch();
+      awardPoints(c, TeamSide.e2, 21);
+      final swappedBefore = state(c).sidesSwapped;
+      notifier(c).startNextSet();
+      expect(state(c).popup, isNull);
+      expect(state(c).setNumber, 2);
+      expect(state(c).scoreE1, 0);
+      expect(state(c).scoreE2, 0);
+      expect(state(c).sidesSwapped, !swappedBefore);
+    });
+
+    test('match ends at 2 sets to 0 and disables scoring', () {
+      final c = newMatch();
+      awardPoints(c, TeamSide.e2, 21);
+      notifier(c).startNextSet();
+      awardPoints(c, TeamSide.e2, 21);
+      expect(state(c).popup?.kind, PopupKind.matchEnd);
+      expect(state(c).matchOver, isTrue);
+      // Further addPoint is a no-op.
+      notifier(c).addPoint(winner: TeamSide.e1);
+      expect(state(c).scoreE1, 0);
+    });
+
+    test('deciding set played to 15', () {
+      final c = newMatch();
+      awardPoints(c, TeamSide.e2, 21);
+      notifier(c).startNextSet();
+      awardPoints(c, TeamSide.e1, 21);
+      notifier(c).startNextSet();
+      expect(state(c).setNumber, 3);
+      awardPoints(c, TeamSide.e2, 14);
+      expect(state(c).popup, isNull);
+      awardPoints(c, TeamSide.e2, 1);
+      expect(state(c).popup?.kind, PopupKind.matchEnd);
+      expect(state(c).sets.last.scoreE2, 15);
+    });
+  });
+
+  group('Swap sides / teammates / rename', () {
+    test('swapSides mirrors x and toggles sidesSwapped', () {
+      final c = newMatch();
+      final before = state(c).positions['p1']!;
+      notifier(c).swapSides();
+      final after = state(c).positions['p1']!;
+      expect(after.x, closeTo(1 - before.x, 1e-9));
+      expect(after.y, before.y);
+      expect(state(c).sidesSwapped, isTrue);
+    });
+
+    test('swapTeammates swaps two teammates positions', () {
+      final c = newMatch();
+      final p1Before = state(c).positions['p1']!;
+      final p2Before = state(c).positions['p2']!;
+      notifier(c).swapTeammates('p1');
+      expect(state(c).positions['p1']!.x, p2Before.x);
+      expect(state(c).positions['p2']!.x, p1Before.x);
+    });
+
+    test('renamePlayer updates the player', () {
+      final c = newMatch();
+      notifier(c).renamePlayer('p1', 'Zoé');
+      expect(state(c).playerById('p1')!.name, 'Zoé');
+    });
+
+    test('renameTeam updates the team', () {
+      final c = newMatch();
+      notifier(c).renameTeam(TeamSide.e1, 'Rouges');
+      expect(state(c).teams[TeamSide.e1]!.name, 'Rouges');
+    });
+  });
+}

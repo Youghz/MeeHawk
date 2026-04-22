@@ -1,0 +1,202 @@
+import 'package:app/core/rules/attack_inference.dart';
+import 'package:app/core/rules/match_format.dart';
+import 'package:app/core/rules/rally_analyzer.dart';
+import 'package:app/core/rules/service_rotation.dart';
+import 'package:app/core/rules/set_rules.dart';
+import 'package:app/core/rules/team_side.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+class _Impact implements ImpactLike {
+  _Impact(this.teamSide);
+
+  @override
+  final TeamSide teamSide;
+}
+
+void main() {
+  group('SetRules.isSetWon', () {
+    const f = MatchFormat.beachFivb;
+
+    test('21 to 19 is a set win', () {
+      expect(SetRules.isSetWon(21, 19, 1, f), isTrue);
+    });
+    test('21 to 20 is NOT a set win (no 2-point lead)', () {
+      expect(SetRules.isSetWon(21, 20, 1, f), isFalse);
+    });
+    test('22 to 20 is a set win', () {
+      expect(SetRules.isSetWon(22, 20, 1, f), isTrue);
+    });
+    test('30 to 29 is not a set win', () {
+      expect(SetRules.isSetWon(30, 29, 1, f), isFalse);
+    });
+    test('deciding set target is 15', () {
+      expect(SetRules.isSetWon(15, 13, 3, f), isTrue);
+      expect(SetRules.isSetWon(14, 12, 3, f), isFalse);
+      expect(SetRules.isSetWon(15, 14, 3, f), isFalse);
+    });
+  });
+
+  group('SetRules.isMatchWon', () {
+    const f = MatchFormat.beachFivb;
+
+    test('2 sets wins the match', () {
+      expect(SetRules.isMatchWon(2, 0, f), isTrue);
+      expect(SetRules.isMatchWon(2, 1, f), isTrue);
+      expect(SetRules.isMatchWon(1, 2, f), isTrue);
+    });
+    test('1 set is not enough', () {
+      expect(SetRules.isMatchWon(1, 1, f), isFalse);
+      expect(SetRules.isMatchWon(1, 0, f), isFalse);
+    });
+  });
+
+  group('SetRules.shouldPromptSideChange', () {
+    const f = MatchFormat.beachFivb;
+
+    test('set 1: every 7 points', () {
+      expect(
+          SetRules.shouldPromptSideChange(
+              totalPointsAfter: 7, setNumber: 1, format: f),
+          isTrue);
+      expect(
+          SetRules.shouldPromptSideChange(
+              totalPointsAfter: 14, setNumber: 1, format: f),
+          isTrue);
+      expect(
+          SetRules.shouldPromptSideChange(
+              totalPointsAfter: 8, setNumber: 1, format: f),
+          isFalse);
+    });
+    test('set 3: every 5 points', () {
+      expect(
+          SetRules.shouldPromptSideChange(
+              totalPointsAfter: 5, setNumber: 3, format: f),
+          isTrue);
+      expect(
+          SetRules.shouldPromptSideChange(
+              totalPointsAfter: 10, setNumber: 3, format: f),
+          isTrue);
+      expect(
+          SetRules.shouldPromptSideChange(
+              totalPointsAfter: 7, setNumber: 3, format: f),
+          isFalse);
+    });
+    test('0 total never prompts', () {
+      expect(
+          SetRules.shouldPromptSideChange(
+              totalPointsAfter: 0, setNumber: 1, format: f),
+          isFalse);
+    });
+  });
+
+  group('AttackInference.classify', () {
+    test('short + same lateral → Shot', () {
+      expect(
+          AttackInference.classify(
+              fromX: 0.3, fromY: 0.3, toX: 0.6, toY: 0.3),
+          'Shot');
+    });
+    test('short + opposite lateral → Cut', () {
+      expect(
+          AttackInference.classify(
+              fromX: 0.3, fromY: 0.3, toX: 0.6, toY: 0.7),
+          'Cut');
+    });
+    test('deep + same lateral → Ligne', () {
+      expect(
+          AttackInference.classify(
+              fromX: 0.3, fromY: 0.3, toX: 0.85, toY: 0.3),
+          'Ligne');
+    });
+    test('deep + opposite lateral → Diag', () {
+      expect(
+          AttackInference.classify(
+              fromX: 0.3, fromY: 0.3, toX: 0.85, toY: 0.7),
+          'Diag');
+    });
+  });
+
+  group('RallyAnalyzer.netCrossings', () {
+    test('fewer than 2 impacts → 0', () {
+      expect(RallyAnalyzer.netCrossings([]), 0);
+      expect(RallyAnalyzer.netCrossings([_Impact(TeamSide.e1)]), 0);
+    });
+    test('serve + receive + attack', () {
+      final imps = [
+        _Impact(TeamSide.e2),
+        _Impact(TeamSide.e1),
+        _Impact(TeamSide.e1),
+        _Impact(TeamSide.e2),
+      ];
+      expect(RallyAnalyzer.netCrossings(imps), 2);
+    });
+    test('long rally', () {
+      final imps = [
+        _Impact(TeamSide.e2),
+        _Impact(TeamSide.e1),
+        _Impact(TeamSide.e1),
+        _Impact(TeamSide.e2),
+        _Impact(TeamSide.e1),
+        _Impact(TeamSide.e2),
+      ];
+      expect(RallyAnalyzer.netCrossings(imps), 4);
+    });
+  });
+
+  group('RallyAnalyzer.averageTouchesPerVisit', () {
+    test('each side visited once with varying touches', () {
+      final imps = [
+        _Impact(TeamSide.e2), // serve
+        _Impact(TeamSide.e1), // receive
+        _Impact(TeamSide.e1), // set
+        _Impact(TeamSide.e1), // attack
+        _Impact(TeamSide.e2), // dig
+      ];
+      final avg = RallyAnalyzer.averageTouchesPerVisit(imps);
+      expect(avg[TeamSide.e1], 3);
+      expect(avg[TeamSide.e2], 1);
+    });
+  });
+
+  group('ServiceRotation.next', () {
+    final players = {
+      TeamSide.e1: ['p1', 'p2'],
+      TeamSide.e2: ['p3', 'p4'],
+    };
+
+    test('server holds serve when their team wins', () {
+      final res = ServiceRotation.next(
+        currentServerId: 'p3',
+        servingTeam: TeamSide.e2,
+        winner: TeamSide.e2,
+        playersByTeam: players,
+        nextServerIndex: {TeamSide.e1: 0, TeamSide.e2: 0},
+      );
+      expect(res.serverId, 'p3');
+    });
+
+    test('side-out rotates to the next player of winning team', () {
+      final res = ServiceRotation.next(
+        currentServerId: 'p3',
+        servingTeam: TeamSide.e2,
+        winner: TeamSide.e1,
+        playersByTeam: players,
+        nextServerIndex: {TeamSide.e1: 0, TeamSide.e2: 0},
+      );
+      expect(res.serverId, 'p1');
+      expect(res.nextIndex[TeamSide.e1], 1);
+    });
+  });
+
+  group('TeamSide', () {
+    test('other toggles between e1 and e2', () {
+      expect(TeamSide.e1.other, TeamSide.e2);
+      expect(TeamSide.e2.other, TeamSide.e1);
+    });
+    test('fromKey roundtrips', () {
+      expect(TeamSide.fromKey('e1'), TeamSide.e1);
+      expect(TeamSide.fromKey('e2'), TeamSide.e2);
+      expect(() => TeamSide.fromKey('e3'), throwsArgumentError);
+    });
+  });
+}
