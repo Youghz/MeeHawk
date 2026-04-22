@@ -12,14 +12,12 @@ class Timeline extends ConsumerStatefulWidget {
 }
 
 class _TimelineState extends ConsumerState<Timeline> {
-  final _e1Ctrl = ScrollController();
-  final _e2Ctrl = ScrollController();
+  final _ctrl = ScrollController();
   int _lastLength = 0;
 
   @override
   void dispose() {
-    _e1Ctrl.dispose();
-    _e2Ctrl.dispose();
+    _ctrl.dispose();
     super.dispose();
   }
 
@@ -27,14 +25,12 @@ class _TimelineState extends ConsumerState<Timeline> {
     if (length == _lastLength) return;
     _lastLength = length;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      for (final c in [_e1Ctrl, _e2Ctrl]) {
-        if (c.hasClients) {
-          c.animateTo(
-            c.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-          );
-        }
+      if (_ctrl.hasClients) {
+        _ctrl.animateTo(
+          _ctrl.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+        );
       }
     });
   }
@@ -63,82 +59,105 @@ class _TimelineState extends ConsumerState<Timeline> {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 2),
-      child: Column(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          _row(state, 'e1', 'E1', MH.them, _e1Ctrl),
-          const SizedBox(height: 3),
-          _row(state, 'e2', 'E2', MH.us, _e2Ctrl),
+          SizedBox(
+            width: 72,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                _teamLabel(state.teams['e1']!.name, MH.them),
+                const SizedBox(height: 3),
+                _teamLabel(state.teams['e2']!.name, MH.us),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: SingleChildScrollView(
+              controller: _ctrl,
+              scrollDirection: Axis.horizontal,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _row(state, 'e1', MH.them),
+                  const SizedBox(height: 3),
+                  _row(state, 'e2', MH.us),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _row(MatchState state, String tk, String label, Color color,
-      ScrollController ctrl) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 22,
-          child: Text(label,
-              style: MH.sans(
-                size: 9,
-                weight: FontWeight.w700,
-                color: color,
-                letterSpacing: 0.4,
-              )),
-        ),
-        Expanded(
-          child: SizedBox(
-            height: 16,
-            child: ListView.separated(
-              controller: ctrl,
-              scrollDirection: Axis.horizontal,
-              itemCount: state.history.length,
-              separatorBuilder: (_, i) => const SizedBox(width: 2),
-              itemBuilder: (_, i) {
-                final p = state.history[i];
-                final active = state.selectedPointIndex == i;
-                final isMine = p.winner == tk;
-                final teamScore = p.scoreOf(tk);
-                return GestureDetector(
-                  onTap: () =>
-                      ref.read(matchProvider.notifier).selectPoint(i),
-                  child: Container(
-                    width: 20,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      color: isMine ? color : Colors.transparent,
-                      borderRadius: BorderRadius.circular(3),
-                      border: isMine
-                          ? null
-                          : Border.all(color: MH.rule, width: 1),
-                    ),
-                    foregroundDecoration: active
-                        ? BoxDecoration(
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: MH.ink, width: 1.5),
-                          )
-                        : null,
-                    alignment: Alignment.center,
-                    child: isMine
-                        ? Text(
-                            '$teamScore',
-                            style: MH.sans(
-                              size: 9,
-                              weight: FontWeight.w700,
-                              color: MH.paper,
-                            ).copyWith(fontFeatures: const [
-                              FontFeature.tabularFigures()
-                            ]),
-                          )
-                        : null,
-                  ),
-                );
-              },
-            ),
+  Widget _teamLabel(String name, Color color) => SizedBox(
+        height: 16,
+        child: Text(
+          name.toUpperCase(),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.end,
+          style: MH.sans(
+            size: 9,
+            weight: FontWeight.w700,
+            color: color,
+            letterSpacing: 0.4,
           ),
         ),
-      ],
+      );
+
+  Widget _row(MatchState state, String tk, Color color) {
+    const cellW = 20.0;
+    const cellGap = 2.0;
+    return SizedBox(
+      height: 16,
+      child: Row(
+        children: [
+          for (int i = 0; i < state.history.length; i++) ...[
+            if (i > 0) const SizedBox(width: cellGap),
+            _cell(state, i, tk, color, cellW),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _cell(MatchState state, int i, String tk, Color color, double w) {
+    final p = state.history[i];
+    final active = state.selectedPointIndex == i;
+    final isMine = p.winner == tk;
+    final teamScore = p.scoreOf(tk);
+    return GestureDetector(
+      onTap: () => ref.read(matchProvider.notifier).selectPoint(i),
+      child: Container(
+        width: w,
+        height: 16,
+        decoration: BoxDecoration(
+          color: isMine ? color : Colors.transparent,
+          borderRadius: BorderRadius.circular(3),
+          border: isMine ? null : Border.all(color: MH.rule, width: 1),
+        ),
+        foregroundDecoration: active
+            ? BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: MH.ink, width: 1.5),
+              )
+            : null,
+        alignment: Alignment.center,
+        child: isMine
+            ? Text(
+                '$teamScore',
+                style: MH.sans(
+                  size: 9,
+                  weight: FontWeight.w700,
+                  color: MH.paper,
+                ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+              )
+            : null,
+      ),
     );
   }
 }

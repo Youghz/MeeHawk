@@ -73,15 +73,6 @@ class ChangeSidePrompt extends ConsumerWidget {
                         color: MH.ink,
                         height: 1.25,
                       )),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Au beach volley, les équipes changent de côté tous les 7 points pour équilibrer vent et soleil.',
-                    style: MH.sans(
-                      size: 12,
-                      color: MH.inkSoft,
-                      height: 1.45,
-                    ),
-                  ),
                   const SizedBox(height: 14),
                   SizedBox(
                     width: double.infinity,

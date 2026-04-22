@@ -9,7 +9,7 @@ class HelpHint extends StatefulWidget {
 }
 
 class _HelpHintState extends State<HelpHint> {
-  bool _open = true;
+  bool _open = false;
 
   @override
   Widget build(BuildContext context) {
@@ -20,18 +20,18 @@ class _HelpHintState extends State<HelpHint> {
         child: GestureDetector(
           onTap: () => setState(() => _open = true),
           child: Container(
-            width: 22,
-            height: 22,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
               color: MH.ink,
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.circular(999),
             ),
-            child: Text('?',
+            child: Text('Aide',
                 style: MH.sans(
-                  size: 12,
+                  size: 11,
                   weight: FontWeight.w700,
                   color: MH.paper,
+                  letterSpacing: 0.4,
                 )),
           ),
         ),

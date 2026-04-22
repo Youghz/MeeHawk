@@ -25,16 +25,14 @@ class ServeBanner extends ConsumerWidget {
       child: Row(
         children: [
           Expanded(
-            child: Align(
-              alignment: Alignment.center,
-              child: Opacity(opacity: serverOnLeft ? 1 : 0, child: badge),
-            ),
+            child: serverOnLeft
+                ? Align(alignment: Alignment.center, child: badge)
+                : const SizedBox.shrink(),
           ),
           Expanded(
-            child: Align(
-              alignment: Alignment.center,
-              child: Opacity(opacity: serverOnLeft ? 0 : 1, child: badge),
-            ),
+            child: serverOnLeft
+                ? const SizedBox.shrink()
+                : Align(alignment: Alignment.center, child: badge),
           ),
         ],
       ),

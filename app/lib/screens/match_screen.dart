@@ -20,30 +20,30 @@ class MatchScreen extends StatelessWidget {
         body: SafeArea(
           child: Stack(
             children: const [
-              _MatchColumn(),
+              Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          TopScore(),
+                          ServeBanner(),
+                          Court(),
+                          SwapSidesButton(),
+                          Timeline(),
+                          ReplayPanel(),
+                          MatchNotes(),
+                        ],
+                      ),
+                    ),
+                  ),
+                  BottomActions(),
+                ],
+              ),
               HelpHint(),
               ChangeSidePrompt(),
             ],
           ),
         ),
-      );
-}
-
-class _MatchColumn extends StatelessWidget {
-  const _MatchColumn();
-
-  @override
-  Widget build(BuildContext context) => Column(
-        children: const [
-          TopScore(),
-          ServeBanner(),
-          Court(),
-          SwapSidesButton(),
-          Timeline(),
-          ReplayPanel(),
-          MatchNotes(),
-          Spacer(),
-          BottomActions(),
-        ],
       );
 }

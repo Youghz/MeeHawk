@@ -51,11 +51,13 @@ class _Score extends StatelessWidget {
   const _Score({required this.value});
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-        width: 36,
+  Widget build(BuildContext context) => ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 36),
         child: Text(
           '$value',
           textAlign: TextAlign.center,
+          maxLines: 1,
+          softWrap: false,
           style: MH.sans(
             size: 34,
             weight: FontWeight.w700,
