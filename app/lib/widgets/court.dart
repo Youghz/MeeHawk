@@ -19,6 +19,11 @@ class _CourtState extends ConsumerState<Court> {
   static const _margin = kCourtMargin;
   static const _maxOuterW = 720.0;
 
+  double? _layoutOuterW;
+  double? _layoutOuterH;
+  double? _layoutInnerW;
+  double? _layoutInnerH;
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(matchProvider);
@@ -30,11 +35,17 @@ class _CourtState extends ConsumerState<Court> {
 
     // Replay mode: when a historical point is selected, show that point's
     // trajectory instead of the current rally, hide players, disable
-    // gestures. Tap anywhere in replay mode clears the selection.
+    // gestures.
     final replayIdx = state.selectedPointIndex;
     final isReplay = replayIdx != null && replayIdx < state.history.length;
     final impactsToShow =
         isReplay ? state.history[replayIdx].impacts : state.rallyImpacts;
+
+    // Seed impact 0 (server position) at the start of each rally. Only when
+    // the live rally is empty, after the first layout gives us outerW.
+    if (!isReplay && state.rallyImpacts.isEmpty) {
+      _scheduleSeedImpact();
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -44,6 +55,10 @@ class _CourtState extends ConsumerState<Court> {
         final innerW = (outerW - _margin * 2).clamp(80.0, double.infinity);
         final innerH = innerW / 2;
         final outerH = innerH + _margin * 2;
+        _layoutOuterW = outerW;
+        _layoutOuterH = outerH;
+        _layoutInnerW = innerW;
+        _layoutInnerH = innerH;
         return Center(
           child: SizedBox(
             width: outerW,
@@ -179,6 +194,38 @@ class _CourtState extends ConsumerState<Court> {
       return true;
     }
     return false;
+  }
+
+  /// Schedule a post-frame callback to seed the empty rally with impact 0
+  /// at the server's position. Idempotent: aborts if the rally was already
+  /// seeded before the callback runs.
+  void _scheduleSeedImpact() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final outerW = _layoutOuterW;
+      final outerH = _layoutOuterH;
+      final innerW = _layoutInnerW;
+      final innerH = _layoutInnerH;
+      if (outerW == null || outerH == null || innerW == null || innerH == null) {
+        return;
+      }
+      final current = ref.read(matchProvider);
+      if (current.rallyImpacts.isNotEmpty) return;
+      if (current.selectedPointIndex != null) return;
+      final serverId = current.servingPlayerId;
+      final pos = current.positions[serverId];
+      if (pos == null) return;
+      final teamSide = current.teamOfPlayer(serverId);
+      if (teamSide == null) return;
+      ref.read(matchProvider.notifier).addBallImpact(
+            BallImpact(
+              x: (_margin + pos.x * innerW) / outerW,
+              y: (_margin + pos.y * innerH) / outerH,
+              isOutside: false,
+              teamSide: teamSide,
+              playerId: serverId,
+            ),
+          );
+    });
   }
 
   /// Record a ball impact with auto-computed team side and nearest-player

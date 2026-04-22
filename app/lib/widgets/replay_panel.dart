@@ -16,6 +16,10 @@ class ReplayPanel extends ConsumerWidget {
     final point = state.history[idx];
     final winnerTeam = state.teams[point.winner]!;
     final color = point.winner == 'e1' ? MH.them : MH.us;
+    final lastAction = point.annotations.isNotEmpty
+        ? point.annotations.last
+        : null;
+    final rallyLength = point.rallyLength;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
@@ -46,13 +50,13 @@ class ReplayPanel extends ConsumerWidget {
                         letterSpacing: 0.6,
                       )),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 Text(
-                  '${point.scoreE1}–${point.scoreE2}',
+                  '$rallyLength coup${rallyLength > 1 ? 's' : ''}',
                   style: MH.sans(
                     size: 10,
                     color: MH.paper.withValues(alpha: 0.6),
-                  ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+                  ),
                 ),
                 const Spacer(),
                 Text(
@@ -64,51 +68,32 @@ class ReplayPanel extends ConsumerWidget {
                     letterSpacing: 0.4,
                   ),
                 ),
-                const SizedBox(width: 4),
-                GestureDetector(
-                  onTap: () =>
-                      ref.read(matchProvider.notifier).clearSelection(),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Text('×',
-                        style: MH.sans(
-                          size: 16,
-                          color: MH.paper.withValues(alpha: 0.5),
-                        )),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('· ',
+                    style: MH.sans(
+                      size: 12,
+                      color: MH.paper.withValues(alpha: 0.5),
+                    )),
+                Expanded(
+                  child: Text(
+                    lastAction?.text ?? 'Aucune action enregistrée',
+                    style: MH.sans(
+                      size: 12,
+                      color: MH.paper,
+                      height: 1.3,
+                      fontStyle: lastAction == null
+                          ? FontStyle.italic
+                          : FontStyle.normal,
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
-            if (point.annotations.isEmpty)
-              Text('Aucune annotation pour cet échange',
-                  style: MH.sans(
-                    size: 11,
-                    color: MH.paper.withValues(alpha: 0.6),
-                    fontStyle: FontStyle.italic,
-                  )),
-            for (final a in point.annotations)
-              Padding(
-                padding: const EdgeInsets.only(top: 3),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('· ',
-                        style: MH.sans(
-                          size: 11,
-                          color: MH.paper.withValues(alpha: 0.5),
-                        )),
-                    Expanded(
-                      child: Text(a.text,
-                          style: MH.sans(
-                            size: 11,
-                            color: MH.paper,
-                            height: 1.3,
-                          )),
-                    ),
-                  ],
-                ),
-              ),
           ],
         ),
       ),

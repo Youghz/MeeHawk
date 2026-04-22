@@ -338,8 +338,14 @@ Quand l'utilisateur clique une cellule de la timeline (`selectedPointIndex` non 
 - Le terrain affiche les impacts du `PointRecord` sélectionné (au lieu du `rallyImpacts` live).
 - Les pastilles joueurs sont masquées (les positions historiques ne sont pas mémorisées).
 - Des lignes pointillées relient chaque impact au suivant (via `_TrajectoryPainter`) pour visualiser la trajectoire.
-- Tout geste sur le terrain dismisse le replay (retour en mode live).
-- La carte `ReplayPanel` sous le terrain liste les annotations dans l'ordre.
+- `ReplayPanel` sous le terrain affiche uniquement **la longueur de l'échange** (nombre de coups / passages du filet) et **la dernière action gagnante**.
+- `MatchScreen` superpose un `Listener` plein écran qui, sur `onPointerDown`, appelle `clearSelection` : **n'importe quel clic dans l'app** sort du mode replay. Le `Listener` utilise `HitTestBehavior.translucent` donc le tap continue vers le widget sous-jacent — la sortie de replay et l'action cible ont lieu dans le même geste.
+
+### 7.3 Seed de l'impact 0 au service
+
+Au début de chaque échange (rallie vide, hors mode replay), le Court planifie via un `addPostFrameCallback` la création du premier impact : position du joueur en train de servir (`state.positions[state.servingPlayerId]` convertie en frame extérieure à partir des dimensions mesurées par le `LayoutBuilder`). Ainsi chaque `PointRecord.impacts[0]` représente le point d'émission du service.
+
+L'auto-annotation des crosses fonctionne sans adaptation : le premier tap de l'utilisateur (qui atterrit en général sur le côté receveur) détecte la transition vs l'impact 0 et génère un `Service <type> · <serveur>`.
 
 ---
 
