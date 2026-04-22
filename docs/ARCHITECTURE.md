@@ -341,11 +341,11 @@ Quand l'utilisateur clique une cellule de la timeline (`selectedPointIndex` non 
 - `ReplayPanel` sous le terrain affiche uniquement **la longueur de l'échange** (nombre de coups / passages du filet) et **la dernière action gagnante**.
 - `MatchScreen` superpose un `Listener` plein écran qui, sur `onPointerDown`, appelle `clearSelection` : **n'importe quel clic dans l'app** sort du mode replay. Le `Listener` utilise `HitTestBehavior.translucent` donc le tap continue vers le widget sous-jacent — la sortie de replay et l'action cible ont lieu dans le même geste.
 
-### 7.3 Seed de l'impact 0 au service
+### 7.3 Impact 0 au service
 
-Au début de chaque échange (rallie vide, hors mode replay), le Court planifie via un `addPostFrameCallback` la création du premier impact : position du joueur en train de servir (`state.positions[state.servingPlayerId]` convertie en frame extérieure à partir des dimensions mesurées par le `LayoutBuilder`). Ainsi chaque `PointRecord.impacts[0]` représente le point d'émission du service.
+Convention : chaque échange commence par un tap manuel de l'utilisateur sur la ligne de service, à l'emplacement où le serveur se trouve. Le notifier ne fait aucun seed automatique — le premier impact du rally est enregistré comme un tap ordinaire (auto-attribution : le joueur le plus proche sur le côté, typiquement le serveur lui-même).
 
-L'auto-annotation des crosses fonctionne sans adaptation : le premier tap de l'utilisateur (qui atterrit en général sur le côté receveur) détecte la transition vs l'impact 0 et génère un `Service <type> · <serveur>`.
+L'auto-annotation des crosses fonctionne sans adaptation : le deuxième tap (sur le côté receveur) détecte la transition vs l'impact 0 et génère `Service <type> · <serveur>`.
 
 ---
 
