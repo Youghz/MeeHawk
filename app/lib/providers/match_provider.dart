@@ -33,6 +33,47 @@ class MatchNotifier extends Notifier<MatchState> {
     List<Annotation> annotations = const [],
   }) {
     final servingTeam = state.teamOfPlayer(state.servingPlayerId)!;
+    final gainsServe = winner != servingTeam;
+    if (gainsServe && state.firstServerIndex[winner] == null) {
+      state = state.copyWith(
+        popup: MatchPopup(
+          kind: PopupKind.pickServer,
+          winner: winner,
+          pendingAnnotations: annotations,
+        ),
+      );
+      return;
+    }
+    _commitPoint(winner: winner, annotations: annotations);
+  }
+
+  void pickFirstServer(String playerId) {
+    final popup = state.popup;
+    if (popup == null || popup.kind != PopupKind.pickServer) return;
+    final winner = popup.winner;
+    final team = state.teams[winner]!;
+    final idx = team.players.indexWhere((p) => p.id == playerId);
+    if (idx < 0) return;
+    final firstIdx = Map<String, int?>.of(state.firstServerIndex);
+    final nextIdx = Map<String, int>.of(state.nextServerIndex);
+    firstIdx[winner] = idx;
+    nextIdx[winner] = idx;
+    state = state.copyWith(
+      firstServerIndex: firstIdx,
+      nextServerIndex: nextIdx,
+      popup: null,
+    );
+    _commitPoint(
+      winner: winner,
+      annotations: popup.pendingAnnotations,
+    );
+  }
+
+  void _commitPoint({
+    required String winner,
+    required List<Annotation> annotations,
+  }) {
+    final servingTeam = state.teamOfPlayer(state.servingPlayerId)!;
     String newServerId;
     final nextIdx = Map<String, int>.of(state.nextServerIndex);
 
@@ -47,12 +88,14 @@ class MatchNotifier extends Notifier<MatchState> {
 
     final newScoreE1 = state.scoreE1 + (winner == 'e1' ? 1 : 0);
     final newScoreE2 = state.scoreE2 + (winner == 'e2' ? 1 : 0);
+    final merged = [...state.rallyAnnotations, ...annotations];
     final point = PointRecord(
       winner: winner,
-      annotations: annotations,
+      annotations: merged,
       scoreE1: newScoreE1,
       scoreE2: newScoreE2,
       serverId: newServerId,
+      impacts: state.rallyImpacts,
     );
     final total = newScoreE1 + newScoreE2;
     final shouldPrompt =
@@ -62,8 +105,23 @@ class MatchNotifier extends Notifier<MatchState> {
       history: [...state.history, point],
       servingPlayerId: newServerId,
       nextServerIndex: nextIdx,
+      rallyAnnotations: const [],
+      rallyImpacts: const [],
       popup: null,
       changeSidePromptOpen: shouldPrompt,
+    );
+  }
+
+  void addRallyAnnotation(Annotation a) {
+    state = state.copyWith(
+      rallyAnnotations: [...state.rallyAnnotations, a],
+      popup: null,
+    );
+  }
+
+  void addBallImpact(BallImpact impact) {
+    state = state.copyWith(
+      rallyImpacts: [...state.rallyImpacts, impact],
     );
   }
 
@@ -81,11 +139,14 @@ class MatchNotifier extends Notifier<MatchState> {
 
   (String, Map<String, int>) _replay(List<PointRecord> history) {
     String servingPlayerId = state.initialServerId;
-    final servingE1 =
-        servingPlayerId == 'p1' || servingPlayerId == 'p2';
+    final startingTeam = state.teamOfPlayer(servingPlayerId)!;
+    final otherTeam = startingTeam == 'e1' ? 'e2' : 'e1';
+    final startingFirst = state.firstServerIndex[startingTeam]!;
+    final otherFirst = state.firstServerIndex[otherTeam];
     final nextServerIndex = <String, int>{
-      'e1': servingE1 ? (servingPlayerId == 'p1' ? 1 : 0) : 0,
-      'e2': servingE1 ? 0 : (servingPlayerId == 'p3' ? 1 : 0),
+      startingTeam:
+          (startingFirst + 1) % state.teams[startingTeam]!.players.length,
+      otherTeam: otherFirst ?? 0,
     };
 
     for (final p in history) {
@@ -104,9 +165,17 @@ class MatchNotifier extends Notifier<MatchState> {
 
   void clearSelection() => state = state.copyWith(selectedPointIndex: null);
 
-  void movePlayer(String playerId, CourtPos pos) {
+  void swapTeammates(String playerId) {
+    final teamKey = state.teamOfPlayer(playerId);
+    if (teamKey == null) return;
+    final team = state.teams[teamKey]!;
+    if (team.players.length < 2) return;
+    final other = team.players.firstWhere((p) => p.id != playerId).id;
     final newPos = Map<String, CourtPos>.of(state.positions);
-    newPos[playerId] = pos;
+    final a = newPos[playerId]!;
+    final b = newPos[other]!;
+    newPos[playerId] = b;
+    newPos[other] = a;
     state = state.copyWith(positions: newPos);
   }
 
