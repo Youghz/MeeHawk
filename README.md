@@ -11,22 +11,28 @@ Ce repo contient la branche `main` (app de scoring seule) et une branche `featur
 - Rotation de service conforme au beach (sideout) : même serveur tant que l'équipe sert, l'autre joueur prend le service quand son équipe le récupère
 - Annulation du dernier point avec re-calcul correct de l'état de service (replay de l'historique)
 - Noms d'équipes et de joueurs éditables en cours de match
+- Gestion multi-sets avec prompt automatique de fin de set
 
 ### Saisie détaillée depuis le terrain
-- **Tap** sur le terrain adverse → pose un marker de réception (visuel, éphémère)
+- **Tap** sur le terrain → pose un impact de balle (marker visuel)
 - **Long-press** sur le terrain → popup du type d'attaque (`Cut`, `Line`, `Shot`, `Power`, `Ace`, `Bloc`) → le point est attribué à l'équipe du côté opposé
 - **Long-press** sur un joueur → popup du type de faute (`Service`, `Filet`, `Double`, `Out`, `Pied`, `Autre`) → le point va à l'équipe adverse avec annotation nominative
 - **Long-press + glisse** sur un joueur → repositionne la pastille sur le terrain
+- Auto-inférence des types d'impact (Service / Attaque) selon les traversées de filet
 
 ### Timeline et replay
 - Deux rangées horizontales (une par équipe) avec un cube coloré par point gagné et un cube vide pour les rallies perdus
 - Auto-scroll vers la droite à chaque nouveau point
-- Tap sur un cube → ouvre un panneau de replay avec le n° de l'échange, le score au moment et toutes les annotations
+- Tap sur un cube → ouvre un panneau de replay avec le n° de l'échange, le score au moment et la trajectoire annotée
 
 ### Règles beach spécifiques
 - Bouton `Changer de côté` sous le terrain (miroir des positions joueurs)
 - Modal automatique tous les 7 points pour rappeler le changement de côté
 - Option « Ne pas changer de côté » qui silence définitivement le rappel pour ce match
+
+### Persistance
+- Sauvegarde automatique de l'état du match en local (SharedPreferences)
+- Reprise du match en cas de kill d'app ou de rechargement
 
 ### Divers
 - Zone de notes libre (conditions, tactique, observations)
@@ -36,21 +42,35 @@ Ce repo contient la branche `main` (app de scoring seule) et une branche `featur
 
 ### Frontend
 - **Flutter 3.11+** — app cross-platform (web + iOS + Android)
-- **Riverpod 3** — state management, un unique `MatchNotifier` porte la logique de match (rotation serveur, undo, swap sides, change-side prompt)
+- **Riverpod 3** — state management ; `MatchNotifier` porte la logique de match (rotation serveur, undo, swap sides, impacts, persistence)
 - **google_fonts** — Roboto (UI), Rubik (labels mono uppercase), Caveat (callouts terrain)
-- Pas de backend ni de persistance à ce jour : l'état vit en mémoire pour la durée du match
-- Aucune authentification
+- **SharedPreferences** — persistance locale du match en cours
+- Aucune authentification, aucun backend
 
 ### Architecture
 ```
 app/lib/
-├── main.dart                 ProviderScope
-├── app.dart                  MaterialApp → HomeScreen
-├── theme.dart                Tokens MH + ThemeData
-├── models/match_state.dart   MatchState, Team, Player, PointRecord, Annotation, Popup
-├── providers/match_provider.dart   Reducer porté de proto-core.jsx
-├── screens/                  home, match_setup, match
-└── widgets/                  court, player_dot, timeline, replay_panel, etc.
+├── main.dart
+├── app.dart                          MaterialApp → HomeScreen
+├── core/
+│   ├── theme.dart                    Tokens MH + ThemeData
+│   ├── widgets/ball_icon.dart
+│   └── rules/                        Logique pure, zéro import Flutter
+│       ├── set_rules.dart            Conditions de victoire d'un set
+│       ├── service_rotation.dart     Rotation de service beach
+│       ├── team_side.dart            Côté terrain par équipe
+│       ├── rally_analyzer.dart       Traversées de filet, inférence d'impacts
+│       ├── attack_inference.dart     Auto-annotation Service / Attaque
+│       └── match_format.dart        Nombre de sets, points par set
+└── features/
+    ├── home/home_screen.dart
+    ├── match_setup/match_setup_screen.dart
+    └── match/
+        ├── match_screen.dart
+        ├── domain/                   Entités, état, popups
+        ├── providers/                match_provider, drag_preview_provider
+        ├── persistence/              match_codec, match_storage
+        └── widgets/                  court, timeline, replay_panel, etc.
 ```
 
 Navigation : `HomeScreen → MatchSetupScreen → MatchScreen`.
@@ -71,19 +91,19 @@ flutter run -d chrome              # hot reload web
 flutter build web && python3 -m http.server 8080 --directory build/web
 ```
 
+Tests : `flutter test`  
 Linter : `flutter analyze` doit être clean avant commit.
 
 ### Conventions
 - `const` sur tout widget immuable
 - Un widget = une responsabilité, max ~100 lignes
 - `StatelessWidget` par défaut, `StatefulWidget` seulement pour l'état local UI
-- Riverpod pour l'état partagé (`matchProvider`)
-- Pas de hex values inline — toujours passer par `MH.*` dans `theme.dart`
+- Riverpod pour l'état partagé, `setState` pour le local
+- Règles métier dans `core/rules/` — aucun import Flutter
+- Pas de hex values inline — toujours passer par les tokens dans `theme.dart`
 - Pas de secrets commités
-- Commit + push après chaque modification significative
+- `flutter analyze` + `flutter test` verts avant chaque commit
 
 ## Pistes court terme
-- Persistance locale (Hive ou SharedPreferences) pour survivre à un kill d'app
 - Export CSV/JSON de la timeline
-- Gestion multi-sets (UI pour clôturer un set, score de sets)
 - Intégration des rallies découpés par la branche `feature/video-analysis`
