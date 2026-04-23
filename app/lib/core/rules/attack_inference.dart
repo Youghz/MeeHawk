@@ -27,9 +27,9 @@ class AttackInference {
     final depth = (toX - 0.5).abs();
     final isShort = depth < shortThreshold;
     final lateralSame = (fromY - 0.5) * (toY - 0.5) > 0;
-    if (isShort && lateralSame) return 'Shot';
-    if (isShort && !lateralSame) return 'Cut';
+    if (isShort && lateralSame) return 'Amorti';
+    if (isShort && !lateralSame) return 'Coupé';
     if (!isShort && lateralSame) return 'Ligne';
-    return 'Diag';
+    return 'Diagonale';
   }
 }

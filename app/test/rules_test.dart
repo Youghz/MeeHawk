@@ -91,17 +91,17 @@ void main() {
   });
 
   group('AttackInference.classify', () {
-    test('short + same lateral → Shot', () {
+    test('short + same lateral → Amorti', () {
       expect(
           AttackInference.classify(
               fromX: 0.3, fromY: 0.3, toX: 0.6, toY: 0.3),
-          'Shot');
+          'Amorti');
     });
-    test('short + opposite lateral → Cut', () {
+    test('short + opposite lateral → Coupé', () {
       expect(
           AttackInference.classify(
               fromX: 0.3, fromY: 0.3, toX: 0.6, toY: 0.7),
-          'Cut');
+          'Coupé');
     });
     test('deep + same lateral → Ligne', () {
       expect(
@@ -109,11 +109,11 @@ void main() {
               fromX: 0.3, fromY: 0.3, toX: 0.85, toY: 0.3),
           'Ligne');
     });
-    test('deep + opposite lateral → Diag', () {
+    test('deep + opposite lateral → Diagonale', () {
       expect(
           AttackInference.classify(
               fromX: 0.3, fromY: 0.3, toX: 0.85, toY: 0.7),
-          'Diag');
+          'Diagonale');
     });
   });
 

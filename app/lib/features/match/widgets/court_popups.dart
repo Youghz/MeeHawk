@@ -4,7 +4,14 @@ import 'package:app/features/match/providers/match_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-const _faultTypes = ['Filet', 'Double', 'Contrôle'];
+const _faultTypes = [
+  'Filet',        // §11.3 — balle dans le filet
+  'Dehors',       // §8.4, §13.2.2 — balle hors limites
+  'Double',       // §9.3.3 — double contact
+  'Contrôle',     // §9.3.4 — tenu / prolongé
+  'Quatre touches', // §9.3.1 — dépassement 3 touches
+  'Bloc sur service', // §14.5, §14.6.3 — contrer le service interdit
+];
 
 class _AnchoredDropdown extends StatelessWidget {
   const _AnchoredDropdown({
