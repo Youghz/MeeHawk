@@ -19,6 +19,7 @@ class TopScore extends ConsumerWidget {
     final setsRight =
         ref.watch(matchProvider.select((s) => s.setsWonOf(leftTeam.other)));
     final showSets = setsLeft > 0 || setsRight > 0;
+    final setNumber = ref.watch(matchProvider.select((s) => s.setNumber));
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
@@ -52,18 +53,18 @@ class TopScore extends ConsumerWidget {
               ),
             ],
           ),
-          if (showSets) ...[
-            const SizedBox(height: 4),
-            Text(
-              'Sets  $setsLeft · $setsRight',
-              style: MH.sans(
-                size: 10,
-                weight: FontWeight.w600,
-                color: MH.pencil,
-                letterSpacing: 0.6,
-              ),
+          const SizedBox(height: 4),
+          Text(
+            showSets
+                ? 'SET $setNumber · Sets $setsLeft–$setsRight'
+                : 'SET $setNumber',
+            style: MH.sans(
+              size: 10,
+              weight: FontWeight.w600,
+              color: MH.pencil,
+              letterSpacing: 0.6,
             ),
-          ],
+          ),
         ],
       ),
     );
@@ -119,29 +120,36 @@ class _TeamHead extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 2),
-          Wrap(
-            alignment: align == TextAlign.right
-                ? WrapAlignment.end
-                : WrapAlignment.start,
-            children: [
-              for (int i = 0; i < team.players.length; i++) ...[
-                if (i > 0)
-                  Text(' · ',
-                      style: MH.sans(size: 11, color: MH.pencil)),
-                _EditableText(
-                  value: team.players[i].name,
-                  onChanged: (v) => ref
-                      .read(matchProvider.notifier)
-                      .renamePlayer(team.players[i].id, v),
-                  style: MH.sans(
-                    size: 11,
-                    weight: FontWeight.w500,
-                    color: MH.pencil,
+          for (int i = 0; i < team.players.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Row(
+                mainAxisAlignment: align == TextAlign.right
+                    ? MainAxisAlignment.end
+                    : MainAxisAlignment.start,
+                children: [
+                  Text(
+                    'J${i + 1} ',
+                    style: MH.sans(
+                      size: 10,
+                      weight: FontWeight.w600,
+                      color: MH.pencil,
+                    ),
                   ),
-                ),
-              ],
-            ],
-          ),
+                  _EditableText(
+                    value: team.players[i].name,
+                    onChanged: (v) => ref
+                        .read(matchProvider.notifier)
+                        .renamePlayer(team.players[i].id, v),
+                    style: MH.sans(
+                      size: 11,
+                      weight: FontWeight.w500,
+                      color: MH.pencil,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -209,6 +217,13 @@ class _EditableTextState extends State<_EditableText> {
             enabledBorder: UnderlineInputBorder(
               borderSide: BorderSide(color: MH.rule),
             ),
+            suffixIcon: Icon(
+              Icons.edit,
+              size: 10,
+              color: MH.rule,
+            ),
+            suffixIconConstraints: BoxConstraints(maxWidth: 14, maxHeight: 14),
+
           ),
           onSubmitted: (_) => _focus.unfocus(),
         ),

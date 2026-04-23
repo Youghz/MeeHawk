@@ -169,6 +169,8 @@ class MatchCodec {
         'isOutside': i.isOutside,
         'teamSide': i.teamSide.key,
         'playerId': i.playerId,
+        if (i.isServerPosition) 'isServerPosition': true,
+        if (i.isBlock) 'isBlock': true,
       };
 
   static BallImpact _impactFromJson(Map<String, dynamic> j) => BallImpact(
@@ -177,6 +179,8 @@ class MatchCodec {
         isOutside: j['isOutside'] as bool,
         teamSide: TeamSide.fromKey(j['teamSide'] as String),
         playerId: j['playerId'] as String?,
+        isServerPosition: j['isServerPosition'] as bool? ?? false,
+        isBlock: j['isBlock'] as bool? ?? false,
       );
 
   static Map<String, dynamic> _setToJson(SetRecord r) => {

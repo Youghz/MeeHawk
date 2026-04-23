@@ -334,6 +334,58 @@ void main() {
     });
   });
 
+  group('Three-touch rule', () {
+    test('three consecutive same-side touches are allowed', () {
+      final c = newMatch();
+      notifier(c).addBallImpact(impact(0.25, 0.3, side: TeamSide.e1));
+      notifier(c).addBallImpact(impact(0.25, 0.5, side: TeamSide.e1));
+      notifier(c).addBallImpact(impact(0.25, 0.7, side: TeamSide.e1));
+      expect(state(c).rallyImpacts.length, 3);
+    });
+
+    test('fourth consecutive same-side touch is silently rejected', () {
+      final c = newMatch();
+      notifier(c).addBallImpact(impact(0.25, 0.3, side: TeamSide.e1));
+      notifier(c).addBallImpact(impact(0.25, 0.5, side: TeamSide.e1));
+      notifier(c).addBallImpact(impact(0.25, 0.7, side: TeamSide.e1));
+      notifier(c).addBallImpact(impact(0.25, 0.6, side: TeamSide.e1));
+      expect(state(c).rallyImpacts.length, 3);
+    });
+
+    test('switching sides resets the consecutive count for each team', () {
+      final c = newMatch();
+      // e1: 3 touches (max)
+      notifier(c).addBallImpact(impact(0.25, 0.3, side: TeamSide.e1));
+      notifier(c).addBallImpact(impact(0.25, 0.5, side: TeamSide.e1));
+      notifier(c).addBallImpact(impact(0.25, 0.7, side: TeamSide.e1));
+      // crosses to e2: counter resets for e2
+      notifier(c).addBallImpact(impact(0.75, 0.3, side: TeamSide.e2));
+      notifier(c).addBallImpact(impact(0.75, 0.5, side: TeamSide.e2));
+      notifier(c).addBallImpact(impact(0.75, 0.7, side: TeamSide.e2));
+      expect(state(c).rallyImpacts.length, 6);
+      // 4th e2 touch is rejected
+      notifier(c).addBallImpact(impact(0.75, 0.6, side: TeamSide.e2));
+      expect(state(c).rallyImpacts.length, 6);
+    });
+
+    test('server-position marker does not count toward the 3-touch limit', () {
+      final c = newMatch();
+      // isServerPosition = true → exempt from the rule
+      notifier(c).addBallImpact(const BallImpact(
+        x: 0.05, y: 0.5, isOutside: true,
+        teamSide: TeamSide.e2, isServerPosition: true,
+      ));
+      // 3 real touches on e2 are still allowed after the server marker
+      notifier(c).addBallImpact(impact(0.75, 0.5, side: TeamSide.e2));
+      notifier(c).addBallImpact(impact(0.75, 0.4, side: TeamSide.e2));
+      notifier(c).addBallImpact(impact(0.75, 0.6, side: TeamSide.e2));
+      expect(state(c).rallyImpacts.length, 4);
+      // 4th real e2 touch rejected
+      notifier(c).addBallImpact(impact(0.75, 0.55, side: TeamSide.e2));
+      expect(state(c).rallyImpacts.length, 4);
+    });
+  });
+
   group('Swap sides / teammates / rename', () {
     test('swapSides mirrors x and toggles sidesSwapped', () {
       final c = newMatch();

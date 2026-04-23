@@ -24,7 +24,12 @@ class MatchScreen extends ConsumerWidget {
     );
     return Scaffold(
       backgroundColor: MH.paper,
-      body: SafeArea(
+      body: GestureDetector(
+        // Any tap that isn't absorbed by the court band or a button clears
+        // the current in-progress rally annotations.
+        onTap: () => ref.read(matchProvider.notifier).clearRally(),
+        behavior: HitTestBehavior.translucent,
+        child: SafeArea(
         child: Stack(
           children: [
             const _MatchLayout(),
@@ -47,6 +52,7 @@ class MatchScreen extends ConsumerWidget {
           ],
         ),
       ),
+      ),  // GestureDetector
     );
   }
 }

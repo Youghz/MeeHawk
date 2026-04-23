@@ -17,6 +17,9 @@ class BottomActions extends ConsumerWidget {
     final canUndo = ref.watch(
       matchProvider.select((s) => s.history.isNotEmpty),
     );
+    final hasRallyImpacts = ref.watch(
+      matchProvider.select((s) => s.rallyImpacts.isNotEmpty),
+    );
     final matchOver =
         ref.watch(matchProvider.select((s) => s.matchOver));
     final notifier = ref.read(matchProvider.notifier);
@@ -25,6 +28,32 @@ class BottomActions extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
       child: Column(
         children: [
+          if (hasRallyImpacts) ...[
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: notifier.undoLastImpact,
+                style: OutlinedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                  side: const BorderSide(color: MH.ball, width: 1.5),
+                  backgroundColor: MH.ballSoft,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text(
+                  '↺ Annuler la dernière action',
+                  style: MH.sans(
+                    size: 12,
+                    weight: FontWeight.w600,
+                    color: MH.ball,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           Row(
             children: [
               Expanded(

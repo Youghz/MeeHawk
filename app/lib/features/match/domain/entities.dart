@@ -40,6 +40,9 @@ class CourtPos {
 ///   don't mis-attribute.
 /// - `playerId` is the nearest player on that side at the time of the tap
 ///   (auto-attributed). Null only if no players existed.
+/// - `isServerPosition` marks action 0: the server's standing position
+///   behind the end line at the start of the rally.
+/// - `isBlock` marks this impact as a block action (double-tap).
 class BallImpact implements ImpactLike {
   const BallImpact({
     required this.x,
@@ -47,6 +50,8 @@ class BallImpact implements ImpactLike {
     required this.isOutside,
     required this.teamSide,
     this.playerId,
+    this.isServerPosition = false,
+    this.isBlock = false,
   });
 
   final double x;
@@ -55,6 +60,8 @@ class BallImpact implements ImpactLike {
   @override
   final TeamSide teamSide;
   final String? playerId;
+  final bool isServerPosition;
+  final bool isBlock;
 }
 
 /// A labelled action attached to a rally or a point (service, attaque,

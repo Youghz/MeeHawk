@@ -4,6 +4,7 @@ import 'package:app/features/match/domain/match_state.dart';
 import 'package:app/features/match/providers/drag_preview_provider.dart';
 import 'package:app/features/match/providers/match_provider.dart';
 import 'package:app/features/match/widgets/court.dart' show kCourtMargin;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -64,26 +65,45 @@ class PlayerDot extends ConsumerWidget {
       top: pos.y * courtHeight,
       child: FractionalTranslation(
         translation: const Offset(-0.5, -0.5),
-        child: GestureDetector(
+        child: RawGestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () => _onTap(ref, originalPos, teamKey),
-          onLongPressStart: (_) =>
-              ref.read(dragPreviewProvider.notifier).start(playerId),
-          onLongPressMoveUpdate: (details) {
-            final nx = (originalPos.x +
-                    details.offsetFromOrigin.dx / courtWidth)
-                .clamp(0.0, 1.0);
-            final ny = (originalPos.y +
-                    details.offsetFromOrigin.dy / courtHeight)
-                .clamp(0.0, 1.0);
-            final newPos = CourtPos(nx, ny);
-            final armedNow = _closerTo(newPos, matePos, originalPos);
-            ref
-                .read(dragPreviewProvider.notifier)
-                .move(newPos, armed: armedNow);
+          gestures: {
+            TapGestureRecognizer:
+                GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+              TapGestureRecognizer.new,
+              (TapGestureRecognizer i) {
+                i.onTap = () => _onTap(ref, originalPos, teamKey);
+              },
+            ),
+            LongPressGestureRecognizer:
+                GestureRecognizerFactoryWithHandlers<LongPressGestureRecognizer>(
+              // Reduced deadline so the highlight appears immediately.
+              () => LongPressGestureRecognizer(
+                duration: const Duration(milliseconds: 180),
+              ),
+              (LongPressGestureRecognizer i) {
+                // ignore: cascade_invocations, cascade breaks on multi-line function literal
+                i.onLongPressStart =
+                    (_) => ref.read(dragPreviewProvider.notifier).start(playerId);
+                // ignore: cascade_invocations, cascade breaks on multi-line function literal
+                i.onLongPressMoveUpdate = (LongPressMoveUpdateDetails details) {
+                  // Vertical movement only — x is locked to original.
+                  final ny = (originalPos.y +
+                          details.offsetFromOrigin.dy / courtHeight)
+                      .clamp(0.0, 1.0);
+                  final newPos = CourtPos(originalPos.x, ny);
+                  final armedNow = _closerTo(newPos, matePos, originalPos);
+                  ref
+                      .read(dragPreviewProvider.notifier)
+                      .move(newPos, armed: armedNow);
+                };
+                // ignore: cascade_invocations, cascade breaks on multi-line function literal
+                i.onLongPressEnd = (_) => _release(ref, armed);
+                // ignore: cascade_invocations, cascade breaks on multi-line function literal
+                i.onLongPressCancel = () => _release(ref, false);
+              },
+            ),
           },
-          onLongPressEnd: (_) => _release(ref, armed),
-          onLongPressCancel: () => _release(ref, false),
           child: AnimatedScale(
             scale: amDragger ? 1.12 : 1,
             duration: const Duration(milliseconds: 120),

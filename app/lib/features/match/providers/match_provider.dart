@@ -225,15 +225,61 @@ class MatchNotifier extends Notifier<MatchState> {
     );
   }
 
+  /// Record a touch with a known player. Delegates crossing annotation to
+  /// addBallImpact, then appends a block annotation when isBlock is true.
+  void addTouchWithPlayer(BallImpact impact) {
+    addBallImpact(impact);
+    if (!impact.isBlock) return;
+    final player = state.playerById(impact.playerId ?? '');
+    state = state.copyWith(
+      rallyAnnotations: [
+        ...state.rallyAnnotations,
+        Annotation(
+          type: 'block',
+          text: 'Bloc · ${player?.name ?? '—'}',
+          team: impact.teamSide,
+        ),
+      ],
+    );
+  }
+
+  /// Called when the player-picker bubble is confirmed. Fills in the player
+  /// on the pending impact and records the touch.
+  void confirmPlayerPick(String playerId) {
+    final popup = state.popup;
+    if (popup == null || popup.kind != PopupKind.pickPlayer) return;
+    final pending = popup.pendingImpact!;
+    state = state.copyWith(popup: null);
+    addTouchWithPlayer(
+      BallImpact(
+        x: pending.x,
+        y: pending.y,
+        isOutside: pending.isOutside,
+        teamSide: pending.teamSide,
+        playerId: playerId,
+        isServerPosition: pending.isServerPosition,
+        isBlock: pending.isBlock,
+      ),
+    );
+  }
+
   /// Record a ball impact during the current rally. If this impact lands on
   /// the opposite side of the net from the previous one, auto-annotate the
   /// attack (or the serve, for the first crossing) with an inferred type.
+  /// Server-position markers are exempt; all other impacts enforce the
+  /// volleyball 3-touch rule per team.
   void addBallImpact(BallImpact impact) {
+    if (!impact.isServerPosition &&
+        _consecutiveSameSideTouches(
+                state.rallyImpacts, impact.teamSide) >=
+            3) {
+      return;
+    }
     final prev = state.rallyImpacts.isNotEmpty
         ? state.rallyImpacts.last
         : null;
     var annotations = state.rallyAnnotations;
-    if (prev != null && prev.teamSide != impact.teamSide) {
+    if (prev != null && prev.teamSide != impact.teamSide && !prev.isBlock) {
       final type = AttackInference.classify(
         fromX: prev.x,
         fromY: prev.y,
@@ -263,6 +309,37 @@ class MatchNotifier extends Notifier<MatchState> {
   // ---------------------------------------------------------------------
   // Undo
   // ---------------------------------------------------------------------
+
+  /// Remove the last recorded ball impact from the current rally. Removes
+  /// the block annotation (if any) and the crossing annotation (if any) that
+  /// were generated when this impact was recorded.
+  void undoLastImpact() {
+    if (state.rallyImpacts.isEmpty) return;
+    final impacts = state.rallyImpacts;
+    final last = impacts.last;
+    final prev = impacts.length >= 2 ? impacts[impacts.length - 2] : null;
+    final newImpacts = impacts.sublist(0, impacts.length - 1);
+
+    var annotations = state.rallyAnnotations;
+    // Block annotation is added after the crossing annotation, remove first.
+    if (last.isBlock && annotations.isNotEmpty) {
+      annotations = annotations.sublist(0, annotations.length - 1);
+    }
+    // Crossing annotation (attack / service) added by addBallImpact.
+    // Not present when prev was a block — block annotation covers the crossing.
+    if (prev != null &&
+        !last.isServerPosition &&
+        !prev.isBlock &&
+        prev.teamSide != last.teamSide &&
+        annotations.isNotEmpty) {
+      annotations = annotations.sublist(0, annotations.length - 1);
+    }
+
+    state = state.copyWith(
+      rallyImpacts: newImpacts,
+      rallyAnnotations: annotations,
+    );
+  }
 
   void undoPoint() {
     if (state.history.isEmpty) return;
@@ -415,7 +492,39 @@ class MatchNotifier extends Notifier<MatchState> {
     state = state.copyWith(teams: teams);
   }
 
+  /// Discard all in-progress rally impacts, annotations and dismissible popups
+  /// without awarding a point. Called when the user taps outside the court band.
+  void clearRally() {
+    final popup = state.popup;
+    final hasDismissiblePopup = popup != null &&
+        (popup.kind == PopupKind.fault ||
+            popup.kind == PopupKind.outsideFault ||
+            popup.kind == PopupKind.pickPlayer);
+    if (!hasDismissiblePopup &&
+        state.rallyImpacts.isEmpty &&
+        state.rallyAnnotations.isEmpty) {
+      return;
+    }
+    state = state.copyWith(
+      rallyImpacts: const [],
+      rallyAnnotations: const [],
+      popup: null,
+    );
+  }
+
   void showPopup(MatchPopup popup) => state = state.copyWith(popup: popup);
 
   void dismissPopup() => state = state.copyWith(popup: null);
+}
+
+/// Counts consecutive same-team touches at the tail of [impacts].
+/// Server-position markers are skipped — they are not ball contacts.
+int _consecutiveSameSideTouches(List<BallImpact> impacts, TeamSide side) {
+  var count = 0;
+  for (var i = impacts.length - 1; i >= 0; i--) {
+    if (impacts[i].isServerPosition) continue;
+    if (impacts[i].teamSide != side) break;
+    count++;
+  }
+  return count;
 }
