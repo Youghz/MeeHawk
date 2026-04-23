@@ -3,6 +3,7 @@ import 'package:app/core/widgets/ball_icon.dart';
 import 'package:app/features/match/domain/match_state.dart';
 import 'package:app/features/match/match_screen.dart';
 import 'package:app/features/match/providers/match_provider.dart';
+import 'package:app/features/match_history/screens/history_screen.dart';
 import 'package:app/features/match_setup/match_setup_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -51,10 +52,15 @@ class HomeScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 10),
-                const _MenuItem(
+                _MenuItem(
                   icon: Icons.history,
                   label: 'Historique des matchs',
                   subtitle: 'Revoir les matchs passés',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const HistoryScreen(),
+                    ),
+                  ),
                 ),
                 const _MenuItem(
                   icon: Icons.query_stats,
@@ -265,10 +271,12 @@ class _MenuItem extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.subtitle,
+    this.onTap,
   });
   final IconData icon;
   final String label;
   final String subtitle;
+  final VoidCallback? onTap;
 
   void _showSoon(BuildContext context) {
     ScaffoldMessenger.of(context).clearSnackBars();
@@ -293,7 +301,7 @@ class _MenuItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
-            onTap: () => _showSoon(context),
+            onTap: onTap ?? () => _showSoon(context),
             hoverColor: MH.ink.withValues(alpha: 0.04),
             splashColor: MH.ink.withValues(alpha: 0.10),
             highlightColor: MH.ink.withValues(alpha: 0.06),

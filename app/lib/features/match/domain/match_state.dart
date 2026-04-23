@@ -35,6 +35,7 @@ class MatchState {
     required this.popup,
     required this.matchOver,
     required this.trackedTeams,
+    required this.startedAt,
   });
 
   final MatchFormat format;
@@ -63,6 +64,8 @@ class MatchState {
   /// Teams absent from this set use auto-attribution only.
   final Set<TeamSide> trackedTeams;
 
+  final DateTime startedAt;
+
   MatchState copyWith({
     MatchFormat? format,
     Map<TeamSide, Team>? teams,
@@ -86,6 +89,7 @@ class MatchState {
     Object? popup = _sentinel,
     bool? matchOver,
     Set<TeamSide>? trackedTeams,
+    DateTime? startedAt,
   }) =>
       MatchState(
         format: format ?? this.format,
@@ -114,6 +118,7 @@ class MatchState {
         popup: identical(popup, _sentinel) ? this.popup : popup as MatchPopup?,
         matchOver: matchOver ?? this.matchOver,
         trackedTeams: trackedTeams ?? this.trackedTeams,
+        startedAt: startedAt ?? this.startedAt,
       );
 
   // ---- Convenience accessors ----
@@ -209,5 +214,6 @@ MatchState initialMatchState({
     popup: null,
     matchOver: false,
     trackedTeams: const {TeamSide.e1, TeamSide.e2},
+    startedAt: DateTime.now(),
   );
 }

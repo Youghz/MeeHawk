@@ -40,6 +40,7 @@ class MatchCodec {
         'changeSidePromptDismissed': s.changeSidePromptDismissed,
         'matchOver': s.matchOver,
         'trackedTeams': s.trackedTeams.map((t) => t.key).toList(),
+        'startedAt': s.startedAt.toIso8601String(),
       };
 
   static MatchState fromJson(Map<String, dynamic> j) {
@@ -94,6 +95,9 @@ class MatchCodec {
           : (j['trackedTeams'] as List)
               .map((k) => TeamSide.fromKey(k as String))
               .toSet(),
+      startedAt: j['startedAt'] != null
+          ? DateTime.parse(j['startedAt'] as String)
+          : DateTime.now(),
     );
   }
 
