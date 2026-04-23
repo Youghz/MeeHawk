@@ -13,7 +13,9 @@ class Timeline extends ConsumerStatefulWidget {
 
 class _TimelineState extends ConsumerState<Timeline> {
   final _ctrl = ScrollController();
-  int _lastLength = 0;
+  int _selectedSet = 1;
+  int _lastSetPtsLength = 0;
+  int? _lastScrolledSet;
 
   @override
   void dispose() {
@@ -21,9 +23,19 @@ class _TimelineState extends ConsumerState<Timeline> {
     super.dispose();
   }
 
-  void _maybeAutoscroll(int length) {
-    if (length == _lastLength) return;
-    _lastLength = length;
+  // Auto-scroll right when new points arrive in the same set.
+  // Jump to start when the displayed set changes.
+  void _handleScroll(int length, int set) {
+    if (set != _lastScrolledSet) {
+      _lastScrolledSet = set;
+      _lastSetPtsLength = length;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_ctrl.hasClients) _ctrl.jumpTo(0);
+      });
+      return;
+    }
+    if (length == _lastSetPtsLength) return;
+    _lastSetPtsLength = length;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_ctrl.hasClients) {
         _ctrl.animateTo(
@@ -37,21 +49,19 @@ class _TimelineState extends ConsumerState<Timeline> {
 
   @override
   Widget build(BuildContext context) {
-    // Only the data the timeline actually paints. Score/server/popup
-    // changes that don't affect the history won't cause this widget to
-    // rebuild.
-    final history = ref.watch(
-      matchProvider.select((s) => s.history),
-    );
-    final selected = ref.watch(
-      matchProvider.select((s) => s.selectedPointIndex),
-    );
+    // Follow live set transitions automatically.
+    ref.listen(matchProvider.select((s) => s.setNumber), (prev, next) {
+      if (prev != null && next > prev) {
+        setState(() => _selectedSet = next);
+      }
+    });
+
+    final history = ref.watch(matchProvider.select((s) => s.history));
+    final selected = ref.watch(matchProvider.select((s) => s.selectedPointIndex));
     final teamE1Name =
         ref.watch(matchProvider.select((s) => s.teams[TeamSide.e1]!.name));
     final teamE2Name =
         ref.watch(matchProvider.select((s) => s.teams[TeamSide.e2]!.name));
-
-    _maybeAutoscroll(history.length);
 
     if (history.isEmpty) {
       return Padding(
@@ -70,35 +80,67 @@ class _TimelineState extends ConsumerState<Timeline> {
       );
     }
 
+    final sets = history.map((p) => p.setNumber).toSet().toList()..sort();
+    // If the selected set no longer exists (shouldn't happen), fall back to last.
+    final effectiveSet =
+        sets.contains(_selectedSet) ? _selectedSet : sets.last;
+
+    // Build filtered list for the effective set, keeping global indices.
+    final setPts = <PointRecord>[];
+    final globalIndices = <int>[];
+    for (var i = 0; i < history.length; i++) {
+      if (history[i].setNumber == effectiveSet) {
+        setPts.add(history[i]);
+        globalIndices.add(i);
+      }
+    }
+
+    _handleScroll(setPts.length, effectiveSet);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 2),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 72,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                _teamLabel(teamE1Name, MH.them),
-                const SizedBox(height: 3),
-                _teamLabel(teamE2Name, MH.us),
-              ],
+          if (sets.length > 1) ...[
+            _SetPicker(
+              sets: sets,
+              selected: effectiveSet,
+              onSelect: (s) => setState(() => _selectedSet = s),
             ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: SingleChildScrollView(
-              controller: _ctrl,
-              scrollDirection: Axis.horizontal,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _row(history, TeamSide.e1, MH.them, selected),
-                  const SizedBox(height: 3),
-                  _row(history, TeamSide.e2, MH.us, selected),
-                ],
+            const SizedBox(height: 4),
+          ],
+          Row(
+            children: [
+              SizedBox(
+                width: 72,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    _teamLabel(teamE1Name, MH.them),
+                    const SizedBox(height: 3),
+                    _teamLabel(teamE2Name, MH.us),
+                  ],
+                ),
               ),
-            ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: _ctrl,
+                  scrollDirection: Axis.horizontal,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _row(setPts, globalIndices, TeamSide.e1, MH.them,
+                          selected),
+                      const SizedBox(height: 3),
+                      _row(setPts, globalIndices, TeamSide.e2, MH.us,
+                          selected),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -122,7 +164,8 @@ class _TimelineState extends ConsumerState<Timeline> {
       );
 
   Widget _row(
-    List<PointRecord> history,
+    List<PointRecord> setPts,
+    List<int> globalIndices,
     TeamSide tk,
     Color color,
     int? selected,
@@ -133,9 +176,9 @@ class _TimelineState extends ConsumerState<Timeline> {
       height: 16,
       child: Row(
         children: [
-          for (int i = 0; i < history.length; i++) ...[
+          for (var i = 0; i < setPts.length; i++) ...[
             if (i > 0) const SizedBox(width: cellGap),
-            _cell(history, i, tk, color, cellW, selected),
+            _cell(setPts, globalIndices, i, tk, color, cellW, selected),
           ],
         ],
       ),
@@ -143,19 +186,21 @@ class _TimelineState extends ConsumerState<Timeline> {
   }
 
   Widget _cell(
-    List<PointRecord> history,
-    int i,
+    List<PointRecord> setPts,
+    List<int> globalIndices,
+    int localIdx,
     TeamSide tk,
     Color color,
     double w,
     int? selected,
   ) {
-    final p = history[i];
-    final active = selected == i;
+    final p = setPts[localIdx];
+    final globalIdx = globalIndices[localIdx];
+    final active = selected == globalIdx;
     final isMine = p.winner == tk;
     final teamScore = p.scoreOf(tk);
     return GestureDetector(
-      onTap: () => ref.read(matchProvider.notifier).selectPoint(i),
+      onTap: () => ref.read(matchProvider.notifier).selectPoint(globalIdx),
       child: Container(
         width: w,
         height: 16,
@@ -184,4 +229,50 @@ class _TimelineState extends ConsumerState<Timeline> {
       ),
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Set picker chips
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SetPicker extends StatelessWidget {
+  const _SetPicker({
+    required this.sets,
+    required this.selected,
+    required this.onSelect,
+  });
+  final List<int> sets;
+  final int selected;
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          for (final s in sets)
+            Padding(
+              padding: const EdgeInsets.only(right: 5),
+              child: GestureDetector(
+                onTap: () => onSelect(s),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: s == selected ? MH.ink : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    border:
+                        s == selected ? null : Border.all(color: MH.rule),
+                  ),
+                  child: Text(
+                    'Set $s',
+                    style: MH.sans(
+                      size: 10,
+                      weight: FontWeight.w600,
+                      color: s == selected ? MH.paper : MH.pencil,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
 }
