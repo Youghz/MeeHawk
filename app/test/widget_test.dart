@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  testWidgets('App renders home screen', (WidgetTester tester) async {
+  testWidgets('App renders home screen', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final storage = await MatchStorage.open();
     await tester.pumpWidget(

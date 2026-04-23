@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:app/core/theme.dart';
 import 'package:app/features/home/home_screen.dart';
 import 'package:app/features/match/persistence/match_storage_provider.dart';
@@ -15,14 +17,14 @@ class MeeHawkApp extends ConsumerWidget {
     // Autosave: mirror every match-state change to local storage.
     // Auto-archive: save completed matches to history when matchOver flips.
     ref.listen(matchProvider, (prev, next) {
-      ref.read(matchStorageProvider).save(next);
-      if ((prev?.matchOver ?? false) == false && next.matchOver) {
+      unawaited(ref.read(matchStorageProvider).save(next));
+      if (!(prev?.matchOver ?? false) && next.matchOver) {
         final archive = MatchArchive(
           id: 'match_${next.startedAt.millisecondsSinceEpoch}',
           startedAt: next.startedAt,
           state: next,
         );
-        ref.read(archiveListProvider.notifier).add(archive);
+        unawaited(ref.read(archiveListProvider.notifier).add(archive));
       }
     });
     return MaterialApp(

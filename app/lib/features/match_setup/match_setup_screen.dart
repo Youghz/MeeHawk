@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:app/core/theme.dart';
 import 'package:app/features/match/match_screen.dart';
 import 'package:app/features/match/providers/match_provider.dart';
@@ -239,8 +241,8 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
           p4: _p4.text.trim().isEmpty ? 'Marie' : _p4.text.trim(),
           initialServerId: _initialServerId,
         );
-    Navigator.of(context).pushReplacement(
+    unawaited(Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(builder: (_) => const MatchScreen()),
-    );
+    ));
   }
 }

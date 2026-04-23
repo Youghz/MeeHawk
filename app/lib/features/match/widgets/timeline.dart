@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:app/core/theme.dart';
 import 'package:app/features/match/domain/match_state.dart';
 import 'package:app/features/match/providers/match_provider.dart';
@@ -38,11 +40,11 @@ class _TimelineState extends ConsumerState<Timeline> {
     _lastSetPtsLength = length;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_ctrl.hasClients) {
-        _ctrl.animateTo(
+        unawaited(_ctrl.animateTo(
           _ctrl.position.maxScrollExtent,
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
-        );
+        ));
       }
     });
   }

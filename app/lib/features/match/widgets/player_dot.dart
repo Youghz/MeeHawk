@@ -71,7 +71,7 @@ class PlayerDot extends ConsumerWidget {
             TapGestureRecognizer:
                 GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
               TapGestureRecognizer.new,
-              (TapGestureRecognizer i) {
+              (i) {
                 i.onTap = () => _onTap(ref, originalPos, teamKey);
               },
             ),
@@ -81,12 +81,11 @@ class PlayerDot extends ConsumerWidget {
               () => LongPressGestureRecognizer(
                 duration: const Duration(milliseconds: 180),
               ),
-              (LongPressGestureRecognizer i) {
-                // ignore: cascade_invocations, cascade breaks on multi-line function literal
+              (i) {
                 i.onLongPressStart =
                     (_) => ref.read(dragPreviewProvider.notifier).start(playerId);
                 // ignore: cascade_invocations, cascade breaks on multi-line function literal
-                i.onLongPressMoveUpdate = (LongPressMoveUpdateDetails details) {
+                i.onLongPressMoveUpdate = (details) {
                   // Vertical movement only — x is locked to original.
                   final ny = (originalPos.y +
                           details.offsetFromOrigin.dy / courtHeight)
