@@ -1,3 +1,4 @@
+import 'package:app/core/rules/annotation_rules.dart';
 import 'package:app/core/rules/attack_inference.dart';
 import 'package:app/core/rules/match_format.dart';
 import 'package:app/core/rules/rally_analyzer.dart';
@@ -185,6 +186,131 @@ void main() {
       );
       expect(res.serverId, 'p1');
       expect(res.nextIndex[TeamSide.e1], 1);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // AnnotationRules — derived from FIVB rules 2021-2024
+  // ─────────────────────────────────────────────────────────────────────────
+
+  group('AnnotationRules — bloc (§14.3, §14.5, §14.6.1)', () {
+    // §14.5 — contrer le service est interdit
+    test('bloc sur service : invalide', () {
+      expect(
+        AnnotationRules.isBlockValid(
+          opponentContactsThisPossession: 0,
+          wasDirectFromService: true,
+        ),
+        isFalse,
+      );
+    });
+
+    // §14.6.1 — toucher le ballon avant la frappe d'attaque est une faute
+    test('bloc quand adversaire a 0 contact (avant toute attaque) : invalide', () {
+      expect(
+        AnnotationRules.isBlockValid(
+          opponentContactsThisPossession: 0,
+          wasDirectFromService: false,
+        ),
+        isFalse,
+      );
+    });
+
+    // §14.3 — contrer dans l'espace adverse autorisé après frappe d'attaque
+    test('bloc quand adversaire a eu 1 contact (réception) : valide', () {
+      expect(
+        AnnotationRules.isBlockValid(
+          opponentContactsThisPossession: 1,
+          wasDirectFromService: false,
+        ),
+        isTrue,
+      );
+    });
+
+    test('bloc quand adversaire a eu 3 contacts (réception + passe + attaque) : valide', () {
+      expect(
+        AnnotationRules.isBlockValid(
+          opponentContactsThisPossession: 3,
+          wasDirectFromService: false,
+        ),
+        isTrue,
+      );
+    });
+  });
+
+  group('AnnotationRules — quatre touches (§9.1)', () {
+    test('3 touches : pas de faute', () {
+      expect(AnnotationRules.isFourTouchesFault(3), isFalse);
+    });
+
+    test('4 touches : faute', () {
+      expect(AnnotationRules.isFourTouchesFault(4), isTrue);
+    });
+
+    test('5 touches : faute', () {
+      expect(AnnotationRules.isFourTouchesFault(5), isTrue);
+    });
+  });
+
+  group('AnnotationRules — touches restantes après bloc (§14.4.1)', () {
+    // Le bloc compte comme 1re touche d'équipe ; il reste 2 touches.
+    test('2 touches restantes après un bloc', () {
+      expect(AnnotationRules.touchesRemainingAfterBlock(), 2);
+    });
+
+    test('bloc + 2 autres touches = 3 total, pas de faute', () {
+      // 1 (bloc) + 2 (restantes) = 3 ≤ maxTeamTouches
+      const blockTouch = 1;
+      final remaining = AnnotationRules.touchesRemainingAfterBlock();
+      expect(
+        AnnotationRules.isFourTouchesFault(blockTouch + remaining),
+        isFalse,
+      );
+    });
+
+    test('bloc + 3 autres touches = 4 total, faute', () {
+      const blockTouch = 1;
+      expect(AnnotationRules.isFourTouchesFault(blockTouch + 3), isTrue);
+    });
+  });
+
+  group('AnnotationRules — ace (§6.1.1.1)', () {
+    test('0 contact côté réception = ace', () {
+      expect(AnnotationRules.isAce(receivingTeamContacts: 0), isTrue);
+    });
+
+    test('1 contact côté réception = pas un ace', () {
+      expect(AnnotationRules.isAce(receivingTeamContacts: 1), isFalse);
+    });
+
+    test('3 contacts côté réception = pas un ace', () {
+      expect(AnnotationRules.isAce(receivingTeamContacts: 3), isFalse);
+    });
+  });
+
+  group("AnnotationRules — types d'attaque interdits (§13.2.3)", () {
+    // Le tip (main ouverte, doigts non rigides) est interdit en beach.
+    test("tip est un type d'attaque interdit", () {
+      expect(AnnotationRules.isAttackTypeForbidden('tip'), isTrue);
+    });
+
+    test('diagonale est autorisée', () {
+      expect(AnnotationRules.isAttackTypeForbidden('diagonale'), isFalse);
+    });
+
+    test('longue ligne est autorisée', () {
+      expect(AnnotationRules.isAttackTypeForbidden('longue ligne'), isFalse);
+    });
+  });
+
+  group('AnnotationRules — constantes de format (§14.5)', () {
+    test('contrer le service est interdit', () {
+      expect(AnnotationRules.canBlockService, isFalse);
+    });
+
+    // §13.2.5 — spécifique beach, n'existe pas en indoor
+    test('la passe haute doit être perpendiculaire aux épaules', () {
+      expect(AnnotationRules.overhandSetMustBePerpendicular, isTrue);
     });
   });
 
