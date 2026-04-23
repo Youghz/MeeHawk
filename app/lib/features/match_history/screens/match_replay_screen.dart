@@ -7,6 +7,7 @@ import 'package:app/features/match/widgets/timeline.dart';
 import 'package:app/features/match/widgets/top_score.dart';
 import 'package:app/features/match_history/domain/match_archive.dart';
 import 'package:app/features/match_history/providers/replay_notifier.dart';
+import 'package:app/features/match_history/screens/analytics_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -58,6 +59,17 @@ class _ReplayContent extends ConsumerWidget {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.bar_chart_rounded),
+            tooltip: 'Analyse',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => AnalyticsScreen(state: archive.state),
+              ),
+            ),
+          ),
+        ],
       ),
       body: GestureDetector(
         onTap: () => ref.read(matchProvider.notifier).clearRally(),
