@@ -512,6 +512,14 @@ class MatchNotifier extends Notifier<MatchState> {
     );
   }
 
+  void toggleTeamTracking(TeamSide teamSide) {
+    final current = state.trackedTeams;
+    final updated = current.contains(teamSide)
+        ? current.difference({teamSide})
+        : {...current, teamSide};
+    state = state.copyWith(trackedTeams: updated);
+  }
+
   void showPopup(MatchPopup popup) => state = state.copyWith(popup: popup);
 
   void dismissPopup() => state = state.copyWith(popup: null);

@@ -309,7 +309,8 @@ class _CourtState extends ConsumerState<Court> {
     final state = ref.read(matchProvider);
     final teamSide = xNorm < 0.5 ? state.leftTeam : state.rightTeam;
 
-    if (_shouldShowPlayerPicker(state, teamSide)) {
+    final isTracked = state.trackedTeams.contains(teamSide);
+    if (isTracked && _shouldShowPlayerPicker(state, teamSide)) {
       ref.read(matchProvider.notifier).showPopup(
             MatchPopup(
               kind: PopupKind.pickPlayer,

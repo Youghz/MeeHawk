@@ -39,6 +39,7 @@ class MatchCodec {
         'notes': s.notes,
         'changeSidePromptDismissed': s.changeSidePromptDismissed,
         'matchOver': s.matchOver,
+        'trackedTeams': s.trackedTeams.map((t) => t.key).toList(),
       };
 
   static MatchState fromJson(Map<String, dynamic> j) {
@@ -88,6 +89,11 @@ class MatchCodec {
       changeSidePromptOpen: false,
       popup: null,
       matchOver: j['matchOver'] as bool? ?? false,
+      trackedTeams: j['trackedTeams'] == null
+          ? const {TeamSide.e1, TeamSide.e2}
+          : (j['trackedTeams'] as List)
+              .map((k) => TeamSide.fromKey(k as String))
+              .toSet(),
     );
   }
 

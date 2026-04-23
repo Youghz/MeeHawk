@@ -103,30 +103,55 @@ class _TeamHead extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final team = ref.watch(matchProvider.select((s) => s.teams[tk]!));
     final color = tk == TeamSide.e1 ? MH.them : MH.us;
+    final isTracked = ref.watch(
+      matchProvider.select((s) => s.trackedTeams.contains(tk)),
+    );
+    final isRight = align == TextAlign.right;
+
     return Flexible(
       child: Column(
-        crossAxisAlignment: align == TextAlign.right
-            ? CrossAxisAlignment.end
-            : CrossAxisAlignment.start,
+        crossAxisAlignment:
+            isRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
-          _EditableText(
-            value: team.name,
-            onChanged: (v) =>
-                ref.read(matchProvider.notifier).renameTeam(tk, v),
-            style: MH.sans(
-              size: 12,
-              weight: FontWeight.w700,
-              color: color,
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!isRight) ...[
+                _EditableText(
+                  value: team.name,
+                  onChanged: (v) =>
+                      ref.read(matchProvider.notifier).renameTeam(tk, v),
+                  style: MH.sans(size: 12, weight: FontWeight.w700, color: color),
+                ),
+                const SizedBox(width: 6),
+                _RecordBadge(
+                  active: isTracked,
+                  onTap: () =>
+                      ref.read(matchProvider.notifier).toggleTeamTracking(tk),
+                ),
+              ] else ...[
+                _RecordBadge(
+                  active: isTracked,
+                  onTap: () =>
+                      ref.read(matchProvider.notifier).toggleTeamTracking(tk),
+                ),
+                const SizedBox(width: 6),
+                _EditableText(
+                  value: team.name,
+                  onChanged: (v) =>
+                      ref.read(matchProvider.notifier).renameTeam(tk, v),
+                  style: MH.sans(size: 12, weight: FontWeight.w700, color: color),
+                ),
+              ],
+            ],
           ),
           const SizedBox(height: 2),
           for (int i = 0; i < team.players.length; i++)
             Padding(
               padding: const EdgeInsets.only(top: 2),
               child: Row(
-                mainAxisAlignment: align == TextAlign.right
-                    ? MainAxisAlignment.end
-                    : MainAxisAlignment.start,
+                mainAxisAlignment:
+                    isRight ? MainAxisAlignment.end : MainAxisAlignment.start,
                 children: [
                   Text(
                     'J${i + 1} ',
@@ -154,6 +179,33 @@ class _TeamHead extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _RecordBadge extends StatelessWidget {
+  const _RecordBadge({required this.active, required this.onTap});
+
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: active ? MH.bad : MH.rule,
+              width: 1.5,
+            ),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Icon(
+            Icons.fiber_manual_record,
+            size: 10,
+            color: active ? MH.bad : MH.rule,
+          ),
+        ),
+      );
 }
 
 class _EditableText extends StatefulWidget {

@@ -34,6 +34,7 @@ class MatchState {
     required this.changeSidePromptOpen,
     required this.popup,
     required this.matchOver,
+    required this.trackedTeams,
   });
 
   final MatchFormat format;
@@ -58,6 +59,10 @@ class MatchState {
   final MatchPopup? popup;
   final bool matchOver;
 
+  /// Teams for which the full manual annotation flow (player picker) is active.
+  /// Teams absent from this set use auto-attribution only.
+  final Set<TeamSide> trackedTeams;
+
   MatchState copyWith({
     MatchFormat? format,
     Map<TeamSide, Team>? teams,
@@ -80,6 +85,7 @@ class MatchState {
     bool? changeSidePromptOpen,
     Object? popup = _sentinel,
     bool? matchOver,
+    Set<TeamSide>? trackedTeams,
   }) =>
       MatchState(
         format: format ?? this.format,
@@ -107,6 +113,7 @@ class MatchState {
             changeSidePromptOpen ?? this.changeSidePromptOpen,
         popup: identical(popup, _sentinel) ? this.popup : popup as MatchPopup?,
         matchOver: matchOver ?? this.matchOver,
+        trackedTeams: trackedTeams ?? this.trackedTeams,
       );
 
   // ---- Convenience accessors ----
@@ -201,5 +208,6 @@ MatchState initialMatchState({
     changeSidePromptOpen: false,
     popup: null,
     matchOver: false,
+    trackedTeams: const {TeamSide.e1, TeamSide.e2},
   );
 }
