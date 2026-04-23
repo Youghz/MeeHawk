@@ -20,6 +20,9 @@ class TopScore extends ConsumerWidget {
         ref.watch(matchProvider.select((s) => s.setsWonOf(leftTeam.other)));
     final showSets = setsLeft > 0 || setsRight > 0;
     final setNumber = ref.watch(matchProvider.select((s) => s.setNumber));
+    final matchOver = ref.watch(matchProvider.select((s) => s.matchOver));
+    final nameE1 = ref.watch(matchProvider.select((s) => s.teams[TeamSide.e1]!.name));
+    final nameE2 = ref.watch(matchProvider.select((s) => s.teams[TeamSide.e2]!.name));
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
@@ -65,6 +68,13 @@ class TopScore extends ConsumerWidget {
               letterSpacing: 0.6,
             ),
           ),
+          if (matchOver) ...[
+            const SizedBox(height: 5),
+            _WinnerBadge(
+              winnerName: setsLeft > setsRight ? nameE1 : nameE2,
+              winnerSide: setsLeft > setsRight ? leftTeam : leftTeam.other,
+            ),
+          ],
         ],
       ),
     );
@@ -221,6 +231,34 @@ class _EditableText extends StatefulWidget {
 
   @override
   State<_EditableText> createState() => _EditableTextState();
+}
+
+class _WinnerBadge extends StatelessWidget {
+  const _WinnerBadge({required this.winnerName, required this.winnerSide});
+
+  final String winnerName;
+  final TeamSide winnerSide;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = winnerSide == TeamSide.e1 ? MH.them : MH.us;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.emoji_events_rounded, size: 12, color: color),
+        const SizedBox(width: 5),
+        Text(
+          '${winnerName.toUpperCase()} REMPORTE LE MATCH',
+          style: MH.sans(
+            size: 9,
+            weight: FontWeight.w700,
+            color: color,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _EditableTextState extends State<_EditableText> {

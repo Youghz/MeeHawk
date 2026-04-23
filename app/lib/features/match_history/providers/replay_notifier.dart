@@ -2,8 +2,8 @@ import 'package:app/features/match/domain/match_state.dart';
 import 'package:app/features/match/providers/match_provider.dart';
 
 /// Read-only wrapper around [MatchNotifier] for viewing archived matches.
-/// All write operations are no-ops; [selectPoint] and [clearSelection]
-/// (inherited) remain functional so the timeline is interactive.
+/// All write operations are no-ops. [selectPoint] syncs the displayed score
+/// with the selected point; [clearSelection] restores the final match state.
 class ReplayNotifier extends MatchNotifier {
   ReplayNotifier(this._initial);
   final MatchState _initial;
@@ -75,6 +75,20 @@ class ReplayNotifier extends MatchNotifier {
 
   @override
   void renameTeam(TeamSide teamKey, String name) {}
+
+  @override
+  void selectPoint(int index) {
+    final p = state.history[index];
+    state = state.copyWith(
+      selectedPointIndex: index,
+      scoreE1: p.scoreE1,
+      scoreE2: p.scoreE2,
+      setNumber: p.setNumber,
+    );
+  }
+
+  @override
+  void clearSelection() => state = _initial;
 
   @override
   void toggleTeamTracking(TeamSide teamSide) {}
