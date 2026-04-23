@@ -4,7 +4,7 @@ import 'package:app/core/rules/team_side.dart';
 import 'package:app/features/match/domain/entities.dart';
 
 /// Kinds of modal prompts the match screen can display.
-enum PopupKind { fault, pickServer, outsideFault, pickPlayer, setEnd, matchEnd }
+enum PopupKind { fault, pickServer, pickPlayer, setEnd, matchEnd }
 
 /// A modal popup request held in the match state. UI-adjacent but lives
 /// in the domain layer because the scoring flow (e.g. first-server pick)

@@ -497,9 +497,7 @@ class MatchNotifier extends Notifier<MatchState> {
   void clearRally() {
     final popup = state.popup;
     final hasDismissiblePopup = popup != null &&
-        (popup.kind == PopupKind.fault ||
-            popup.kind == PopupKind.outsideFault ||
-            popup.kind == PopupKind.pickPlayer);
+        (popup.kind == PopupKind.fault || popup.kind == PopupKind.pickPlayer);
     if (!hasDismissiblePopup &&
         state.rallyImpacts.isEmpty &&
         state.rallyAnnotations.isEmpty) {

@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ArchiveStorage {
   ArchiveStorage._(this._prefs);
 
-  static const _key = 'match_archives_v2';
+  static const _key = 'match_archives_v3';
   final SharedPreferences _prefs;
 
   static Future<ArchiveStorage> open() async {

@@ -4,14 +4,7 @@ import 'package:app/features/match/providers/match_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-const _faultTypes = [
-  'Filet',        // §11.3 — balle dans le filet
-  'Dehors',       // §8.4, §13.2.2 — balle hors limites
-  'Double',       // §9.3.3 — double contact
-  'Contrôle',     // §9.3.4 — tenu / prolongé
-  'Quatre touches', // §9.3.1 — dépassement 3 touches
-  'Bloc sur service', // §14.5, §14.6.3 — contrer le service interdit
-];
+const _faultTypes = ['Filet', 'Double', 'Contrôle'];
 
 class _AnchoredDropdown extends StatelessWidget {
   const _AnchoredDropdown({
@@ -331,40 +324,6 @@ class _AnchoredPlayerPicker extends StatelessWidget {
   }
 }
 
-class OutsideFaultPopup extends ConsumerWidget {
-  const OutsideFaultPopup({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(matchProvider);
-    final popup = state.popup!;
-    final notifier = ref.read(matchProvider.notifier);
-    final winner = popup.winner;
-    final faultTeamKey = winner.other;
-    const color = MH.bad;
-    final faulter = state.rallyImpacts.length >= 2
-        ? state.playerById(
-            state.rallyImpacts[state.rallyImpacts.length - 2].playerId ?? '',
-          )
-        : null;
-    return _AnchoredDropdown(
-      anchor: popup.tapPos ?? Offset.zero,
-      color: color,
-      items: _faultTypes,
-      onPick: (t) => notifier.addPoint(
-        winner: winner,
-        annotations: [
-          Annotation(
-            type: 'fault',
-            text: 'Faute $t · ${faulter?.name ?? '—'}',
-            team: faultTeamKey,
-          ),
-        ],
-      ),
-      onDismiss: notifier.dismissPopup,
-    );
-  }
-}
 
 class FaultPopup extends ConsumerWidget {
   const FaultPopup({super.key});

@@ -165,8 +165,6 @@ class _CourtState extends ConsumerState<Court> {
                 const Positioned.fill(child: FaultPopup()),
               if (state.popup?.kind == PopupKind.pickServer)
                 const Positioned.fill(child: PickServerPopup()),
-              if (state.popup?.kind == PopupKind.outsideFault)
-                const Positioned.fill(child: OutsideFaultPopup()),
               if (state.popup?.kind == PopupKind.pickPlayer)
                 const Positioned.fill(child: PlayerPickerPopup()),
             ]),
@@ -276,20 +274,26 @@ class _CourtState extends ConsumerState<Court> {
             playerId: playerId,
           ),
         );
-    final impacts = ref.read(matchProvider).rallyImpacts;
-    TeamSide winner;
+    final s = ref.read(matchProvider);
+    final impacts = s.rallyImpacts;
+    final TeamSide winner;
     if (impacts.length >= 2) {
       winner = impacts[impacts.length - 2].teamSide.other;
     } else {
-      final landSide = p.dx < outerW / 2 ? state.leftTeam : state.rightTeam;
-      winner = landSide;
+      winner = p.dx < outerW / 2 ? state.leftTeam : state.rightTeam;
     }
-    ref.read(matchProvider.notifier).showPopup(
-          MatchPopup(
-            kind: PopupKind.outsideFault,
-            winner: winner,
-            tapPos: p,
-          ),
+    final faulter = impacts.length >= 2
+        ? s.playerById(impacts[impacts.length - 2].playerId ?? '')
+        : null;
+    ref.read(matchProvider.notifier).addPoint(
+          winner: winner,
+          annotations: [
+            Annotation(
+              type: 'fault',
+              text: 'Dehors · ${faulter?.name ?? '—'}',
+              team: winner.other,
+            ),
+          ],
         );
   }
 
