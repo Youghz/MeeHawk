@@ -235,13 +235,23 @@ class _MatchCard extends StatelessWidget {
                     Expanded(child: _TeamBlock(team: e1, side: TeamSide.e1)),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Text(
-                        '$setsE1 – $setsE2',
-                        style: MH.mono(
-                          size: 22,
-                          weight: FontWeight.w800,
-                          color: MH.ink,
-                        ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '$setsE1 – $setsE2',
+                            style: MH.mono(
+                              size: 22,
+                              weight: FontWeight.w800,
+                              color: MH.ink,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            _setScores(state),
+                            style: MH.mono(),
+                          ),
+                        ],
                       ),
                     ),
                     Expanded(
@@ -253,17 +263,10 @@ class _MatchCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    const Icon(Icons.sports_volleyball,
-                        size: 11, color: MH.pencil),
-                    const SizedBox(width: 5),
-                    Text(
-                      _setScores(state),
-                      style: MH.mono(),
-                    ),
-                    const Spacer(),
                     Text(
                       '${state.history.length} échanges',
                       style: MH.mono(),

@@ -9,6 +9,7 @@ import 'package:app/features/match_history/domain/match_archive.dart';
 import 'package:app/features/match_history/providers/replay_notifier.dart';
 import 'package:app/features/match_history/screens/analytics_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class MatchReplayScreen extends StatelessWidget {
@@ -27,16 +28,36 @@ class MatchReplayScreen extends StatelessWidget {
   }
 }
 
-class _ReplayContent extends ConsumerWidget {
+class _ReplayContent extends ConsumerStatefulWidget {
   const _ReplayContent({required this.archive});
   final MatchArchive archive;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isReplay = ref.watch(
-      matchProvider.select((s) => s.selectedPointIndex != null),
-    );
+  ConsumerState<_ReplayContent> createState() => _ReplayContentState();
+}
 
+class _ReplayContentState extends ConsumerState<_ReplayContent> {
+  final _focus = FocusNode();
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _navigate(int delta) {
+    final s = ref.read(matchProvider);
+    final total = s.history.length;
+    if (total == 0) return;
+    final current = s.selectedPointIndex;
+    final next = current == null
+        ? (delta > 0 ? 0 : total - 1)
+        : (current + delta).clamp(0, total - 1);
+    ref.read(matchProvider.notifier).selectPoint(next);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: MH.paper,
       appBar: AppBar(
@@ -54,7 +75,7 @@ class _ReplayContent extends ConsumerWidget {
               style: MH.sans(size: 16, weight: FontWeight.w700),
             ),
             Text(
-              _formatDate(archive.startedAt),
+              _formatDate(widget.archive.startedAt),
               style: MH.mono(),
             ),
           ],
@@ -65,27 +86,43 @@ class _ReplayContent extends ConsumerWidget {
             tooltip: 'Analyse',
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) => AnalyticsScreen(state: archive.state),
+                builder: (_) =>
+                    AnalyticsScreen(state: widget.archive.state),
               ),
             ),
           ),
         ],
       ),
-      body: GestureDetector(
-        onTap: () => ref.read(matchProvider.notifier).clearRally(),
-        behavior: HitTestBehavior.translucent,
-        child: Stack(
-          children: [
-            const _ReplayLayout(),
-            if (isReplay)
-              Positioned.fill(
-                child: Listener(
-                  behavior: HitTestBehavior.translucent,
-                  onPointerDown: (_) =>
-                      ref.read(matchProvider.notifier).clearSelection(),
-                ),
-              ),
-          ],
+      body: Focus(
+        focusNode: _focus,
+        autofocus: true,
+        onKeyEvent: (_, event) {
+          if (event is! KeyDownEvent) return KeyEventResult.ignored;
+          if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+            _navigate(1);
+            return KeyEventResult.handled;
+          }
+          if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+            _navigate(-1);
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: GestureDetector(
+          onTap: () {
+            ref.read(matchProvider.notifier).clearRally();
+            ref.read(matchProvider.notifier).clearSelection();
+          },
+          onHorizontalDragEnd: (details) {
+            final v = details.primaryVelocity ?? 0;
+            if (v > 200) {
+              _navigate(1);
+            } else if (v < -200) {
+              _navigate(-1);
+            }
+          },
+          behavior: HitTestBehavior.translucent,
+          child: const _ReplayLayout(),
         ),
       ),
     );

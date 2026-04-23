@@ -91,6 +91,20 @@ class ReplayNotifier extends MatchNotifier {
   void clearSelection() => state = _initial;
 
   @override
+  void viewSet(int setNumber) {
+    final record = _initial.sets.firstWhere(
+      (s) => s.setNumber == setNumber,
+      orElse: () => _initial.sets.last,
+    );
+    state = state.copyWith(
+      scoreE1: record.scoreE1,
+      scoreE2: record.scoreE2,
+      setNumber: setNumber,
+      selectedPointIndex: null,
+    );
+  }
+
+  @override
   void toggleTeamTracking(TeamSide teamSide) {}
 
   @override

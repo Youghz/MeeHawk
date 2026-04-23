@@ -438,6 +438,10 @@ class MatchNotifier extends Notifier<MatchState> {
 
   void clearSelection() => state = state.copyWith(selectedPointIndex: null);
 
+  /// Show the final score of [setNumber] without selecting a specific point.
+  /// No-op in live match; overridden in ReplayNotifier.
+  void viewSet(int setNumber) {}
+
   void swapTeammates(String playerId) {
     final teamKey = state.teamOfPlayer(playerId);
     if (teamKey == null) return;

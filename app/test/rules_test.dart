@@ -97,11 +97,11 @@ void main() {
               fromX: 0.3, fromY: 0.3, toX: 0.6, toY: 0.3),
           'Amorti');
     });
-    test('short + opposite lateral → Coupé', () {
+    test('short + opposite lateral → Diagonale', () {
       expect(
           AttackInference.classify(
               fromX: 0.3, fromY: 0.3, toX: 0.6, toY: 0.7),
-          'Coupé');
+          'Diagonale');
     });
     test('deep + same lateral → Ligne', () {
       expect(

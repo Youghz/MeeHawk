@@ -25,8 +25,6 @@ class _TimelineState extends ConsumerState<Timeline> {
     super.dispose();
   }
 
-  // Auto-scroll right when new points arrive in the same set.
-  // Jump to start when the displayed set changes.
   void _handleScroll(int length, int set) {
     if (set != _lastScrolledSet) {
       _lastScrolledSet = set;
@@ -51,15 +49,30 @@ class _TimelineState extends ConsumerState<Timeline> {
 
   @override
   Widget build(BuildContext context) {
-    // Follow live set transitions automatically.
-    ref.listen(matchProvider.select((s) => s.setNumber), (prev, next) {
-      if (prev != null && next > prev) {
-        setState(() => _selectedSet = next);
-      }
-    });
+    ref
+      // Follow live set transitions.
+      ..listen(matchProvider.select((s) => s.setNumber), (prev, next) {
+        if (prev != null && next > prev) {
+          setState(() => _selectedSet = next);
+        }
+      })
+      // Sync set picker when a point is selected or selection is cleared.
+      ..listen(matchProvider.select((s) => s.selectedPointIndex), (_, next) {
+        final h = ref.read(matchProvider).history;
+        final int targetSet;
+        if (next == null) {
+          targetSet = ref.read(matchProvider).setNumber;
+        } else if (next < h.length) {
+          targetSet = h[next].setNumber;
+        } else {
+          return;
+        }
+        if (_selectedSet != targetSet) setState(() => _selectedSet = targetSet);
+      });
 
     final history = ref.watch(matchProvider.select((s) => s.history));
-    final selected = ref.watch(matchProvider.select((s) => s.selectedPointIndex));
+    final selected =
+        ref.watch(matchProvider.select((s) => s.selectedPointIndex));
     final teamE1Name =
         ref.watch(matchProvider.select((s) => s.teams[TeamSide.e1]!.name));
     final teamE2Name =
@@ -83,11 +96,9 @@ class _TimelineState extends ConsumerState<Timeline> {
     }
 
     final sets = history.map((p) => p.setNumber).toSet().toList()..sort();
-    // If the selected set no longer exists (shouldn't happen), fall back to last.
     final effectiveSet =
         sets.contains(_selectedSet) ? _selectedSet : sets.last;
 
-    // Build filtered list for the effective set, keeping global indices.
     final setPts = <PointRecord>[];
     final globalIndices = <int>[];
     for (var i = 0; i < history.length; i++) {
@@ -108,7 +119,10 @@ class _TimelineState extends ConsumerState<Timeline> {
             _SetPicker(
               sets: sets,
               selected: effectiveSet,
-              onSelect: (s) => setState(() => _selectedSet = s),
+              onSelect: (s) {
+                setState(() => _selectedSet = s);
+                ref.read(matchProvider.notifier).viewSet(s);
+              },
             ),
             const SizedBox(height: 4),
           ],
@@ -130,16 +144,7 @@ class _TimelineState extends ConsumerState<Timeline> {
                 child: SingleChildScrollView(
                   controller: _ctrl,
                   scrollDirection: Axis.horizontal,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _row(setPts, globalIndices, TeamSide.e1, MH.them,
-                          selected),
-                      const SizedBox(height: 3),
-                      _row(setPts, globalIndices, TeamSide.e2, MH.us,
-                          selected),
-                    ],
-                  ),
+                  child: _columns(setPts, globalIndices, selected),
                 ),
               ),
             ],
@@ -165,70 +170,81 @@ class _TimelineState extends ConsumerState<Timeline> {
         ),
       );
 
-  Widget _row(
+  // Renders all points as a row of columns, each column spanning both teams.
+  // The selection border wraps the entire column (E1 + gap + E2).
+  Widget _columns(
     List<PointRecord> setPts,
     List<int> globalIndices,
-    TeamSide tk,
-    Color color,
     int? selected,
   ) {
-    const cellW = 20.0;
-    const cellGap = 2.0;
-    return SizedBox(
-      height: 16,
-      child: Row(
-        children: [
-          for (var i = 0; i < setPts.length; i++) ...[
-            if (i > 0) const SizedBox(width: cellGap),
-            _cell(setPts, globalIndices, i, tk, color, cellW, selected),
-          ],
+    const colGap = 2.0;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < setPts.length; i++) ...[
+          if (i > 0) const SizedBox(width: colGap),
+          _column(setPts, globalIndices, i, selected),
         ],
-      ),
+      ],
     );
   }
 
-  Widget _cell(
+  static const _cellW = 20.0;
+  static const _cellH = 16.0;
+
+  Widget _column(
     List<PointRecord> setPts,
     List<int> globalIndices,
-    int localIdx,
-    TeamSide tk,
-    Color color,
-    double w,
+    int i,
     int? selected,
   ) {
-    final p = setPts[localIdx];
-    final globalIdx = globalIndices[localIdx];
-    final active = selected == globalIdx;
-    final isMine = p.winner == tk;
-    final teamScore = p.scoreOf(tk);
+    final globalIdx = globalIndices[i];
+    final isSelected = selected == globalIdx;
+    final p = setPts[i];
     return GestureDetector(
-      onTap: () => ref.read(matchProvider.notifier).selectPoint(globalIdx),
+      onTap: () =>
+          ref.read(matchProvider.notifier).selectPoint(globalIdx),
       child: Container(
-        width: w,
-        height: 16,
-        decoration: BoxDecoration(
-          color: isMine ? color : Colors.transparent,
-          borderRadius: BorderRadius.circular(3),
-          border: isMine ? null : Border.all(color: MH.rule),
-        ),
-        foregroundDecoration: active
+        width: _cellW,
+        decoration: isSelected
             ? BoxDecoration(
                 borderRadius: BorderRadius.circular(4),
                 border: Border.all(color: MH.ink, width: 1.5),
               )
             : null,
-        alignment: Alignment.center,
-        child: isMine
-            ? Text(
-                '$teamScore',
-                style: MH.sans(
-                  size: 9,
-                  weight: FontWeight.w700,
-                  color: MH.paper,
-                ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
-              )
-            : null,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _cellContent(p, TeamSide.e1, MH.them),
+            const SizedBox(height: 3),
+            _cellContent(p, TeamSide.e2, MH.us),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _cellContent(PointRecord p, TeamSide tk, Color color) {
+    final isMine = p.winner == tk;
+    return Container(
+      width: _cellW,
+      height: _cellH,
+      decoration: BoxDecoration(
+        color: isMine ? color : Colors.transparent,
+        borderRadius: BorderRadius.circular(3),
+        border: isMine ? null : Border.all(color: MH.rule),
+      ),
+      alignment: Alignment.center,
+      child: isMine
+          ? Text(
+              '${p.scoreOf(tk)}',
+              style: MH.sans(
+                size: 9,
+                weight: FontWeight.w700,
+                color: MH.paper,
+              ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+            )
+          : null,
     );
   }
 }
