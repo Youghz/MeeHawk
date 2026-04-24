@@ -18,13 +18,15 @@ class MeeHawkApp extends ConsumerWidget {
     // Auto-archive: save completed matches to history when matchOver flips.
     ref.listen(matchProvider, (prev, next) {
       unawaited(ref.read(matchStorageProvider).save(next));
-      if (!(prev?.matchOver ?? false) && next.matchOver) {
+      // Upsert archive at the end of every set (sets.length grows by 1).
+      // This also covers match end, since the final set is added then too.
+      if ((prev?.sets.length ?? 0) < next.sets.length) {
         final archive = MatchArchive(
           id: 'match_${next.startedAt.millisecondsSinceEpoch}',
           startedAt: next.startedAt,
           state: next,
         );
-        unawaited(ref.read(archiveListProvider.notifier).add(archive));
+        unawaited(ref.read(archiveListProvider.notifier).upsert(archive));
       }
     });
     return MaterialApp(

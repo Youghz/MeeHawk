@@ -17,6 +17,11 @@ class ArchiveListNotifier extends Notifier<List<MatchArchive>> {
     return ref.watch(archiveStorageProvider).loadAll();
   }
 
+  Future<void> upsert(MatchArchive archive) async {
+    await ref.read(archiveStorageProvider).upsert(archive);
+    state = ref.read(archiveStorageProvider).loadAll();
+  }
+
   Future<void> add(MatchArchive archive) async {
     await ref.read(archiveStorageProvider).add(archive);
     state = ref.read(archiveStorageProvider).loadAll();

@@ -31,6 +31,17 @@ class ArchiveStorage {
     await _prefs.setString(_key, json);
   }
 
+  Future<void> upsert(MatchArchive archive) async {
+    final all = loadAll();
+    final idx = all.indexWhere((a) => a.id == archive.id);
+    if (idx >= 0) {
+      all[idx] = archive;
+    } else {
+      all.insert(0, archive);
+    }
+    await saveAll(all);
+  }
+
   Future<void> add(MatchArchive archive) async {
     await saveAll(loadAll()..insert(0, archive));
   }
