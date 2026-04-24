@@ -13,14 +13,15 @@ class MH {
   static const ball = Color(0xFFE4662A);
   static const ballSoft = Color(0xFFFBE9DD);
 
-  static const us = Color(0xFF2E7D57);
-  static const usSoft = Color(0xFFDDEEE3);
-  static const them = Color(0xFFB33A3A);
-  static const themSoft = Color(0xFFF3DADA);
+  static const us = Color(0xFFC07A28);
+  static const usSoft = Color(0xFFF5E2C0);
+  static const them = Color(0xFF3A5FC2);
+  static const themSoft = Color(0xFFC8D4F5);
 
   static const good = Color(0xFF2E7D57);
   static const mid = Color(0xFFC88A2E);
   static const bad = Color(0xFFB33A3A);
+  static const badSoft = Color(0xFFF3DADA);
 
   static const s1 = 4.0;
   static const s2 = 8.0;
@@ -80,7 +81,7 @@ final appTheme = ThemeData(
     primary: MH.ink,
     secondary: MH.ball,
     surface: MH.paper,
-    error: MH.them,
+    error: MH.bad,
   ),
   appBarTheme: const AppBarTheme(
     backgroundColor: MH.paper,

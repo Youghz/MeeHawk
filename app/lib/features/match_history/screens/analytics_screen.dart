@@ -226,12 +226,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final pairs = _ptsWithServer;
     final myWins = pts.where((p) => p.winner == _selectedTeam).length;
 
-    final setsToShow = _filterSet != null
-        ? _s.sets.where((s) => s.setNumber == _filterSet).toList()
-        : _s.sets;
-    final setsWon =
-        setsToShow.where((s) => s.winner == _selectedTeam).length;
-
     final myServes =
         pairs.where((p) => p.server == _selectedTeam).toList();
     final myRecv =
@@ -262,35 +256,35 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             overflow: TextOverflow.ellipsis,
           ),
         ]),
-        const SizedBox(height: 14),
-        if (_filterSet == null && setsToShow.isNotEmpty) ...[
-          _BarStat(
-            label: 'Sets gagnés',
-            count: '$setsWon/${setsToShow.length}',
-            rate: setsWon / setsToShow.length,
-            color: _color,
-          ),
-          const SizedBox(height: 12),
-        ],
-        _BarStat(
-          label: 'Points gagnés',
-          count: '$myWins/${pts.length}',
-          rate: pts.isNotEmpty ? myWins / pts.length : 0,
-          color: _color,
-        ),
-        const SizedBox(height: 12),
-        _BarStat(
-          label: 'Au service',
-          count: '$myServeWins/${myServes.length}',
-          rate: myServes.isNotEmpty ? myServeWins / myServes.length : 0,
-          color: _color,
-        ),
-        const SizedBox(height: 12),
-        _BarStat(
-          label: 'À la réception',
-          count: '$myRecvWins/${myRecv.length}',
-          rate: myRecv.isNotEmpty ? myRecvWins / myRecv.length : 0,
-          color: _color.withValues(alpha: 0.5),
+        const SizedBox(height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _RingStat(
+                label: 'Points',
+                count: '$myWins/${pts.length}',
+                rate: pts.isNotEmpty ? myWins / pts.length : 0,
+                color: _color,
+              ),
+            ),
+            Expanded(
+              child: _RingStat(
+                label: 'Service',
+                count: '$myServeWins/${myServes.length}',
+                rate: myServes.isNotEmpty ? myServeWins / myServes.length : 0,
+                color: _color,
+              ),
+            ),
+            Expanded(
+              child: _RingStat(
+                label: 'Réception',
+                count: '$myRecvWins/${myRecv.length}',
+                rate: myRecv.isNotEmpty ? myRecvWins / myRecv.length : 0,
+                color: _color.withValues(alpha: 0.5),
+              ),
+            ),
+          ],
         ),
       ]),
     );
@@ -322,34 +316,44 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     return _Section(
       title: 'EFFICACITÉ AU SERVICE',
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _BarStat(
-          label: _filterPlayerId != null ? _playerName() : 'Total équipe',
-          count: '$serveWins/${myServes.length}',
-          rate: serveRate,
-          color: _color,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _RingStat(
+              label: _filterPlayerId != null ? _playerName() : 'Total équipe',
+              count: '$serveWins/${myServes.length}',
+              rate: serveRate,
+              color: _color,
+            ),
+          ],
         ),
         // Per-player breakdown when showing full team.
         if (_filterPlayerId == null && players.length > 1) ...[
-          const SizedBox(height: 12),
-          for (final player in players) ...[
-            Builder(builder: (_) {
-              final ps = pairs
-                  .where((p) =>
-                      p.server == _selectedTeam && p.serverId == player.id)
-                  .toList();
-              if (ps.isEmpty) return const SizedBox.shrink();
-              final w = ps.where((p) => p.pt.winner == _selectedTeam).length;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _BarStat(
-                  label: player.name,
-                  count: '$w/${ps.length}',
-                  rate: w / ps.length,
-                  color: _color.withValues(alpha: 0.55),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final player in players)
+                Expanded(
+                  child: Builder(builder: (_) {
+                    final ps = pairs
+                        .where((p) =>
+                            p.server == _selectedTeam &&
+                            p.serverId == player.id)
+                        .toList();
+                    if (ps.isEmpty) return const SizedBox.shrink();
+                    final w =
+                        ps.where((p) => p.pt.winner == _selectedTeam).length;
+                    return _RingStat(
+                      label: player.name,
+                      count: '$w/${ps.length}',
+                      rate: w / ps.length,
+                      color: _color.withValues(alpha: 0.7),
+                    );
+                  }),
                 ),
-              );
-            }),
-          ],
+            ],
+          ),
         ],
       ]),
     );
@@ -382,7 +386,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       if (landing == null) continue;
 
       dots.add(_Dot(
-        x: landing.x,
+        x: _halfX(landing.x),
         y: landing.y,
         color: _color,
         hollow: pt.winner != _selectedTeam,
@@ -393,8 +397,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     return _Section(
       title: 'ZONES DE SERVICE',
-      subtitle: 'Réception — plein = point gagné · cercle = point perdu',
-      child: _AnalyticsCourt(dots: dots),
+      subtitle: 'Plein = point gagné · cercle = point perdu  ·  ← Filet',
+      child: _AnalyticsCourt(dots: dots, halfCourt: true),
     );
   }
 
@@ -420,7 +424,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       if (attackLanding == null) continue;
 
       dots.add(_Dot(
-        x: attackLanding.x,
+        x: _halfX(attackLanding.x),
         y: attackLanding.y,
         color: _color,
         hollow: attackLanding.isOutside || p.winner != _selectedTeam,
@@ -431,8 +435,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     return _Section(
       title: "ZONES D'ATTAQUE",
-      subtitle: 'Dernière frappe — plein = point gagné · cercle = faute / repoussé',
-      child: _AnalyticsCourt(dots: dots),
+      subtitle: 'Plein = point gagné · cercle = faute / repoussé  ·  ← Filet',
+      child: _AnalyticsCourt(dots: dots, halfCourt: true),
     );
   }
 
@@ -654,30 +658,37 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         _KeyRow(label: 'Série max consécutive', value: '$streak pts'),
         const SizedBox(height: 8),
         _KeyRow(label: 'Avance maximale', value: '+$maxLead pts'),
-        const SizedBox(height: 12),
-        if (pressurePts.isNotEmpty) ...[
-          _BarStat(
-            label: 'Points ≥ 15 (pression)',
-            count: '$pressWins/${pressurePts.length}',
-            rate: pressWins / pressurePts.length,
-            color: _color,
-          ),
-          const SizedBox(height: 12),
-        ],
-        if (decPts.isNotEmpty) ...[
-          _BarStat(
-            label: 'Points ≥ 18 (tension)',
-            count: '$decWins/${decPts.length}',
-            rate: decWins / decPts.length,
-            color: _color,
-          ),
-          const SizedBox(height: 12),
-        ],
-        _BarStat(
-          label: '5 premiers points',
-          count: '$f5Wins/${first5.length}',
-          rate: first5.isNotEmpty ? f5Wins / first5.length : 0,
-          color: _color,
+        const SizedBox(height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (pressurePts.isNotEmpty)
+              Expanded(
+                child: _RingStat(
+                  label: 'Points ≥ 15',
+                  count: '$pressWins/${pressurePts.length}',
+                  rate: pressWins / pressurePts.length,
+                  color: _color,
+                ),
+              ),
+            if (decPts.isNotEmpty)
+              Expanded(
+                child: _RingStat(
+                  label: 'Points ≥ 18',
+                  count: '$decWins/${decPts.length}',
+                  rate: decWins / decPts.length,
+                  color: _color,
+                ),
+              ),
+            Expanded(
+              child: _RingStat(
+                label: '5 premiers',
+                count: '$f5Wins/${first5.length}',
+                rate: first5.isNotEmpty ? f5Wins / first5.length : 0,
+                color: _color,
+              ),
+            ),
+          ],
         ),
       ]),
     );
@@ -728,6 +739,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           orElse: () => const Player(id: '', name: ''),
         )
         .name;
+  }
+
+  /// Maps a raw court x ∈ [0, 1] to a half-court x ∈ [0=net, 1=baseline].
+  /// The selected team's attacks always land on the opponent's half.
+  /// E1 attacks → opponent half x ∈ [0.5, 1.0]; E2 attacks → x ∈ [0.0, 0.5].
+  double _halfX(double x) {
+    if (_selectedTeam == TeamSide.e1) {
+      return ((x - 0.5) * 2).clamp(0.0, 1.0);
+    }
+    return ((0.5 - x) * 2).clamp(0.0, 1.0);
   }
 }
 
@@ -810,26 +831,33 @@ class _Dot {
 }
 
 class _AnalyticsCourt extends StatelessWidget {
-  const _AnalyticsCourt({required this.dots});
+  const _AnalyticsCourt({required this.dots, this.halfCourt = false});
   final List<_Dot> dots;
+  final bool halfCourt;
 
   static const _m = 30.0;
+  static const _mHalf = 20.0;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
         builder: (ctx, constraints) {
           final w = constraints.maxWidth;
-          final h = (w - _m * 2) / 2 + _m * 2;
+          final m = halfCourt ? _mHalf : _m;
+          final courtW = w - m * 2;
+          final courtH = halfCourt ? courtW : courtW / 2;
+          final h = courtH + m * 2;
           return SizedBox(
             width: w,
             height: h,
             child: Stack(children: [
-              const Positioned.fill(
-                  child: CustomPaint(painter: _CourtBgPainter(_m))),
+              Positioned.fill(
+                child: CustomPaint(
+                    painter: _CourtBgPainter(m, halfCourt: halfCourt)),
+              ),
               for (final d in dots)
                 Positioned(
-                  left: d.x * w - 5,
-                  top: d.y * h - 5,
+                  left: m + d.x * courtW - 5,
+                  top: m + d.y * courtH - 5,
                   child: Container(
                     width: 10,
                     height: 10,
@@ -851,8 +879,9 @@ class _AnalyticsCourt extends StatelessWidget {
 }
 
 class _CourtBgPainter extends CustomPainter {
-  const _CourtBgPainter(this.margin);
+  const _CourtBgPainter(this.margin, {this.halfCourt = false});
   final double margin;
+  final bool halfCourt;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -863,24 +892,40 @@ class _CourtBgPainter extends CustomPainter {
       ..drawRect(
           Rect.fromLTWH(0, 0, size.width, size.height),
           Paint()..color = MH.ruleSoft)
-      ..drawRect(inner, Paint()..color = MH.sand)
-      ..drawLine(
+      ..drawRect(inner, Paint()..color = MH.sand);
+
+    if (!halfCourt) {
+      // Full court: center line = net.
+      canvas.drawLine(
         Offset(size.width / 2, margin),
         Offset(size.width / 2, size.height - margin),
         Paint()
           ..color = MH.pencil
           ..strokeWidth = 1.5,
-      )
-      ..drawRect(
-          inner,
-          Paint()
-            ..color = MH.rule
-            ..strokeWidth = 1.5
-            ..style = PaintingStyle.stroke);
+      );
+    } else {
+      // Half court: left edge = net (thicker, darker).
+      canvas.drawLine(
+        Offset(margin, margin),
+        Offset(margin, size.height - margin),
+        Paint()
+          ..color = MH.inkSoft
+          ..strokeWidth = 4
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+
+    canvas.drawRect(
+        inner,
+        Paint()
+          ..color = MH.rule
+          ..strokeWidth = 1.5
+          ..style = PaintingStyle.stroke);
   }
 
   @override
-  bool shouldRepaint(_CourtBgPainter old) => old.margin != margin;
+  bool shouldRepaint(_CourtBgPainter old) =>
+      old.margin != margin || old.halfCourt != halfCourt;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1044,8 +1089,12 @@ class _KeyRow extends StatelessWidget {
       );
 }
 
-class _BarStat extends StatelessWidget {
-  const _BarStat({
+// ─────────────────────────────────────────────────────────────────────────────
+// Ring stat (donut arc + %)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _RingStat extends StatelessWidget {
+  const _RingStat({
     required this.label,
     required this.count,
     required this.rate,
@@ -1058,31 +1107,66 @@ class _BarStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: MH.sans(size: 10, color: MH.pencil)),
-          const SizedBox(height: 5),
-          LayoutBuilder(builder: (ctx, c) {
-            return Stack(children: [
-              Container(
-                  height: 8,
-                  decoration: BoxDecoration(
-                      color: MH.sand,
-                      borderRadius: BorderRadius.circular(3))),
-              Container(
-                  width: c.maxWidth * rate.clamp(0.0, 1.0),
-                  height: 8,
-                  decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: BorderRadius.circular(3))),
-            ]);
-          }),
-          const SizedBox(height: 4),
-          Text('$count  (${(rate * 100).round()}%)',
-              style: MH.mono(size: 9, color: MH.inkSoft)),
+          SizedBox(
+            width: 70,
+            height: 70,
+            child: CustomPaint(
+              painter: _ArcPainter(rate: rate, color: color),
+              child: Center(
+                child: Text(
+                  '${(rate * 100).round()}%',
+                  style: MH.sans(
+                      size: 13,
+                      weight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(label,
+              style: MH.sans(size: 10, color: MH.pencil),
+              textAlign: TextAlign.center),
+          const SizedBox(height: 2),
+          Text(count,
+              style: MH.mono(size: 9, color: MH.inkSoft),
+              textAlign: TextAlign.center),
         ],
       );
 }
+
+class _ArcPainter extends CustomPainter {
+  const _ArcPainter({required this.rate, required this.color});
+  final double rate;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = Offset(size.width / 2, size.height / 2);
+    final r = (size.shortestSide - 16) / 2;
+    final bg = Paint()
+      ..color = MH.sand
+      ..strokeWidth = 9
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    final fg = Paint()
+      ..color = color
+      ..strokeWidth = 9
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(
+        Rect.fromCircle(center: c, radius: r), -pi / 2, pi * 2, false, bg);
+    if (rate > 0) {
+      canvas.drawArc(Rect.fromCircle(center: c, radius: r), -pi / 2,
+          pi * 2 * rate.clamp(0.0, 1.0), false, fg);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ArcPainter o) => o.rate != rate || o.color != color;
+}
+
 
 class _LabeledBar extends StatelessWidget {
   const _LabeledBar({

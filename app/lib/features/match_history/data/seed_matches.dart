@@ -302,14 +302,18 @@ List<BallImpact> _genImpacts({
   }
 
   // One impact per contact across all visits, then the final landing.
+  // Use independent x/y seeds and wider ranges to avoid overlaps.
   for (var vi = 0; vi < visits.length; vi++) {
     final (side, contacts) = visits[vi];
     final players = side == TeamSide.e1 ? e1Players : e2Players;
     for (var c = 0; c < contacts; c++) {
-      final r = _h(seed ^ (vi * 97 + c * 13));
+      final rx = _h(seed ^ (vi * 1531 + c * 251));
+      final ry = _h(seed ^ (vi * 1531 + c * 251 + 7919));
       final baseX = side == TeamSide.e1 ? 0.25 : 0.75;
-      final xOff = ((r % 11) - 5) * 0.025;
-      final y = (0.20 + (r >> 4 & 7) * 0.09).clamp(0.15, 0.85);
+      // x spread ±0.18 around the team's half-court centre
+      final xOff = ((rx % 23) - 11) * 0.016;
+      // y spread across the full court width with fine granularity
+      final y = (0.08 + (ry & 63) * 0.014).clamp(0.08, 0.92);
       impacts.add(BallImpact(
         x: (baseX + xOff).clamp(0.06, 0.94),
         y: y,
@@ -324,10 +328,11 @@ List<BallImpact> _genImpacts({
   final loser = winner.other;
   final lPlayers = loser == TeamSide.e1 ? e1Players : e2Players;
   final fr = _h(seed ^ 0xBEEF);
+  final fy = _h(seed ^ 0xDEAD);
   final fx = loser == TeamSide.e1 ? 0.25 : 0.75;
   impacts.add(BallImpact(
-    x: (fx + ((fr % 11) - 5) * 0.03).clamp(0.06, 0.94),
-    y: (0.20 + (fr >> 4 & 7) * 0.09).clamp(0.15, 0.85),
+    x: (fx + ((fr % 23) - 11) * 0.016).clamp(0.06, 0.94),
+    y: (0.08 + (fy & 63) * 0.014).clamp(0.08, 0.92),
     isOutside: false,
     teamSide: loser,
     playerId: lPlayers[fr % 2],

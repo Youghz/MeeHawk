@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 /// Small badge showing an impact number at its tap location.
 ///
 /// Shape encodes the impact type:
-///   • circle  = normal contact
-///   • rounded square = block (mur)
-///   • solid fill = final position (ball stopped here)
+///   • circle       = normal contact
+///   • rounded sq   = block
+///   • cross (✕)    = final ball position (rally over)
+///
+/// Color alternates by [visitIndex] (how many net crossings happened so far)
+/// to visually separate each team's possession.
 class ImpactMarker extends StatelessWidget {
   const ImpactMarker({
     required this.index,
@@ -14,6 +17,7 @@ class ImpactMarker extends StatelessWidget {
     this.isServerPosition = false,
     this.isBlock = false,
     this.isFinal = false,
+    this.visitIndex = 0,
     super.key,
   });
 
@@ -22,6 +26,7 @@ class ImpactMarker extends StatelessWidget {
   final bool isServerPosition;
   final bool isBlock;
   final bool isFinal;
+  final int visitIndex;
 
   @override
   Widget build(BuildContext context) {
@@ -47,23 +52,32 @@ class ImpactMarker extends StatelessWidget {
       );
     }
 
-    final accentColor = isOutside ? MH.bad : MH.ball;
-    final lightBg = isOutside ? MH.themSoft : MH.ballSoft;
+    // Fault / outside always red regardless of visit.
+    final accentColor =
+        isOutside ? MH.bad : (visitIndex.isEven ? MH.ball : MH.inkSoft);
+    final lightBg =
+        isOutside ? MH.badSoft : (visitIndex.isEven ? MH.ballSoft : MH.ruleSoft);
 
-    // isFinal → solid fill so the eye reads "ball stopped here"
-    final fillColor = isFinal ? accentColor : lightBg;
-    final textColor = isFinal ? MH.paper : accentColor;
+    // Final impact → filled circle with ✕ (no number).
+    if (isFinal) {
+      return Container(
+        width: 22,
+        height: 22,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: accentColor),
+        alignment: Alignment.center,
+        child: const Icon(Icons.close_rounded, size: 14, color: MH.paper),
+      );
+    }
 
-    // isBlock → rounded-square shape (wall / mur)
     final decoration = isBlock
         ? BoxDecoration(
             borderRadius: BorderRadius.circular(5),
-            color: fillColor,
+            color: lightBg,
             border: Border.all(color: accentColor, width: 2),
           )
         : BoxDecoration(
             shape: BoxShape.circle,
-            color: fillColor,
+            color: lightBg,
             border: Border.all(color: accentColor, width: 2),
           );
 
@@ -77,7 +91,7 @@ class ImpactMarker extends StatelessWidget {
         style: MH.sans(
           size: 11,
           weight: FontWeight.w800,
-          color: textColor,
+          color: accentColor,
           height: 1,
         ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
       ),

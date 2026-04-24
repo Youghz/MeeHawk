@@ -158,6 +158,7 @@ class _CourtState extends ConsumerState<Court> {
                       isFinal: isReplay &&
                           i == impactsToShow.length - 1 &&
                           !impactsToShow[i].isServerPosition,
+                      visitIndex: _visitIndex(impactsToShow, i),
                     ),
                   ),
                 ),
@@ -367,6 +368,20 @@ class _CourtState extends ConsumerState<Court> {
     final hasServerPos = impacts.isNotEmpty && impacts.first.isServerPosition;
     if (hasServerPos && i == 0) return 0;
     return hasServerPos ? i : i + 1;
+  }
+
+  /// Returns how many net crossings occurred before impact [i].
+  /// Server-position impacts inherit the index of the next real contact.
+  int _visitIndex(List<BallImpact> impacts, int i) {
+    var vi = 0;
+    TeamSide? lastSide;
+    for (var j = 0; j <= i; j++) {
+      final imp = impacts[j];
+      if (imp.isServerPosition) continue;
+      if (lastSide != null && imp.teamSide != lastSide) vi++;
+      lastSide = imp.teamSide;
+    }
+    return vi;
   }
 
   bool _maybeDismissReplay() {
