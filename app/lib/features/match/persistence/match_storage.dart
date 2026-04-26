@@ -27,7 +27,7 @@ class MatchStorage {
     try {
       final json = jsonDecode(raw) as Map<String, dynamic>;
       return MatchCodec.fromJson(json);
-    } on FormatException {
+    } on Object catch (_) {
       return null;
     }
   }

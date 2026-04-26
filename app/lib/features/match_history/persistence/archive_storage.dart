@@ -21,7 +21,7 @@ class ArchiveStorage {
     try {
       final list = jsonDecode(raw) as List<dynamic>;
       return list.map((e) => _fromJson(e as Map<String, dynamic>)).toList();
-    } on Exception catch (_) {
+    } on Object catch (_) {
       return [];
     }
   }

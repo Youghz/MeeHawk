@@ -16,14 +16,14 @@ List<MatchArchive> buildSeedMatches() {
       notes: 'Vent côté mer modéré. Emma dominante au service. Beau 3e set.',
     ),
     _match(
-      id: 'seed_2',
-      e1Name: 'Théo & Cie',
-      e2Name: 'Les Rivaux',
-      p1: 'Théo', p2: 'Sacha',
-      p3: 'Luca', p4: 'Axel',
-      setScores: [(21, 19), (21, 17)],
-      startedAt: now.subtract(const Duration(days: 1, hours: 1, minutes: 30)),
-      notes: 'Terrain humide. Théo solide en défense. Victoire 2-0.',
+      id: 'seed_theo_emilien',
+      e1Name: 'Théo & Co',
+      e2Name: 'Emilien & Co',
+      p1: 'Théo', p2: 'Partenaire',
+      p3: 'Emilien', p4: 'Partenaire',
+      setScores: [(21, 18), (19, 21), (15, 13)],
+      startedAt: now.subtract(const Duration(days: 2, hours: 3)),
+      notes: 'Match annoté en live.',
     ),
   ];
 }
