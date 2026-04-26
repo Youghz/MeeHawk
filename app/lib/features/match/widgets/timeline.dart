@@ -95,9 +95,10 @@ class _TimelineState extends ConsumerState<Timeline> {
       );
     }
 
-    final sets = history.map((p) => p.setNumber).toSet().toList()..sort();
+    const maxSets = 3; // beach FIVB best-of-3
+    final playedSets = history.map((p) => p.setNumber).toSet();
     final effectiveSet =
-        sets.contains(_selectedSet) ? _selectedSet : sets.last;
+        playedSets.contains(_selectedSet) ? _selectedSet : playedSets.last;
 
     final setPts = <PointRecord>[];
     final globalIndices = <int>[];
@@ -115,17 +116,23 @@ class _TimelineState extends ConsumerState<Timeline> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (sets.length > 1) ...[
-            _SetPicker(
-              sets: sets,
-              selected: effectiveSet,
-              onSelect: (s) {
-                setState(() => _selectedSet = s);
+          _SetPicker(
+            allSets: List.generate(maxSets, (i) => i + 1),
+            playedSets: playedSets,
+            selected: effectiveSet,
+            onSelect: (s) {
+              if (!playedSets.contains(s)) return;
+              setState(() => _selectedSet = s);
+              final firstIdx =
+                  history.indexWhere((p) => p.setNumber == s);
+              if (firstIdx >= 0) {
+                ref.read(matchProvider.notifier).selectPoint(firstIdx);
+              } else {
                 ref.read(matchProvider.notifier).viewSet(s);
-              },
-            ),
-            const SizedBox(height: 4),
-          ],
+              }
+            },
+          ),
+          const SizedBox(height: 4),
           Row(
             children: [
               SizedBox(
@@ -255,18 +262,20 @@ class _TimelineState extends ConsumerState<Timeline> {
 
 class _SetPicker extends StatelessWidget {
   const _SetPicker({
-    required this.sets,
+    required this.allSets,
+    required this.playedSets,
     required this.selected,
     required this.onSelect,
   });
-  final List<int> sets;
+  final List<int> allSets;
+  final Set<int> playedSets;
   final int selected;
   final ValueChanged<int> onSelect;
 
   @override
   Widget build(BuildContext context) => Row(
         children: [
-          for (final s in sets)
+          for (final s in allSets)
             Padding(
               padding: const EdgeInsets.only(right: 5),
               child: GestureDetector(
@@ -277,15 +286,24 @@ class _SetPicker extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: s == selected ? MH.ink : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
-                    border:
-                        s == selected ? null : Border.all(color: MH.rule),
+                    border: s == selected
+                        ? null
+                        : Border.all(
+                            color: playedSets.contains(s)
+                                ? MH.rule
+                                : MH.rule.withValues(alpha: 0.4),
+                          ),
                   ),
                   child: Text(
                     'Set $s',
                     style: MH.sans(
                       size: 10,
                       weight: FontWeight.w600,
-                      color: s == selected ? MH.paper : MH.pencil,
+                      color: s == selected
+                          ? MH.paper
+                          : playedSets.contains(s)
+                              ? MH.pencil
+                              : MH.pencil.withValues(alpha: 0.35),
                     ),
                   ),
                 ),

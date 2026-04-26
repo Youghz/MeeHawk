@@ -26,4 +26,9 @@ class ArchiveListNotifier extends Notifier<List<MatchArchive>> {
     await ref.read(archiveStorageProvider).add(archive);
     state = ref.read(archiveStorageProvider).loadAll();
   }
+
+  Future<void> remove(String id) async {
+    await ref.read(archiveStorageProvider).remove(id);
+    state = ref.read(archiveStorageProvider).loadAll();
+  }
 }

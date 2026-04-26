@@ -91,6 +91,12 @@ class _ReplayContentState extends ConsumerState<_ReplayContent> {
               ),
             ),
           ),
+          IconButton(
+            icon: const Icon(Icons.home_outlined),
+            tooltip: 'Accueil',
+            onPressed: () =>
+                Navigator.of(context).popUntil((r) => r.isFirst),
+          ),
         ],
       ),
       body: Focus(

@@ -14,11 +14,11 @@ Future<void> main() async {
   final storage = await MatchStorage.open();
   final archiveStorage = await ArchiveStorage.open();
 
-  // Rescue: if the current match state is a completed match that is not yet
-  // in the archive (e.g. after a codec migration wiped the archive list),
-  // add it back so the user doesn't lose their data.
+  // Rescue: if the current match state (started, with or without data) is not
+  // yet in the archive (e.g. after a codec migration, or first run after
+  // upgrade), add it back so the user doesn't lose their data.
   final currentMatch = storage.load();
-  if (currentMatch != null && currentMatch.matchOver) {
+  if (currentMatch != null && currentMatch.started) {
     final archiveId = 'match_${currentMatch.startedAt.millisecondsSinceEpoch}';
     final archives = archiveStorage.loadAll();
     if (!archives.any((a) => a.id == archiveId)) {

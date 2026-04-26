@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:app/core/theme.dart';
 import 'package:app/core/widgets/ball_icon.dart';
 import 'package:app/features/match/domain/match_state.dart';
 import 'package:app/features/match/match_screen.dart';
 import 'package:app/features/match/providers/match_provider.dart';
+import 'package:app/features/match_history/domain/match_archive.dart';
+import 'package:app/features/match_history/persistence/archive_storage_provider.dart';
 import 'package:app/features/match_history/screens/history_screen.dart';
 import 'package:app/features/match_setup/match_setup_screen.dart';
 import 'package:flutter/material.dart';
@@ -13,9 +17,16 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hasOngoing = ref.watch(matchProvider.select(
-      (s) => s.started && !s.matchOver,
+    final ongoingMatches = ref.watch(archiveListProvider.select(
+      (list) => list
+          .where((a) => a.state.started && !a.state.matchOver)
+          .toList(),
     ));
+    final currentMatchId = ref.watch(
+      matchProvider.select(
+          (s) => 'match_${s.startedAt.millisecondsSinceEpoch}'),
+    );
+
     return Scaffold(
       backgroundColor: MH.paper,
       body: SafeArea(
@@ -27,13 +38,10 @@ class HomeScreen extends ConsumerWidget {
               children: [
                 const _Header(),
                 const SizedBox(height: 40),
-                if (hasOngoing) ...[
-                  _ResumeCta(
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const MatchScreen(),
-                      ),
-                    ),
+                for (final archive in ongoingMatches) ...[
+                  _OngoingCard(
+                    archive: archive,
+                    isCurrent: archive.id == currentMatchId,
                   ),
                   const SizedBox(height: 10),
                 ],
@@ -88,6 +96,98 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+
+class _OngoingCard extends ConsumerWidget {
+  const _OngoingCard({
+    required this.archive,
+    required this.isCurrent,
+  });
+
+  final MatchArchive archive;
+  final bool isCurrent;
+
+  Future<void> _delete(BuildContext context, WidgetRef ref) async {
+    await ref.read(archiveListProvider.notifier).remove(archive.id);
+    if (isCurrent) ref.read(matchProvider.notifier).resetMatch();
+  }
+
+  void _resume(BuildContext context, WidgetRef ref) {
+    if (!isCurrent) ref.read(matchProvider.notifier).resumeMatch(archive.state);
+    unawaited(
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const MatchScreen()),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = archive.state;
+    final name1 = s.teams[TeamSide.e1]!.name;
+    final name2 = s.teams[TeamSide.e2]!.name;
+    final setsE1 = s.setsWonOf(TeamSide.e1);
+    final setsE2 = s.setsWonOf(TeamSide.e2);
+
+    return Material(
+      color: MH.sand,
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _resume(context, ref),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: MH.ink,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.play_arrow, size: 20, color: MH.paper),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Reprendre le match',
+                      style: MH.sans(size: 15, weight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$name1 ${s.scoreE1} · ${s.scoreE2} $name2'
+                      '  ·  set ${s.setNumber} ($setsE1-$setsE2)',
+                      style: MH.sans(size: 11, color: MH.pencil),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.delete_outline,
+                  size: 18,
+                  color: MH.pencil,
+                ),
+                onPressed: () async { await _delete(context, ref); },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+
 class _Header extends StatelessWidget {
   const _Header();
 
@@ -125,79 +225,6 @@ class _Header extends StatelessWidget {
           ),
         ],
       );
-}
-
-class _ResumeCta extends ConsumerWidget {
-  const _ResumeCta({required this.onTap});
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final teams = ref.watch(matchProvider.select((s) => s.teams));
-    final scoreE1 = ref.watch(matchProvider.select((s) => s.scoreE1));
-    final scoreE2 = ref.watch(matchProvider.select((s) => s.scoreE2));
-    final setNumber = ref.watch(matchProvider.select((s) => s.setNumber));
-    final setsE1 = ref.watch(
-      matchProvider.select((s) => s.setsWonOf(TeamSide.e1)),
-    );
-    final setsE2 = ref.watch(
-      matchProvider.select((s) => s.setsWonOf(TeamSide.e2)),
-    );
-    final name1 = teams[TeamSide.e1]!.name;
-    final name2 = teams[TeamSide.e2]!.name;
-
-    return Material(
-      color: MH.sand,
-      borderRadius: BorderRadius.circular(14),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: MH.ink,
-                  shape: BoxShape.circle,
-                ),
-                child:
-                    const Icon(Icons.play_arrow, size: 20, color: MH.paper),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Reprendre le match',
-                      style: MH.sans(
-                        size: 15,
-                        weight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '$name1 $scoreE1 · $scoreE2 $name2  ·  set $setNumber ($setsE1-$setsE2)',
-                      style: MH.sans(size: 11, color: MH.pencil),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Icon(Icons.arrow_forward, size: 16, color: MH.inkSoft),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _PrimaryCta extends StatelessWidget {

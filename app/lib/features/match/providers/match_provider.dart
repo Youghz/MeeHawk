@@ -458,6 +458,15 @@ class MatchNotifier extends Notifier<MatchState> {
   /// No-op in live match; overridden in ReplayNotifier.
   void viewSet(int setNumber) {}
 
+  // ignore: use_setters_to_change_properties -- loads a full match state, semantically more than a property write
+  void resumeMatch(MatchState savedState) {
+    state = savedState;
+  }
+
+  void resetMatch() {
+    state = initialMatchState();
+  }
+
   void swapTeammates(String playerId) {
     final teamKey = state.teamOfPlayer(playerId);
     if (teamKey == null) return;

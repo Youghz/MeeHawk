@@ -15,12 +15,11 @@ class MeeHawkApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Autosave: mirror every match-state change to local storage.
-    // Auto-archive: save completed matches to history when matchOver flips.
+    // Auto-archive: keep the archive entry in sync on every change once the
+    // match has started. This ensures no annotated data is ever lost.
     ref.listen(matchProvider, (prev, next) {
       unawaited(ref.read(matchStorageProvider).save(next));
-      // Upsert archive at the end of every set (sets.length grows by 1).
-      // This also covers match end, since the final set is added then too.
-      if ((prev?.sets.length ?? 0) < next.sets.length) {
+      if (next.started) {
         final archive = MatchArchive(
           id: 'match_${next.startedAt.millisecondsSinceEpoch}',
           startedAt: next.startedAt,

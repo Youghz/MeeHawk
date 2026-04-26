@@ -159,9 +159,15 @@ class _CourtState extends ConsumerState<Court> {
                 Builder(
                   builder: (ctx) {
                     final imp = impactsToShow[i];
+                    final isLastImpact = i == impactsToShow.length - 1;
+                    // In replay: show player name on all impacts except the
+                    // final in-bounds landing (winning ball). Faults (isOutside)
+                    // always show the name so the faulter is identifiable.
                     final pName =
                         (isReplay && !imp.isServerPosition && imp.playerId != null)
-                            ? state.playerById(imp.playerId!)?.name
+                            ? (isLastImpact && !imp.isOutside
+                                ? null
+                                : state.playerById(imp.playerId!)?.name)
                             : null;
                     // When a player name is shown above the marker, shift up so
                     // the marker circle stays centered on the impact point.
