@@ -15,6 +15,16 @@ List<MatchArchive> buildSeedMatches() {
       startedAt: now.subtract(const Duration(days: 3, hours: 2, minutes: 15)),
       notes: 'Vent côté mer modéré. Emma dominante au service. Beau 3e set.',
     ),
+    _match(
+      id: 'seed_2',
+      e1Name: 'Théo & Cie',
+      e2Name: 'Les Rivaux',
+      p1: 'Théo', p2: 'Sacha',
+      p3: 'Luca', p4: 'Axel',
+      setScores: [(21, 19), (21, 17)],
+      startedAt: now.subtract(const Duration(days: 1, hours: 1, minutes: 30)),
+      notes: 'Terrain humide. Théo solide en défense. Victoire 2-0.',
+    ),
   ];
 }
 

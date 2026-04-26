@@ -59,8 +59,11 @@ class BallImpact implements ImpactLike {
   final bool isOutside;
   @override
   final TeamSide teamSide;
+  @override
   final String? playerId;
+  @override
   final bool isServerPosition;
+  @override
   final bool isBlock;
 }
 

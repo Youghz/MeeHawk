@@ -1,3 +1,4 @@
+import 'package:app/core/rules/touch_attribution.dart';
 import 'package:app/core/theme.dart';
 import 'package:app/features/match/domain/match_state.dart';
 import 'package:app/features/match/providers/match_provider.dart';
@@ -383,7 +384,14 @@ class _CourtState extends ConsumerState<Court> {
             ),
           );
     } else {
-      final playerId = _lastPlayerOnSide(state, teamSide);
+      final playerIds =
+          state.teams[teamSide]!.players.map((p) => p.id).toList();
+      final playerId = TouchAttribution.inferNextPlayer(
+            impacts: state.rallyImpacts,
+            side: teamSide,
+            playerIds: playerIds,
+          ) ??
+          _lastPlayerOnSide(state, teamSide);
       ref.read(matchProvider.notifier).addTouchWithPlayer(
             BallImpact(
               x: xNorm,

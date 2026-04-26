@@ -1,8 +1,12 @@
 import 'package:app/core/rules/team_side.dart';
 
-/// Minimal contract an impact object must satisfy for the analyzer.
+/// Minimal contract an impact object must satisfy for the analyzer and
+/// touch-attribution rules.
 abstract class ImpactLike {
   TeamSide get teamSide;
+  bool get isServerPosition;
+  bool get isBlock;
+  String? get playerId;
 }
 
 /// Pure analysis of a sequence of ball impacts within a rally.

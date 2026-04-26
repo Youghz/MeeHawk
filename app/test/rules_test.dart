@@ -5,13 +5,25 @@ import 'package:app/core/rules/rally_analyzer.dart';
 import 'package:app/core/rules/service_rotation.dart';
 import 'package:app/core/rules/set_rules.dart';
 import 'package:app/core/rules/team_side.dart';
+import 'package:app/core/rules/touch_attribution.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _Impact implements ImpactLike {
-  _Impact(this.teamSide);
+  const _Impact(
+    this.teamSide, {
+    this.isServerPosition = false,
+    this.isBlock = false,
+    this.playerId,
+  });
 
   @override
   final TeamSide teamSide;
+  @override
+  final bool isServerPosition;
+  @override
+  final bool isBlock;
+  @override
+  final String? playerId;
 }
 
 void main() {
@@ -120,25 +132,25 @@ void main() {
   group('RallyAnalyzer.netCrossings', () {
     test('fewer than 2 impacts → 0', () {
       expect(RallyAnalyzer.netCrossings([]), 0);
-      expect(RallyAnalyzer.netCrossings([_Impact(TeamSide.e1)]), 0);
+      expect(RallyAnalyzer.netCrossings([const _Impact(TeamSide.e1)]), 0);
     });
     test('serve + receive + attack', () {
       final imps = [
-        _Impact(TeamSide.e2),
-        _Impact(TeamSide.e1),
-        _Impact(TeamSide.e1),
-        _Impact(TeamSide.e2),
+        const _Impact(TeamSide.e2),
+        const _Impact(TeamSide.e1),
+        const _Impact(TeamSide.e1),
+        const _Impact(TeamSide.e2),
       ];
       expect(RallyAnalyzer.netCrossings(imps), 2);
     });
     test('long rally', () {
       final imps = [
-        _Impact(TeamSide.e2),
-        _Impact(TeamSide.e1),
-        _Impact(TeamSide.e1),
-        _Impact(TeamSide.e2),
-        _Impact(TeamSide.e1),
-        _Impact(TeamSide.e2),
+        const _Impact(TeamSide.e2),
+        const _Impact(TeamSide.e1),
+        const _Impact(TeamSide.e1),
+        const _Impact(TeamSide.e2),
+        const _Impact(TeamSide.e1),
+        const _Impact(TeamSide.e2),
       ];
       expect(RallyAnalyzer.netCrossings(imps), 4);
     });
@@ -147,15 +159,89 @@ void main() {
   group('RallyAnalyzer.averageTouchesPerVisit', () {
     test('each side visited once with varying touches', () {
       final imps = [
-        _Impact(TeamSide.e2), // serve
-        _Impact(TeamSide.e1), // receive
-        _Impact(TeamSide.e1), // set
-        _Impact(TeamSide.e1), // attack
-        _Impact(TeamSide.e2), // dig
+        const _Impact(TeamSide.e2), // serve
+        const _Impact(TeamSide.e1), // receive
+        const _Impact(TeamSide.e1), // set
+        const _Impact(TeamSide.e1), // attack
+        const _Impact(TeamSide.e2), // dig
       ];
       final avg = RallyAnalyzer.averageTouchesPerVisit(imps);
       expect(avg[TeamSide.e1], 3);
       expect(avg[TeamSide.e2], 1);
+    });
+  });
+
+  group('TouchAttribution.inferNextPlayer', () {
+    const players = ['p1', 'p2'];
+
+    test('first touch of visit → null (no prior same-side touch)', () {
+      expect(
+        TouchAttribution.inferNextPlayer(
+          impacts: [
+            const _Impact(TeamSide.e2, playerId: 'p3'),
+          ],
+          side: TeamSide.e1,
+          playerIds: players,
+        ),
+        isNull,
+      );
+    });
+
+    test('second touch on same side → teammate', () {
+      expect(
+        TouchAttribution.inferNextPlayer(
+          impacts: [
+            const _Impact(TeamSide.e2, playerId: 'p3'),
+            const _Impact(TeamSide.e1, playerId: 'p1'),
+          ],
+          side: TeamSide.e1,
+          playerIds: players,
+        ),
+        'p2',
+      );
+    });
+
+    test('third touch on same side → back to first player', () {
+      expect(
+        TouchAttribution.inferNextPlayer(
+          impacts: [
+            const _Impact(TeamSide.e2, playerId: 'p3'),
+            const _Impact(TeamSide.e1, playerId: 'p1'),
+            const _Impact(TeamSide.e1, playerId: 'p2'),
+          ],
+          side: TeamSide.e1,
+          playerIds: players,
+        ),
+        'p1',
+      );
+    });
+
+    test('after a block → same player may touch again', () {
+      expect(
+        TouchAttribution.inferNextPlayer(
+          impacts: [
+            const _Impact(TeamSide.e2, playerId: 'p3'),
+            const _Impact(TeamSide.e1, playerId: 'p1', isBlock: true),
+          ],
+          side: TeamSide.e1,
+          playerIds: players,
+        ),
+        'p1',
+      );
+    });
+
+    test('server-position impact is ignored when inferring', () {
+      // srv-pos on e1 then a real e1 touch: still counts as first touch
+      expect(
+        TouchAttribution.inferNextPlayer(
+          impacts: [
+            const _Impact(TeamSide.e1, isServerPosition: true, playerId: 'p1'),
+          ],
+          side: TeamSide.e1,
+          playerIds: players,
+        ),
+        isNull,
+      );
     });
   });
 
