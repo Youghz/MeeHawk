@@ -33,7 +33,7 @@ class MatchNotifier extends Notifier<MatchState> {
       teamE2Name: teamE2Name,
       p1: p1, p2: p2, p3: p3, p4: p4,
       initialServerId: initialServerId,
-    );
+    ).copyWith(started: true);
   }
 
   // ---------------------------------------------------------------------

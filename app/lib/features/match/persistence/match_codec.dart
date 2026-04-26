@@ -39,6 +39,7 @@ class MatchCodec {
         'notes': s.notes,
         'changeSidePromptDismissed': s.changeSidePromptDismissed,
         'matchOver': s.matchOver,
+        'started': s.started,
         'trackedTeams': s.trackedTeams.map((t) => t.key).toList(),
         'startedAt': s.startedAt.toIso8601String(),
       };
@@ -90,6 +91,8 @@ class MatchCodec {
       changeSidePromptOpen: false,
       popup: null,
       matchOver: j['matchOver'] as bool? ?? false,
+      // Old saves without 'started' key: infer from non-empty history.
+      started: j['started'] as bool? ?? (j['history'] as List).isNotEmpty,
       trackedTeams: j['trackedTeams'] == null
           ? const {TeamSide.e1, TeamSide.e2}
           : (j['trackedTeams'] as List)

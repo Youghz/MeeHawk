@@ -34,6 +34,7 @@ class MatchState {
     required this.changeSidePromptOpen,
     required this.popup,
     required this.matchOver,
+    required this.started,
     required this.trackedTeams,
     required this.startedAt,
   });
@@ -59,6 +60,10 @@ class MatchState {
   final bool changeSidePromptOpen;
   final MatchPopup? popup;
   final bool matchOver;
+
+  /// True once the user has explicitly started a match via the setup screen.
+  /// Distinguishes an actively created match from the default bootstrap state.
+  final bool started;
 
   /// Teams for which the full manual annotation flow (player picker) is active.
   /// Teams absent from this set use auto-attribution only.
@@ -88,6 +93,7 @@ class MatchState {
     bool? changeSidePromptOpen,
     Object? popup = _sentinel,
     bool? matchOver,
+    bool? started,
     Set<TeamSide>? trackedTeams,
     DateTime? startedAt,
   }) =>
@@ -117,6 +123,7 @@ class MatchState {
             changeSidePromptOpen ?? this.changeSidePromptOpen,
         popup: identical(popup, _sentinel) ? this.popup : popup as MatchPopup?,
         matchOver: matchOver ?? this.matchOver,
+        started: started ?? this.started,
         trackedTeams: trackedTeams ?? this.trackedTeams,
         startedAt: startedAt ?? this.startedAt,
       );
@@ -213,6 +220,7 @@ MatchState initialMatchState({
     changeSidePromptOpen: false,
     popup: null,
     matchOver: false,
+    started: false,
     trackedTeams: const {TeamSide.e1, TeamSide.e2},
     startedAt: DateTime.now(),
   );

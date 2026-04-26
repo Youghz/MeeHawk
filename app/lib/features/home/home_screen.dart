@@ -14,7 +14,7 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasOngoing = ref.watch(matchProvider.select(
-      (s) => s.history.isNotEmpty && !s.matchOver,
+      (s) => s.started && !s.matchOver,
     ));
     return Scaffold(
       backgroundColor: MH.paper,

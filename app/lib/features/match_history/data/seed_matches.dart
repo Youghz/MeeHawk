@@ -100,6 +100,7 @@ MatchArchive _match({
       changeSidePromptOpen: false,
       popup: null,
       matchOver: true,
+      started: true,
       trackedTeams: const {TeamSide.e1, TeamSide.e2},
       startedAt: startedAt,
     ),
