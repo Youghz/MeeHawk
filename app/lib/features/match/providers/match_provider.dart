@@ -545,14 +545,14 @@ class MatchNotifier extends Notifier<MatchState> {
 
 /// Counts consecutive same-team touches at the tail of [impacts].
 /// Server-position markers are skipped — they are not ball contacts.
-/// A block resets the count: after a block the blocker's team may still
-/// use up to 3 more touches (FIVB rule).
+/// Blocks count as one of the team's 3 allowed touches. The blocker may
+/// touch again after their own block (beach FIVB rule), but that second
+/// contact still consumes a touch — so block + 2 touches = 3 total.
 int _consecutiveSameSideTouches(List<BallImpact> impacts, TeamSide side) {
   var count = 0;
   for (var i = impacts.length - 1; i >= 0; i--) {
     if (impacts[i].isServerPosition) continue;
     if (impacts[i].teamSide != side) break;
-    if (impacts[i].isBlock) break;
     count++;
   }
   return count;
