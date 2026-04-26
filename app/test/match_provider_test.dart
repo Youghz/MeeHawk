@@ -343,13 +343,18 @@ void main() {
       expect(state(c).rallyImpacts.length, 3);
     });
 
-    test('fourth consecutive same-side touch is silently rejected', () {
+    test('fourth consecutive same-side touch auto-faults to opponent', () {
+      // e2 serves first → firstServerIndex[e2] already set → point commits directly.
       final c = newMatch();
       notifier(c).addBallImpact(impact(0.25, 0.3, side: TeamSide.e1));
       notifier(c).addBallImpact(impact(0.25, 0.5, side: TeamSide.e1));
       notifier(c).addBallImpact(impact(0.25, 0.7, side: TeamSide.e1));
       notifier(c).addBallImpact(impact(0.25, 0.6, side: TeamSide.e1));
-      expect(state(c).rallyImpacts.length, 3);
+      // Point committed: rally cleared, e2 scores.
+      expect(state(c).rallyImpacts, isEmpty);
+      expect(state(c).scoreE2, 1);
+      expect(state(c).history.last.winner, TeamSide.e2);
+      expect(state(c).history.last.annotations.any((a) => a.type == 'fault'), isTrue);
     });
 
     test('switching sides resets the consecutive count for each team', () {
@@ -363,9 +368,11 @@ void main() {
       notifier(c).addBallImpact(impact(0.75, 0.5, side: TeamSide.e2));
       notifier(c).addBallImpact(impact(0.75, 0.7, side: TeamSide.e2));
       expect(state(c).rallyImpacts.length, 6);
-      // 4th e2 touch is rejected
+      // 4th e2 touch auto-faults; e1 gains serve for the first time →
+      // pickServer popup defers the commit (rally not yet cleared).
       notifier(c).addBallImpact(impact(0.75, 0.6, side: TeamSide.e2));
-      expect(state(c).rallyImpacts.length, 6);
+      expect(state(c).popup?.kind, PopupKind.pickServer);
+      expect(state(c).popup?.winner, TeamSide.e1);
     });
 
     test('server-position marker does not count toward the 3-touch limit', () {
@@ -380,9 +387,11 @@ void main() {
       notifier(c).addBallImpact(impact(0.75, 0.4, side: TeamSide.e2));
       notifier(c).addBallImpact(impact(0.75, 0.6, side: TeamSide.e2));
       expect(state(c).rallyImpacts.length, 4);
-      // 4th real e2 touch rejected
+      // 4th real e2 touch auto-faults; e1 gains serve for first time →
+      // pickServer popup defers the commit.
       notifier(c).addBallImpact(impact(0.75, 0.55, side: TeamSide.e2));
-      expect(state(c).rallyImpacts.length, 4);
+      expect(state(c).popup?.kind, PopupKind.pickServer);
+      expect(state(c).popup?.winner, TeamSide.e1);
     });
   });
 

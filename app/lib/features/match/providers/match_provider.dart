@@ -270,9 +270,25 @@ class MatchNotifier extends Notifier<MatchState> {
   /// volleyball 3-touch rule per team.
   void addBallImpact(BallImpact impact) {
     if (!impact.isServerPosition &&
-        _consecutiveSameSideTouches(
-                state.rallyImpacts, impact.teamSide) >=
+        _consecutiveSameSideTouches(state.rallyImpacts, impact.teamSide) >=
             3) {
+      // 4th touch: record the impact position then auto-fault.
+      final player = impact.playerId != null
+          ? state.playerById(impact.playerId!)
+          : null;
+      state = state.copyWith(
+        rallyImpacts: [...state.rallyImpacts, impact],
+      );
+      addPoint(
+        winner: impact.teamSide.other,
+        annotations: [
+          Annotation(
+            type: 'fault',
+            text: 'Faute 4e touche · ${player?.name ?? '—'}',
+            team: impact.teamSide,
+          ),
+        ],
+      );
       return;
     }
     final prev = state.rallyImpacts.isNotEmpty
@@ -529,11 +545,14 @@ class MatchNotifier extends Notifier<MatchState> {
 
 /// Counts consecutive same-team touches at the tail of [impacts].
 /// Server-position markers are skipped — they are not ball contacts.
+/// A block resets the count: after a block the blocker's team may still
+/// use up to 3 more touches (FIVB rule).
 int _consecutiveSameSideTouches(List<BallImpact> impacts, TeamSide side) {
   var count = 0;
   for (var i = impacts.length - 1; i >= 0; i--) {
     if (impacts[i].isServerPosition) continue;
     if (impacts[i].teamSide != side) break;
+    if (impacts[i].isBlock) break;
     count++;
   }
   return count;

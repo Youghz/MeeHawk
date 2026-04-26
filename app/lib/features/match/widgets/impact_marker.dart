@@ -18,6 +18,7 @@ class ImpactMarker extends StatelessWidget {
     this.isBlock = false,
     this.isFinal = false,
     this.visitIndex = 0,
+    this.playerName,
     super.key,
   });
 
@@ -27,6 +28,9 @@ class ImpactMarker extends StatelessWidget {
   final bool isBlock;
   final bool isFinal;
   final int visitIndex;
+
+  /// Player name shown above the marker in replay mode.
+  final String? playerName;
 
   @override
   Widget build(BuildContext context) {
@@ -58,43 +62,65 @@ class ImpactMarker extends StatelessWidget {
     final lightBg =
         isOutside ? MH.badSoft : (visitIndex.isEven ? MH.ballSoft : MH.ruleSoft);
 
+    final Widget marker;
+
     // Final impact → filled circle with ✕ (no number).
     if (isFinal) {
-      return Container(
+      marker = Container(
         width: 22,
         height: 22,
         decoration: BoxDecoration(shape: BoxShape.circle, color: accentColor),
         alignment: Alignment.center,
         child: const Icon(Icons.close_rounded, size: 14, color: MH.paper),
       );
+    } else {
+      final decoration = isBlock
+          ? BoxDecoration(
+              borderRadius: BorderRadius.circular(5),
+              color: lightBg,
+              border: Border.all(color: accentColor, width: 2),
+            )
+          : BoxDecoration(
+              shape: BoxShape.circle,
+              color: lightBg,
+              border: Border.all(color: accentColor, width: 2),
+            );
+
+      marker = Container(
+        width: 22,
+        height: 22,
+        decoration: decoration,
+        alignment: Alignment.center,
+        child: Text(
+          '$index',
+          style: MH.sans(
+            size: 11,
+            weight: FontWeight.w800,
+            color: accentColor,
+            height: 1,
+          ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+        ),
+      );
     }
 
-    final decoration = isBlock
-        ? BoxDecoration(
-            borderRadius: BorderRadius.circular(5),
-            color: lightBg,
-            border: Border.all(color: accentColor, width: 2),
-          )
-        : BoxDecoration(
-            shape: BoxShape.circle,
-            color: lightBg,
-            border: Border.all(color: accentColor, width: 2),
-          );
+    if (playerName == null) return marker;
 
-    return Container(
-      width: 22,
-      height: 22,
-      decoration: decoration,
-      alignment: Alignment.center,
-      child: Text(
-        '$index',
-        style: MH.sans(
-          size: 11,
-          weight: FontWeight.w800,
-          color: accentColor,
-          height: 1,
-        ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
-      ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          playerName!,
+          style: MH.sans(
+            size: 8,
+            weight: FontWeight.w700,
+            color: accentColor,
+            height: 1.2,
+          ),
+          textAlign: TextAlign.center,
+          overflow: TextOverflow.ellipsis,
+        ),
+        marker,
+      ],
     );
   }
 }

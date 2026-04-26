@@ -20,6 +20,14 @@ class BottomActions extends ConsumerWidget {
     final hasRallyImpacts = ref.watch(
       matchProvider.select((s) => s.rallyImpacts.isNotEmpty),
     );
+    final hasPopup = ref.watch(
+      matchProvider.select(
+        (s) =>
+            s.popup != null &&
+            (s.popup!.kind == PopupKind.fault ||
+                s.popup!.kind == PopupKind.pickPlayer),
+      ),
+    );
     final matchOver =
         ref.watch(matchProvider.select((s) => s.matchOver));
     final notifier = ref.read(matchProvider.notifier);
@@ -28,11 +36,13 @@ class BottomActions extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
       child: Column(
         children: [
-          if (hasRallyImpacts) ...[
+          if (hasRallyImpacts || hasPopup) ...[
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
-                onPressed: notifier.undoLastImpact,
+                onPressed: hasPopup
+                    ? notifier.dismissPopup
+                    : notifier.undoLastImpact,
                 style: OutlinedButton.styleFrom(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
@@ -43,7 +53,9 @@ class BottomActions extends ConsumerWidget {
                   ),
                 ),
                 child: Text(
-                  '↺ Annuler la dernière action',
+                  hasPopup
+                      ? '↺ Annuler la sélection'
+                      : '↺ Annuler la dernière action',
                   style: MH.sans(
                     size: 12,
                     weight: FontWeight.w600,

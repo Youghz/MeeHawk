@@ -39,6 +39,15 @@ String? _lastPlayerOnSide(MatchState state, TeamSide side) {
   return null;
 }
 
+/// Returns the playerId of whoever last touched the ball (any side), or null.
+String? _lastPlayerWhoTouched(MatchState state) {
+  for (var i = state.rallyImpacts.length - 1; i >= 0; i--) {
+    final imp = state.rallyImpacts[i];
+    if (!imp.isServerPosition) return imp.playerId;
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Widget
 // ---------------------------------------------------------------------------
@@ -146,21 +155,34 @@ class _CourtState extends ConsumerState<Court> {
                   ),
                 ),
               for (int i = 0; i < impactsToShow.length; i++)
-                Positioned(
-                  left: impactsToShow[i].x * outerW - 11,
-                  top: impactsToShow[i].y * outerH - 11,
-                  child: IgnorePointer(
-                    child: ImpactMarker(
-                      index: _impactIndex(impactsToShow, i),
-                      isOutside: impactsToShow[i].isOutside,
-                      isServerPosition: impactsToShow[i].isServerPosition,
-                      isBlock: impactsToShow[i].isBlock,
-                      isFinal: isReplay &&
-                          i == impactsToShow.length - 1 &&
-                          !impactsToShow[i].isServerPosition,
-                      visitIndex: _visitIndex(impactsToShow, i),
-                    ),
-                  ),
+                Builder(
+                  builder: (ctx) {
+                    final imp = impactsToShow[i];
+                    final pName =
+                        (isReplay && !imp.isServerPosition && imp.playerId != null)
+                            ? state.playerById(imp.playerId!)?.name
+                            : null;
+                    // When a player name is shown above the marker, shift up so
+                    // the marker circle stays centered on the impact point.
+                    final topOff = pName != null ? 22.0 : 11.0;
+                    return Positioned(
+                      left: imp.x * outerW - 11,
+                      top: imp.y * outerH - topOff,
+                      child: IgnorePointer(
+                        child: ImpactMarker(
+                          index: _impactIndex(impactsToShow, i),
+                          isOutside: imp.isOutside,
+                          isServerPosition: imp.isServerPosition,
+                          isBlock: imp.isBlock,
+                          isFinal: isReplay &&
+                              i == impactsToShow.length - 1 &&
+                              !imp.isServerPosition,
+                          visitIndex: _visitIndex(impactsToShow, i),
+                          playerName: pName,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               if (state.popup?.kind == PopupKind.fault)
                 const Positioned.fill(child: FaultPopup()),
@@ -250,11 +272,12 @@ class _CourtState extends ConsumerState<Court> {
             ),
           );
     } else {
-      _handleTouch(xNorm, yNorm, isOutside: true, isBlock: false, screenPos: p);
+      // Outside tap = ball out of bounds → ends the rally immediately.
+      _handleOutBall(p, xNorm, yNorm, outerW, state);
     }
   }
 
-  /// Long-press outside = out ball. Auto-attributes then shows fault picker.
+  /// Long-press outside: same semantics as tap — ball out, rally ends.
   void _onOutsideLongPress(
     Offset p,
     double outerW,
@@ -264,34 +287,63 @@ class _CourtState extends ConsumerState<Court> {
     if (_maybeDismissReplay()) return;
     final xNorm = p.dx / outerW;
     final yNorm = p.dy / outerH;
-    final teamSide = xNorm < 0.5 ? state.leftTeam : state.rightTeam;
-    final playerId = _lastPlayerOnSide(state, teamSide);
+    _handleOutBall(p, xNorm, yNorm, outerW, state);
+  }
+
+  /// Records an out-of-bounds ball impact and awards the point to the
+  /// opponent of whoever last sent the ball.
+  void _handleOutBall(
+    Offset p,
+    double xNorm,
+    double yNorm,
+    double outerW,
+    MatchState state,
+  ) {
+    final landingSide = xNorm < 0.5 ? state.leftTeam : state.rightTeam;
+    // Attribute the out impact to whoever last touched the ball (the faulter),
+    // not to the last player on the landing side.
+    final playerId = _lastPlayerWhoTouched(state);
     ref.read(matchProvider.notifier).addBallImpact(
           BallImpact(
             x: xNorm,
             y: yNorm,
             isOutside: true,
-            teamSide: teamSide,
+            teamSide: landingSide,
             playerId: playerId,
           ),
         );
+
     final s = ref.read(matchProvider);
     final impacts = s.rallyImpacts;
-    final TeamSide winner;
-    if (impacts.length >= 2) {
-      winner = impacts[impacts.length - 2].teamSide.other;
-    } else {
-      winner = p.dx < outerW / 2 ? state.leftTeam : state.rightTeam;
+
+    // Find the last real contact before the out impact (index length-2 and back).
+    // That player sent the ball out → their team loses.
+    BallImpact? lastContact;
+    for (var i = impacts.length - 2; i >= 0; i--) {
+      if (!impacts[i].isServerPosition) {
+        lastContact = impacts[i];
+        break;
+      }
     }
-    final faulter = impacts.length >= 2
-        ? s.playerById(impacts[impacts.length - 2].playerId ?? '')
-        : null;
+
+    final TeamSide winner;
+    final String faulterName;
+    if (lastContact != null) {
+      winner = lastContact.teamSide.other;
+      faulterName = s.playerById(lastContact.playerId ?? '')?.name ?? '—';
+    } else {
+      // No real contact yet (only server-position recorded or nothing):
+      // service fault — receiver wins regardless of where ball landed.
+      winner = landingSide.other;
+      faulterName = s.playerById(s.servingPlayerId)?.name ?? '—';
+    }
+
     ref.read(matchProvider.notifier).addPoint(
           winner: winner,
           annotations: [
             Annotation(
               type: 'fault',
-              text: 'Dehors · ${faulter?.name ?? '—'}',
+              text: 'Dehors · $faulterName',
               team: winner.other,
             ),
           ],
