@@ -29,14 +29,11 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: MH.paper,
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
               children: [
                 const _Header(),
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
                 _PrimaryCta(
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
@@ -56,7 +53,7 @@ class HomeScreen extends ConsumerWidget {
                     const SizedBox(height: 8),
                   ],
                 ],
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
                 const _SectionLabel(label: 'NAVIGATION'),
                 const SizedBox(height: 8),
                 _NavCard(
@@ -95,8 +92,6 @@ class HomeScreen extends ConsumerWidget {
                 const SizedBox(height: 28),
                 const _Footer(),
               ],
-            ),
-          ),
         ),
       ),
     );
@@ -110,44 +105,16 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'MEEHAWK',
-                  style: MH.sans(
-                    size: 34,
-                    weight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: MH.ball,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 7),
-                    Text(
-                      'LIVE SCORING — BEACH VOLLEY',
-                      style: MH.mono(
-                        size: 9,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+          Text(
+            'MEEHAWK',
+            style: MH.sans(
+              size: 30,
+              weight: FontWeight.w800,
+              letterSpacing: -0.5,
             ),
           ),
+          const Spacer(),
           Text(
             'v0.1',
             style: MH.mono(
@@ -231,63 +198,60 @@ class _OngoingCard extends ConsumerWidget {
         onTap: () => _resume(context, ref),
         splashColor: MH.ball.withValues(alpha: 0.10),
         highlightColor: MH.ball.withValues(alpha: 0.06),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(width: 4, color: MH.ball),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 30,
-                      height: 30,
-                      alignment: Alignment.center,
-                      decoration: const BoxDecoration(
-                        color: MH.ball,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.play_arrow_rounded,
-                        size: 18,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Reprendre le match',
-                            style: MH.sans(size: 13, weight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            '$name1 ${s.scoreE1} – ${s.scoreE2} $name2'
-                            '  ·  set ${s.setNumber} ($setsE1–$setsE2)',
-                            style: MH.mono(letterSpacing: 0.3),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.close_rounded,
-                        size: 16,
-                        color: MH.pencil,
-                      ),
-                      onPressed: () async { await _delete(context, ref); },
-                    ),
-                  ],
+        child: Container(
+          decoration: const BoxDecoration(
+            border: Border(left: BorderSide(color: MH.ball, width: 4)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    color: MH.ball,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.play_arrow_rounded,
+                    size: 18,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Reprendre le match',
+                        style: MH.sans(size: 13, weight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '$name1 ${s.scoreE1} – ${s.scoreE2} $name2'
+                        '  ·  set ${s.setNumber} ($setsE1–$setsE2)',
+                        style: MH.mono(letterSpacing: 0.3),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    size: 16,
+                    color: MH.pencil,
+                  ),
+                  onPressed: () async { await _delete(context, ref); },
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
