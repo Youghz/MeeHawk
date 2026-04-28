@@ -21,8 +21,7 @@ void main() {
         child: const MeeHawkApp(),
       ),
     );
-    expect(find.text('MeeHawk'), findsOneWidget);
-    expect(find.text('Beach volley — scoring live'), findsOneWidget);
-    expect(find.text('Nouvelle partie'), findsOneWidget);
+    expect(find.text('MEEHAWK'), findsOneWidget);
+    expect(find.text('NOUVELLE PARTIE'), findsOneWidget);
   });
 }

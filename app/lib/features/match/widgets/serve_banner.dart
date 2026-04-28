@@ -1,6 +1,7 @@
 import 'package:app/core/theme.dart';
 import 'package:app/features/match/domain/match_state.dart';
 import 'package:app/features/match/providers/match_provider.dart';
+import 'package:app/features/match/widgets/court.dart' show kCourtMargin;
 import 'package:app/features/match/widgets/server_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,19 +27,17 @@ class ServeBanner extends ConsumerWidget {
         ServerBadge(teamColor: serverColor, playerName: server?.name ?? '—');
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
       child: Row(
         children: [
+          const SizedBox(width: kCourtMargin),
           Expanded(
-            child: serverOnLeft
-                ? Align(child: badge)
-                : const SizedBox.shrink(),
+            child: serverOnLeft ? Center(child: badge) : const SizedBox.shrink(),
           ),
           Expanded(
-            child: serverOnLeft
-                ? const SizedBox.shrink()
-                : Align(child: badge),
+            child: serverOnLeft ? const SizedBox.shrink() : Center(child: badge),
           ),
+          const SizedBox(width: kCourtMargin),
         ],
       ),
     );

@@ -21,13 +21,15 @@ class TopScore extends ConsumerWidget {
     final showSets = setsLeft > 0 || setsRight > 0;
     final setNumber = ref.watch(matchProvider.select((s) => s.setNumber));
     final matchOver = ref.watch(matchProvider.select((s) => s.matchOver));
-    final nameE1 = ref.watch(matchProvider.select((s) => s.teams[TeamSide.e1]!.name));
-    final nameE2 = ref.watch(matchProvider.select((s) => s.teams[TeamSide.e2]!.name));
+    final nameE1 =
+        ref.watch(matchProvider.select((s) => s.teams[TeamSide.e1]!.name));
+    final nameE2 =
+        ref.watch(matchProvider.select((s) => s.teams[TeamSide.e2]!.name));
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
       decoration: const BoxDecoration(
-        color: MH.paper,
+        color: MH.sand,
         border: Border(bottom: BorderSide(color: MH.rule)),
       ),
       child: Column(
@@ -39,37 +41,73 @@ class TopScore extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     _TeamHead(tk: leftTeam, align: TextAlign.right),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     _Score(value: scoreLeft),
                   ],
                 ),
               ),
-              Text(' · ', style: MH.sans(size: 18, color: MH.rule)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 4,
+                      height: 4,
+                      decoration: const BoxDecoration(
+                        color: MH.rule,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      width: 4,
+                      height: 4,
+                      decoration: const BoxDecoration(
+                        color: MH.rule,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               Expanded(
                 child: Row(
                   children: [
                     _Score(value: scoreRight),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     _TeamHead(tk: leftTeam.other, align: TextAlign.left),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            showSets
-                ? 'SET $setNumber · Sets $setsLeft–$setsRight'
-                : 'SET $setNumber',
-            style: MH.sans(
-              size: 10,
-              weight: FontWeight.w600,
-              color: MH.pencil,
-              letterSpacing: 0.6,
-            ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 5,
+                height: 5,
+                decoration: const BoxDecoration(
+                  color: MH.ball,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                showSets
+                    ? 'SET $setNumber  ·  $setsLeft — $setsRight'
+                    : 'SET $setNumber',
+                style: MH.mono(
+                  size: 9,
+                  weight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
           if (matchOver) ...[
-            const SizedBox(height: 5),
+            const SizedBox(height: 6),
             _WinnerBadge(
               winnerName: setsLeft > setsRight ? nameE1 : nameE2,
               winnerSide: setsLeft > setsRight ? leftTeam : leftTeam.other,
@@ -88,16 +126,17 @@ class _Score extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ConstrainedBox(
-        constraints: const BoxConstraints(minWidth: 36),
+        constraints: const BoxConstraints(minWidth: 52),
         child: Text(
           '$value',
           textAlign: TextAlign.center,
           maxLines: 1,
           softWrap: false,
           style: MH.sans(
-            size: 34,
-            weight: FontWeight.w700,
+            size: 52,
+            weight: FontWeight.w800,
             height: 1,
+            letterSpacing: -1,
           ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
         ),
       );
@@ -131,7 +170,12 @@ class _TeamHead extends ConsumerWidget {
                   value: team.name,
                   onChanged: (v) =>
                       ref.read(matchProvider.notifier).renameTeam(tk, v),
-                  style: MH.sans(size: 12, weight: FontWeight.w700, color: color),
+                  style: MH.sans(
+                    size: 11,
+                    weight: FontWeight.w800,
+                    color: color,
+                    letterSpacing: 0.6,
+                  ),
                 ),
                 const SizedBox(width: 6),
                 _RecordBadge(
@@ -150,41 +194,16 @@ class _TeamHead extends ConsumerWidget {
                   value: team.name,
                   onChanged: (v) =>
                       ref.read(matchProvider.notifier).renameTeam(tk, v),
-                  style: MH.sans(size: 12, weight: FontWeight.w700, color: color),
+                  style: MH.sans(
+                    size: 11,
+                    weight: FontWeight.w800,
+                    color: color,
+                    letterSpacing: 0.6,
+                  ),
                 ),
               ],
             ],
           ),
-          const SizedBox(height: 2),
-          for (int i = 0; i < team.players.length; i++)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Row(
-                mainAxisAlignment:
-                    isRight ? MainAxisAlignment.end : MainAxisAlignment.start,
-                children: [
-                  Text(
-                    'J${i + 1} ',
-                    style: MH.sans(
-                      size: 10,
-                      weight: FontWeight.w600,
-                      color: MH.pencil,
-                    ),
-                  ),
-                  _EditableText(
-                    value: team.players[i].name,
-                    onChanged: (v) => ref
-                        .read(matchProvider.notifier)
-                        .renamePlayer(team.players[i].id, v),
-                    style: MH.sans(
-                      size: 11,
-                      weight: FontWeight.w500,
-                      color: MH.pencil,
-                    ),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );
@@ -198,24 +217,61 @@ class _RecordBadge extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
+  Widget build(BuildContext context) => InkWell(
         onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(3),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: active ? MH.bad : MH.rule,
-              width: 1.5,
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: active ? MH.bad : Colors.transparent,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: active ? MH.bad : MH.rule,
+                width: 1.5,
+              ),
             ),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Icon(
-            Icons.fiber_manual_record,
-            size: 10,
-            color: active ? MH.bad : MH.rule,
           ),
         ),
       );
+}
+
+class _WinnerBadge extends StatelessWidget {
+  const _WinnerBadge({required this.winnerName, required this.winnerSide});
+
+  final String winnerName;
+  final TeamSide winnerSide;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = winnerSide == TeamSide.e1 ? MH.them : MH.us;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.30)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.emoji_events_rounded, size: 11, color: color),
+          const SizedBox(width: 5),
+          Text(
+            '${winnerName.toUpperCase()} REMPORTE LE MATCH',
+            style: MH.mono(
+              size: 8,
+              weight: FontWeight.w700,
+              color: color,
+              letterSpacing: 0.8,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _EditableText extends StatefulWidget {
@@ -231,34 +287,6 @@ class _EditableText extends StatefulWidget {
 
   @override
   State<_EditableText> createState() => _EditableTextState();
-}
-
-class _WinnerBadge extends StatelessWidget {
-  const _WinnerBadge({required this.winnerName, required this.winnerSide});
-
-  final String winnerName;
-  final TeamSide winnerSide;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = winnerSide == TeamSide.e1 ? MH.them : MH.us;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.emoji_events_rounded, size: 12, color: color),
-        const SizedBox(width: 5),
-        Text(
-          '${winnerName.toUpperCase()} REMPORTE LE MATCH',
-          style: MH.sans(
-            size: 9,
-            weight: FontWeight.w700,
-            color: color,
-            letterSpacing: 0.5,
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 class _EditableTextState extends State<_EditableText> {
@@ -298,22 +326,27 @@ class _EditableTextState extends State<_EditableText> {
           controller: _ctrl,
           focusNode: _focus,
           style: widget.style,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             isDense: true,
-            contentPadding: EdgeInsets.symmetric(horizontal: 2),
-            border: UnderlineInputBorder(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 2),
+            border: const UnderlineInputBorder(
               borderSide: BorderSide(color: MH.rule),
             ),
-            enabledBorder: UnderlineInputBorder(
+            enabledBorder: const UnderlineInputBorder(
               borderSide: BorderSide(color: MH.rule),
+            ),
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(
+                color: MH.ink.withValues(alpha: 0.3),
+              ),
             ),
             suffixIcon: Icon(
-              Icons.edit,
-              size: 10,
-              color: MH.rule,
+              Icons.edit_rounded,
+              size: 9,
+              color: MH.rule.withValues(alpha: 0.7),
             ),
-            suffixIconConstraints: BoxConstraints(maxWidth: 14, maxHeight: 14),
-
+            suffixIconConstraints:
+                const BoxConstraints(maxWidth: 14, maxHeight: 14),
           ),
           onSubmitted: (_) => _focus.unfocus(),
         ),

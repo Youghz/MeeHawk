@@ -10,7 +10,7 @@ import 'package:app/features/match/widgets/trajectory_painter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-const kCourtMargin = 36.0;
+const kCourtMargin = 28.0;
 const _maxOuterW = 720.0;
 
 // ---------------------------------------------------------------------------
@@ -24,7 +24,9 @@ bool _shouldShowPlayerPicker(MatchState state, TeamSide touchSide) {
   for (var i = state.rallyImpacts.length - 1; i >= 0; i--) {
     final impact = state.rallyImpacts[i];
     if (impact.isServerPosition) continue;
-    return impact.teamSide != touchSide;
+    if (impact.teamSide != touchSide) return true;
+    // Same side: show picker again only after a block (can be the same player).
+    return impact.isBlock;
   }
   return true;
 }
@@ -61,6 +63,8 @@ class Court extends ConsumerStatefulWidget {
 }
 
 class _CourtState extends ConsumerState<Court> {
+  Offset? _swipeDragStart;
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(matchProvider);
@@ -74,131 +78,219 @@ class _CourtState extends ConsumerState<Court> {
     final impactsToShow =
         isReplay ? state.history[replayIdx].impacts : state.rallyImpacts;
 
+    final leftPlayers = state.teams[leftTeam]!.players;
+    final rightPlayers = state.teams[rightTeam]!.players;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       child: LayoutBuilder(builder: (ctx, constraints) {
         final outerW = constraints.maxWidth.clamp(0.0, _maxOuterW);
         final innerW = (outerW - kCourtMargin * 2).clamp(80.0, double.infinity);
         final innerH = innerW / 2;
         final outerH = innerH + kCourtMargin * 2;
-        return Center(
-          child: Container(
-            width: outerW,
-            height: outerH,
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              color: MH.ruleSoft,
-              borderRadius: BorderRadius.circular(8),
-              // Solid outer ring that frames the band zone.
-              boxShadow: const [
-                BoxShadow(color: MH.rule, spreadRadius: 1.5),
-              ],
-            ),
-            child: Stack(children: [
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTapUp: (d) =>
-                      _onOutsideTap(d.localPosition, outerW, outerH),
-                  onLongPressStart: (d) => _onOutsideLongPress(
-                      d.localPosition, outerW, outerH, state),
-                ),
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Player labels above court: J1 for each team
+            SizedBox(
+              height: 20,
+              child: Row(
+                children: [
+                  const SizedBox(width: kCourtMargin),
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        leftPlayers.isNotEmpty ? leftPlayers[0].name : '',
+                        style: MH.sans(
+                          size: 10,
+                          weight: FontWeight.w700,
+                          color: leftColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        rightPlayers.isNotEmpty ? rightPlayers[0].name : '',
+                        style: MH.sans(
+                          size: 10,
+                          weight: FontWeight.w700,
+                          color: rightColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: kCourtMargin),
+                ],
               ),
-              Positioned(
-                left: kCourtMargin,
-                top: kCourtMargin,
-                width: innerW,
-                height: innerH,
+            ),
+            const SizedBox(height: 4),
+            Center(
+              child: Container(
+                width: outerW,
+                height: outerH,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: MH.ruleSoft,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: const [
+                    BoxShadow(color: MH.rule, spreadRadius: 1.5),
+                  ],
+                ),
                 child: Stack(children: [
-                  SizedBox(
-                    width: innerW,
-                    height: innerH,
+                  Positioned.fill(
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTapUp: (d) =>
-                          _onInsideTap(d.localPosition, outerW, outerH),
-                      onLongPressStart: (d) => _onInsideLongPress(
-                          d.localPosition, outerW, outerH, innerW, state),
-                      onDoubleTapDown: (d) =>
-                          _onDoubleTap(d.localPosition, outerW, outerH),
-                      onDoubleTap: () {},
-                      child: RepaintBoundary(
-                        child: CourtCanvas(
-                          state: state,
-                          leftTeam: leftTeam,
-                          rightTeam: rightTeam,
-                          leftColor: leftColor,
-                          rightColor: rightColor,
-                          courtWidth: innerW,
+                          _onOutsideTap(d.localPosition, outerW, outerH),
+                      onLongPressStart: (d) => _onOutsideLongPress(
+                          d.localPosition, outerW, outerH, state),
+                    ),
+                  ),
+                  Positioned(
+                    left: kCourtMargin,
+                    top: kCourtMargin,
+                    width: innerW,
+                    height: innerH,
+                    child: SizedBox(
+                      width: innerW,
+                      height: innerH,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTapUp: (d) =>
+                            _onInsideTap(d.localPosition, outerW, outerH),
+                        onLongPressStart: (d) => _onInsideLongPress(
+                            d.localPosition, outerW, outerH, innerW, state),
+                        onDoubleTapDown: (d) =>
+                            _onDoubleTap(d.localPosition, outerW, outerH, innerH),
+                        onDoubleTap: () {},
+                        onVerticalDragStart: (d) {
+                          _swipeDragStart = d.localPosition;
+                        },
+                        onVerticalDragEnd: (d) => _onInsideSwipe(
+                            d.velocity, outerW, outerH),
+                        onVerticalDragCancel: () {
+                          _swipeDragStart = null;
+                        },
+                        child: RepaintBoundary(
+                          child: CourtCanvas(
+                            state: state,
+                            leftTeam: leftTeam,
+                            rightTeam: rightTeam,
+                            leftColor: leftColor,
+                            rightColor: rightColor,
+                            courtWidth: innerW,
+                          ),
                         ),
                       ),
                     ),
                   ),
                   if (!isReplay)
-                    ...['p1', 'p2', 'p3', 'p4'].map((id) => PlayerDot(
-                          key: ValueKey('dot-$id'),
-                          playerId: id,
-                          courtWidth: innerW,
-                          courtHeight: innerH,
-                        )),
-                ]),
-              ),
-              if (impactsToShow.length > 1)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: CustomPaint(
-                      painter: TrajectoryPainter(
-                        impacts: impactsToShow,
-                        outerW: outerW,
-                        outerH: outerH,
+                    ...['p1', 'p2', 'p3', 'p4'].map(
+                      (id) => PlayerDot(
+                        key: ValueKey('dot-$id'),
+                        playerId: id,
+                        outerHeight: outerH,
+                        courtWidth: innerW,
+                        courtHeight: innerH,
                       ),
                     ),
-                  ),
-                ),
-              for (int i = 0; i < impactsToShow.length; i++)
-                Builder(
-                  builder: (ctx) {
-                    final imp = impactsToShow[i];
-                    final isLastImpact = i == impactsToShow.length - 1;
-                    // In replay: show player name on all impacts except the
-                    // final in-bounds landing (winning ball). Faults (isOutside)
-                    // always show the name so the faulter is identifiable.
-                    final pName =
-                        (isReplay && !imp.isServerPosition && imp.playerId != null)
-                            ? (isLastImpact && !imp.isOutside
+                  if (impactsToShow.length > 1)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: CustomPaint(
+                          painter: TrajectoryPainter(
+                            impacts: impactsToShow,
+                            outerW: outerW,
+                            outerH: outerH,
+                          ),
+                        ),
+                      ),
+                    ),
+                  for (int i = 0; i < impactsToShow.length; i++)
+                    Builder(
+                      builder: (ctx) {
+                        final imp = impactsToShow[i];
+                        final isLastImpact = i == impactsToShow.length - 1;
+                        final pName = (!imp.isServerPosition && imp.playerId != null)
+                            ? (isLastImpact && !imp.isOutside && isReplay
                                 ? null
                                 : state.playerById(imp.playerId!)?.name)
                             : null;
-                    // When a player name is shown above the marker, shift up so
-                    // the marker circle stays centered on the impact point.
-                    final topOff = pName != null ? 22.0 : 11.0;
-                    return Positioned(
-                      left: imp.x * outerW - 11,
-                      top: imp.y * outerH - topOff,
-                      child: IgnorePointer(
-                        child: ImpactMarker(
-                          index: _impactIndex(impactsToShow, i),
-                          isOutside: imp.isOutside,
-                          isServerPosition: imp.isServerPosition,
-                          isBlock: imp.isBlock,
-                          isFinal: isReplay &&
-                              i == impactsToShow.length - 1 &&
-                              !imp.isServerPosition,
-                          visitIndex: _visitIndex(impactsToShow, i),
-                          playerName: pName,
+                        final topOff = pName != null ? 22.0 : 11.0;
+                        return Positioned(
+                          left: imp.x * outerW - 11,
+                          top: imp.y * outerH - topOff,
+                          child: IgnorePointer(
+                            child: ImpactMarker(
+                              index: _impactIndex(impactsToShow, i),
+                              isOutside: imp.isOutside,
+                              isServerPosition: imp.isServerPosition,
+                              isBlock: imp.isBlock,
+                              isFinal: isReplay &&
+                                  i == impactsToShow.length - 1 &&
+                                  !imp.isServerPosition,
+                              visitIndex: _visitIndex(impactsToShow, i),
+                              playerName: pName,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  if (state.popup?.kind == PopupKind.fault)
+                    const Positioned.fill(child: FaultPopup()),
+                  if (state.popup?.kind == PopupKind.pickServer)
+                    const Positioned.fill(child: PickServerPopup()),
+                  if (state.popup?.kind == PopupKind.pickPlayer)
+                    const Positioned.fill(child: PlayerPickerPopup()),
+                ]),
+              ),
+            ),
+            const SizedBox(height: 4),
+            // Player labels below court: J2 for each team
+            SizedBox(
+              height: 20,
+              child: Row(
+                children: [
+                  const SizedBox(width: kCourtMargin),
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        leftPlayers.length > 1 ? leftPlayers[1].name : '',
+                        style: MH.sans(
+                          size: 10,
+                          weight: FontWeight.w700,
+                          color: leftColor,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    );
-                  },
-                ),
-              if (state.popup?.kind == PopupKind.fault)
-                const Positioned.fill(child: FaultPopup()),
-              if (state.popup?.kind == PopupKind.pickServer)
-                const Positioned.fill(child: PickServerPopup()),
-              if (state.popup?.kind == PopupKind.pickPlayer)
-                const Positioned.fill(child: PlayerPickerPopup()),
-            ]),
-          ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        rightPlayers.length > 1 ? rightPlayers[1].name : '',
+                        style: MH.sans(
+                          size: 10,
+                          weight: FontWeight.w700,
+                          color: rightColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: kCourtMargin),
+                ],
+              ),
+            ),
+          ],
         );
       }),
     );
@@ -221,17 +313,55 @@ class _CourtState extends ConsumerState<Court> {
     );
   }
 
-  /// Double-tap inside: block.
-  void _onDoubleTap(Offset p, double outerW, double outerH) {
+  /// Double-tap inside: block. The vertical position of the second tap
+  /// determines the player — top half = J1 (index 0), bottom half = J2 (index 1).
+  void _onDoubleTap(Offset p, double outerW, double outerH, double innerH) {
     if (_maybeDismissReplay()) return;
     final nx = (p.dx + kCourtMargin) / outerW;
     final ny = (p.dy + kCourtMargin) / outerH;
-    _handleTouch(
-      nx, ny,
-      isOutside: false,
-      isBlock: true,
-      screenPos: Offset(p.dx + kCourtMargin, p.dy + kCourtMargin),
-    );
+    final state = ref.read(matchProvider);
+    final teamSide = nx < 0.5 ? state.leftTeam : state.rightTeam;
+    final players = state.teams[teamSide]!.players;
+    final playerIdx = p.dy < innerH / 2 ? 0 : 1;
+    final playerId = players[playerIdx.clamp(0, players.length - 1)].id;
+    ref.read(matchProvider.notifier).addTouchWithPlayer(
+          BallImpact(
+            x: nx,
+            y: ny,
+            isOutside: false,
+            teamSide: teamSide,
+            playerId: playerId,
+            isBlock: true,
+          ),
+        );
+  }
+
+  /// Vertical swipe inside: impact at drag-start position, player determined
+  /// by direction — swipe up = players[0] (J1), swipe down = players[1] (J2).
+  void _onInsideSwipe(Velocity velocity, double outerW, double outerH) {
+    if (_maybeDismissReplay()) return;
+    final start = _swipeDragStart;
+    _swipeDragStart = null;
+    if (start == null) return;
+    if (velocity.pixelsPerSecond.dy.abs() < 100) return;
+
+    final nx = (start.dx + kCourtMargin) / outerW;
+    final ny = (start.dy + kCourtMargin) / outerH;
+    final state = ref.read(matchProvider);
+    final teamSide = nx < 0.5 ? state.leftTeam : state.rightTeam;
+    final players = state.teams[teamSide]!.players;
+    final playerIdx = velocity.pixelsPerSecond.dy < 0 ? 0 : 1;
+    final playerId = players[playerIdx.clamp(0, players.length - 1)].id;
+
+    ref.read(matchProvider.notifier).addTouchWithPlayer(
+          BallImpact(
+            x: nx,
+            y: ny,
+            isOutside: false,
+            teamSide: teamSide,
+            playerId: playerId,
+          ),
+        );
   }
 
   /// Long-press inside = rally ended with ball landing on this side.
@@ -257,6 +387,9 @@ class _CourtState extends ConsumerState<Court> {
             playerId: playerId,
           ),
         );
+    // If addBallImpact already resolved the point internally (4th-touch
+    // auto-fault), rallyImpacts will be empty — skip the second addPoint.
+    if (ref.read(matchProvider).rallyImpacts.isEmpty) return;
     final landSide = p.dx < innerW / 2 ? state.leftTeam : state.rightTeam;
     ref.read(matchProvider.notifier).addPoint(winner: landSide.other);
   }
@@ -339,9 +472,10 @@ class _CourtState extends ConsumerState<Court> {
       winner = lastContact.teamSide.other;
       faulterName = s.playerById(lastContact.playerId ?? '')?.name ?? '—';
     } else {
-      // No real contact yet (only server-position recorded or nothing):
-      // service fault — receiver wins regardless of where ball landed.
-      winner = landingSide.other;
+      // No real contact yet = service fault. Server always loses the point
+      // regardless of which side the ball lands on.
+      final serverTeam = s.teamOfPlayer(s.servingPlayerId)!;
+      winner = serverTeam.other;
       faulterName = s.playerById(s.servingPlayerId)?.name ?? '—';
     }
 

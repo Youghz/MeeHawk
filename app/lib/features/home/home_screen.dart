@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:app/core/theme.dart';
-import 'package:app/core/widgets/ball_icon.dart';
 import 'package:app/features/match/domain/match_state.dart';
 import 'package:app/features/match/match_screen.dart';
 import 'package:app/features/match/providers/match_provider.dart';
@@ -34,17 +33,10 @@ class HomeScreen extends ConsumerWidget {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
               children: [
                 const _Header(),
-                const SizedBox(height: 40),
-                for (final archive in ongoingMatches) ...[
-                  _OngoingCard(
-                    archive: archive,
-                    isCurrent: archive.id == currentMatchId,
-                  ),
-                  const SizedBox(height: 10),
-                ],
+                const SizedBox(height: 16),
                 _PrimaryCta(
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
@@ -52,38 +44,53 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 36),
-                Text(
-                  'EXPLORER',
-                  style: MH.mono(
-                    letterSpacing: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _MenuItem(
-                  icon: Icons.history,
-                  label: 'Historique des matchs',
-                  subtitle: 'Revoir les matchs passés',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const HistoryScreen(),
+                if (ongoingMatches.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  const _SectionLabel(label: 'EN COURS'),
+                  const SizedBox(height: 8),
+                  for (final archive in ongoingMatches) ...[
+                    _OngoingCard(
+                      archive: archive,
+                      isCurrent: archive.id == currentMatchId,
                     ),
-                  ),
-                ),
-                const _MenuItem(
-                  icon: Icons.query_stats,
-                  label: 'Statistiques',
-                  subtitle: 'Performances sur la durée',
-                ),
-                const _MenuItem(
-                  icon: Icons.groups_outlined,
-                  label: 'Équipes & joueurs',
-                  subtitle: 'Gérer les rosters',
-                ),
-                const _MenuItem(
-                  icon: Icons.tune,
-                  label: 'Paramètres',
-                  subtitle: "Préférences de l'application",
+                    const SizedBox(height: 8),
+                  ],
+                ],
+                const SizedBox(height: 24),
+                const _SectionLabel(label: 'NAVIGATION'),
+                const SizedBox(height: 8),
+                _NavCard(
+                  children: [
+                    _MenuItem(
+                      icon: Icons.history_rounded,
+                      label: 'Historique des matchs',
+                      subtitle: 'Revoir les matchs passés',
+                      iconColor: MH.ball,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const HistoryScreen(),
+                        ),
+                      ),
+                    ),
+                    const _MenuItem(
+                      icon: Icons.query_stats_rounded,
+                      label: 'Statistiques',
+                      subtitle: 'Performances sur la durée',
+                      iconColor: MH.them,
+                    ),
+                    const _MenuItem(
+                      icon: Icons.groups_rounded,
+                      label: 'Équipes & joueurs',
+                      subtitle: 'Gérer les rosters',
+                      iconColor: MH.us,
+                    ),
+                    const _MenuItem(
+                      icon: Icons.tune_rounded,
+                      label: 'Paramètres',
+                      subtitle: "Préférences de l'application",
+                      iconColor: MH.pencil,
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 28),
                 const _Footer(),
@@ -96,7 +103,94 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _Header extends StatelessWidget {
+  const _Header();
+
+  @override
+  Widget build(BuildContext context) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'MEEHAWK',
+                  style: MH.sans(
+                    size: 34,
+                    weight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: MH.ball,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    Text(
+                      'LIVE SCORING — BEACH VOLLEY',
+                      style: MH.mono(
+                        size: 9,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Text(
+            'v0.1',
+            style: MH.mono(
+              size: 9,
+              color: MH.rule,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          Container(
+            width: 3,
+            height: 11,
+            decoration: BoxDecoration(
+              color: MH.ball,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: MH.mono(
+              size: 9,
+              weight: FontWeight.w600,
+              letterSpacing: 1.5,
+            ),
+          ),
+        ],
+      );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _OngoingCard extends ConsumerWidget {
   const _OngoingCard({
@@ -131,101 +225,76 @@ class _OngoingCard extends ConsumerWidget {
 
     return Material(
       color: MH.sand,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(12),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _resume(context, ref),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: MH.ink,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.play_arrow, size: 20, color: MH.paper),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
+        splashColor: MH.ball.withValues(alpha: 0.10),
+        highlightColor: MH.ball.withValues(alpha: 0.06),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(width: 4, color: MH.ball),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+                child: Row(
                   children: [
-                    Text(
-                      'Reprendre le match',
-                      style: MH.sans(size: 15, weight: FontWeight.w700),
+                    Container(
+                      width: 30,
+                      height: 30,
+                      alignment: Alignment.center,
+                      decoration: const BoxDecoration(
+                        color: MH.ball,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.play_arrow_rounded,
+                        size: 18,
+                        color: Colors.white,
+                      ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '$name1 ${s.scoreE1} · ${s.scoreE2} $name2'
-                      '  ·  set ${s.setNumber} ($setsE1-$setsE2)',
-                      style: MH.sans(size: 11, color: MH.pencil),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Reprendre le match',
+                            style: MH.sans(size: 13, weight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            '$name1 ${s.scoreE1} – ${s.scoreE2} $name2'
+                            '  ·  set ${s.setNumber} ($setsE1–$setsE2)',
+                            style: MH.mono(letterSpacing: 0.3),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        size: 16,
+                        color: MH.pencil,
+                      ),
+                      onPressed: () async { await _delete(context, ref); },
                     ),
                   ],
                 ),
               ),
-              IconButton(
-                icon: const Icon(
-                  Icons.delete_outline,
-                  size: 18,
-                  color: MH.pencil,
-                ),
-                onPressed: () async { await _delete(context, ref); },
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-
-class _Header extends StatelessWidget {
-  const _Header();
-
-  @override
-  Widget build(BuildContext context) => Column(
-        children: [
-          Container(
-            width: 72,
-            height: 72,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: MH.ballSoft,
-              shape: BoxShape.circle,
-              border: Border.all(color: MH.ball, width: 1.5),
-            ),
-            child: const BallIcon(size: 38),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            'MeeHawk',
-            style: MH.sans(
-              size: 36,
-              weight: FontWeight.w800,
-              letterSpacing: -0.4,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            'Beach volley — scoring live',
-            style: MH.sans(
-              size: 13,
-              color: MH.pencil,
-              letterSpacing: 0.4,
-            ),
-          ),
-        ],
-      );
-}
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _PrimaryCta extends StatelessWidget {
   const _PrimaryCta({required this.onTap});
@@ -233,15 +302,20 @@ class _PrimaryCta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: MH.ink,
-        borderRadius: BorderRadius.circular(14),
+        color: MH.sand,
+        borderRadius: BorderRadius.circular(12),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          hoverColor: MH.paper.withValues(alpha: 0.08),
-          splashColor: MH.paper.withValues(alpha: 0.14),
-          highlightColor: MH.paper.withValues(alpha: 0.10),
-          child: Padding(
+          splashColor: MH.ball.withValues(alpha: 0.10),
+          highlightColor: MH.ball.withValues(alpha: 0.06),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: MH.ball.withValues(alpha: 0.40),
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
             padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
             child: Row(
               children: [
@@ -253,7 +327,11 @@ class _PrimaryCta extends StatelessWidget {
                     color: MH.ball,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.add, size: 22, color: MH.paper),
+                  child: const Icon(
+                    Icons.add_rounded,
+                    size: 20,
+                    color: Colors.white,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -262,32 +340,56 @@ class _PrimaryCta extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'Nouvelle partie',
+                        'NOUVELLE PARTIE',
                         style: MH.sans(
-                          size: 17,
-                          weight: FontWeight.w700,
-                          color: MH.paper,
+                          weight: FontWeight.w800,
+                          letterSpacing: 0.3,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         "Configurer et démarrer l'annotation",
-                        style: MH.sans(
-                          size: 12,
-                          color: MH.paper.withValues(alpha: 0.65),
-                        ),
+                        style: MH.sans(size: 11, color: MH.pencil),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                Icon(
-                  Icons.arrow_forward,
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.arrow_forward_rounded,
                   size: 18,
-                  color: MH.paper.withValues(alpha: 0.7),
+                  color: MH.ball,
                 ),
               ],
             ),
+          ),
+        ),
+      );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _NavCard extends StatelessWidget {
+  const _NavCard({required this.children});
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        decoration: BoxDecoration(
+          color: MH.sand,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: MH.rule),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Column(
+            children: [
+              for (int i = 0; i < children.length; i++) ...[
+                if (i > 0)
+                  const Divider(height: 1, thickness: 1, color: MH.rule),
+                children[i],
+              ],
+            ],
           ),
         ),
       );
@@ -298,11 +400,13 @@ class _MenuItem extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.subtitle,
+    required this.iconColor,
     this.onTap,
   });
   final IconData icon;
   final String label;
   final String subtitle;
+  final Color iconColor;
   final VoidCallback? onTap;
 
   void _showSoon(BuildContext context) {
@@ -310,10 +414,10 @@ class _MenuItem extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: MH.ink,
+        backgroundColor: MH.sand,
         content: Text(
           'Bientôt disponible',
-          style: MH.sans(size: 13, color: MH.paper),
+          style: MH.sans(size: 13),
         ),
         duration: const Duration(seconds: 2),
       ),
@@ -321,68 +425,57 @@ class _MenuItem extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Material(
-          color: MH.paper,
-          borderRadius: BorderRadius.circular(12),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onTap ?? () => _showSoon(context),
-            hoverColor: MH.ink.withValues(alpha: 0.04),
-            splashColor: MH.ink.withValues(alpha: 0.10),
-            highlightColor: MH.ink.withValues(alpha: 0.06),
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              decoration: BoxDecoration(
-                border: Border.all(color: MH.rule, width: 1.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: MH.sand,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(icon, size: 18, color: MH.ink),
+  Widget build(BuildContext context) => Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap ?? () => _showSoon(context),
+          splashColor: MH.ink.withValues(alpha: 0.14),
+          highlightColor: MH.ink.withValues(alpha: 0.10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: iconColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          label,
-                          style: MH.sans(
-                            weight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          subtitle,
-                          style: MH.sans(size: 12, color: MH.pencil),
-                        ),
-                      ],
-                    ),
+                  child: Icon(icon, size: 16, color: iconColor),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        label,
+                        style: MH.sans(size: 13, weight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        subtitle,
+                        style: MH.sans(size: 11, color: MH.pencil),
+                      ),
+                    ],
                   ),
-                  const Icon(
-                    Icons.chevron_right,
-                    size: 20,
-                    color: MH.pencil,
-                  ),
-                ],
-              ),
+                ),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: MH.pencil,
+                ),
+              ],
             ),
           ),
         ),
       );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _Footer extends StatelessWidget {
   const _Footer();
@@ -390,8 +483,11 @@ class _Footer extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
         child: Text(
-          'MeeHawk · v0.1',
-          style: MH.mono(color: MH.rule),
+          'MEEHAWK · v0.1',
+          style: MH.mono(
+            size: 9,
+            color: MH.rule,
+          ),
         ),
       );
 }

@@ -27,12 +27,14 @@ class MatchNotifier extends Notifier<MatchState> {
     required String p3,
     required String p4,
     required String initialServerId,
+    MatchFormat format = MatchFormat.beachFivb,
   }) {
     state = initialMatchState(
       teamE1Name: teamE1Name,
       teamE2Name: teamE2Name,
       p1: p1, p2: p2, p3: p3, p4: p4,
       initialServerId: initialServerId,
+      format: format,
     ).copyWith(started: true);
   }
 
@@ -353,7 +355,7 @@ class MatchNotifier extends Notifier<MatchState> {
 
     state = state.copyWith(
       rallyImpacts: newImpacts,
-      rallyAnnotations: annotations,
+      rallyAnnotations: newImpacts.isEmpty ? const [] : annotations,
     );
   }
 
@@ -524,6 +526,8 @@ class MatchNotifier extends Notifier<MatchState> {
   /// Discard all in-progress rally impacts, annotations and dismissible popups
   /// without awarding a point. Called when the user taps outside the court band.
   void clearRally() {
+    // Selecting a point on the timeline is not a "clear rally" intent.
+    if (state.selectedPointIndex != null) return;
     final popup = state.popup;
     final hasDismissiblePopup = popup != null &&
         (popup.kind == PopupKind.fault || popup.kind == PopupKind.pickPlayer);
