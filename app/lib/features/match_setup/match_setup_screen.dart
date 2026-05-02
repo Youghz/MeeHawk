@@ -86,8 +86,8 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
                     child: ElevatedButton(
                       onPressed: _start,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: MH.ink,
-                        foregroundColor: MH.paper,
+                        backgroundColor: MH.ball,
+                        foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -98,7 +98,7 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
                           style: MH.sans(
                             size: 16,
                             weight: FontWeight.w600,
-                            color: MH.paper,
+                            color: Colors.white,
                           )),
                     ),
                   ),
@@ -186,7 +186,10 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
       );
 
   Widget _serverPicker() {
-    final options = ['p1', 'p2', 'p3', 'p4'];
+    final rows = [
+      ['p1', 'p2'],
+      ['p3', 'p4'],
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -197,34 +200,49 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
               color: MH.inkSoft,
             )),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: options.map((id) {
-            final selected = id == _initialServerId;
-            final color =
-                (id == 'p1' || id == 'p2') ? MH.them : MH.us;
-            return ChoiceChip(
-              label: Text(
-                _pickerLabel(id),
-                style: MH.sans(
-                  size: 12,
-                  weight: FontWeight.w600,
-                  color: selected ? MH.paper : color,
-                ),
-              ),
-              selected: selected,
-              selectedColor: color,
-              backgroundColor: MH.paper,
-              side: BorderSide(color: color, width: 1.5),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(999),
-              ),
-              onSelected: (_) => setState(() => _initialServerId = id),
-            );
-          }).toList(),
-        ),
+        for (final row in rows) ...[
+          Row(
+            children: [
+              for (int i = 0; i < row.length; i++) ...[
+                if (i > 0) const SizedBox(width: 8),
+                Expanded(child: _serverChip(row[i])),
+              ],
+            ],
+          ),
+          if (row != rows.last) const SizedBox(height: 8),
+        ],
       ],
+    );
+  }
+
+  Widget _serverChip(String id) {
+    final selected = id == _initialServerId;
+    final color = (id == 'p1' || id == 'p2') ? MH.them : MH.us;
+    return GestureDetector(
+      onTap: () => setState(() => _initialServerId = id),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected ? color : MH.rule,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          _pickerLabel(id),
+          style: MH.sans(
+            size: 13,
+            weight: FontWeight.w600,
+            color: selected ? color : MH.inkSoft,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
     );
   }
 

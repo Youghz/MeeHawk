@@ -54,8 +54,6 @@ class HomeScreen extends ConsumerWidget {
                   ],
                 ],
                 const SizedBox(height: 24),
-                const _SectionLabel(label: 'NAVIGATION'),
-                const SizedBox(height: 10),
                 _NavCard(
                   children: [
                     _MenuItem(
@@ -74,23 +72,24 @@ class HomeScreen extends ConsumerWidget {
                       label: 'Statistiques',
                       subtitle: 'Performances sur la durée',
                       iconColor: MH.them,
+                      enabled: false,
                     ),
                     const _MenuItem(
                       icon: Icons.groups_rounded,
                       label: 'Équipes & joueurs',
                       subtitle: 'Gérer les rosters',
                       iconColor: MH.us,
+                      enabled: false,
                     ),
                     const _MenuItem(
                       icon: Icons.tune_rounded,
                       label: 'Paramètres',
                       subtitle: "Préférences de l'application",
                       iconColor: MH.pencil,
+                      enabled: false,
                     ),
                   ],
                 ),
-                const SizedBox(height: 36),
-                const _Footer(),
               ],
         ),
       ),
@@ -104,26 +103,13 @@ class _Header extends StatelessWidget {
   const _Header();
 
   @override
-  Widget build(BuildContext context) => Row(
-        children: [
-          Text(
-            'MEEHAWK',
-            style: MH.sans(
-              size: 36,
-              weight: FontWeight.w800,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const Spacer(),
-          Text(
-            'v0.1',
-            style: MH.mono(
-              size: 11,
-              color: MH.rule,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
+  Widget build(BuildContext context) => Text(
+        'MEEHAWK',
+        style: MH.sans(
+          size: 36,
+          weight: FontWeight.w800,
+          letterSpacing: -0.5,
+        ),
       );
 }
 
@@ -313,7 +299,7 @@ class _PrimaryCta extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        "Configurer et démarrer l'annotation",
+                        'Annoter un match en direct',
                         style: MH.sans(size: 13, color: MH.pencil),
                       ),
                     ],
@@ -367,92 +353,67 @@ class _MenuItem extends StatelessWidget {
     required this.subtitle,
     required this.iconColor,
     this.onTap,
+    this.enabled = true,
   });
   final IconData icon;
   final String label;
   final String subtitle;
   final Color iconColor;
   final VoidCallback? onTap;
-
-  void _showSoon(BuildContext context) {
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: MH.sand,
-        content: Text(
-          'Bientôt disponible',
-          style: MH.sans(size: 13),
-        ),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
+  final bool enabled;
 
   @override
-  Widget build(BuildContext context) => Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap ?? () => _showSoon(context),
-          splashColor: MH.ink.withValues(alpha: 0.14),
-          highlightColor: MH.ink.withValues(alpha: 0.10),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-            child: Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: iconColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, size: 18, color: iconColor),
+  Widget build(BuildContext context) {
+    final tile = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        splashColor: MH.ink.withValues(alpha: 0.14),
+        highlightColor: MH.ink.withValues(alpha: 0.10),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        label,
-                        style: MH.sans(size: 15, weight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        subtitle,
-                        style: MH.sans(size: 13, color: MH.pencil),
-                      ),
-                    ],
-                  ),
+                child: Icon(icon, size: 18, color: iconColor),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      label,
+                      style: MH.sans(size: 15, weight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      subtitle,
+                      style: MH.sans(size: 13, color: MH.pencil),
+                    ),
+                  ],
                 ),
+              ),
+              if (enabled)
                 const Icon(
                   Icons.chevron_right_rounded,
                   size: 18,
                   color: MH.pencil,
                 ),
-              ],
-            ),
+            ],
           ),
         ),
-      );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _Footer extends StatelessWidget {
-  const _Footer();
-
-  @override
-  Widget build(BuildContext context) => Center(
-        child: Text(
-          'MEEHAWK · v0.1',
-          style: MH.mono(
-            size: 11,
-            color: MH.rule,
-          ),
-        ),
-      );
+      ),
+    );
+    if (!enabled) return Opacity(opacity: 0.38, child: tile);
+    return tile;
+  }
 }

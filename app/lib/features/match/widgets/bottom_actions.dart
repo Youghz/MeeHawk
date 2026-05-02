@@ -44,9 +44,9 @@ class BottomActions extends ConsumerWidget {
             children: [
               Expanded(
                 child: _UndoButton(
-                  label: hasPopup
-                      ? '↺  Annuler la sélection'
-                      : "↺  Annuler l'action",
+                  label: hasPopup ? 'Annuler la sélection' : "Annuler l'action",
+                  icon: Icons.undo_rounded,
+                  primary: false,
                   onPressed: hasPopup
                       ? notifier.dismissPopup
                       : hasRallyImpacts
@@ -57,7 +57,9 @@ class BottomActions extends ConsumerWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: _UndoButton(
-                  label: '↶  Annuler le point',
+                  label: 'Annuler le point',
+                  icon: Icons.history_rounded,
+                  primary: true,
                   onPressed: canUndo ? notifier.undoPoint : null,
                 ),
               ),
@@ -110,38 +112,61 @@ class BottomActions extends ConsumerWidget {
 class _UndoButton extends StatelessWidget {
   const _UndoButton({
     required this.label,
+    required this.icon,
+    required this.primary,
     required this.onPressed,
   });
 
   final String label;
+  final IconData icon;
+  final bool primary;
   final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
     final enabled = onPressed != null;
-    final fgColor = enabled ? MH.inkSoft : MH.pencil.withValues(alpha: 0.4);
+    final fgColor = enabled
+        ? (primary ? MH.ink : MH.inkSoft)
+        : MH.pencil.withValues(alpha: 0.35);
+    final bgColor = enabled
+        ? (primary
+            ? MH.rule.withValues(alpha: 0.60)
+            : MH.rule.withValues(alpha: 0.30))
+        : MH.rule.withValues(alpha: 0.15);
+
     return Material(
-      color: enabled
-          ? MH.rule.withValues(alpha: 0.40)
-          : MH.rule.withValues(alpha: 0.20),
+      color: bgColor,
       borderRadius: BorderRadius.circular(8),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onPressed,
         splashColor: MH.ink.withValues(alpha: 0.08),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
-          child: Center(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: MH.sans(
-                size: 15,
-                weight: FontWeight.w600,
-                color: fgColor,
+          padding: EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: primary ? 14 : 12,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon,
+                  size: primary ? 16 : 14,
+                  color: fgColor),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: MH.sans(
+                    size: primary ? 13 : 12,
+                    weight: primary ? FontWeight.w600 : FontWeight.w500,
+                    color: fgColor,
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -181,30 +206,17 @@ class _PointButton extends StatelessWidget {
         splashColor: Colors.black.withValues(alpha: 0.15),
         highlightColor: Colors.black.withValues(alpha: 0.10),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'POINT',
-                style: MH.mono(
-                  weight: FontWeight.w600,
-                  color: fg.withValues(alpha: (enabled ? 0.65 : 0.4)),
-                  letterSpacing: 1.5,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                teamName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: MH.sans(
-                  size: 18,
-                  weight: FontWeight.w700,
-                  color: fg,
-                ),
-              ),
-            ],
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 18),
+          child: Text(
+            teamName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: MH.sans(
+              size: 18,
+              weight: FontWeight.w700,
+              color: fg,
+            ),
           ),
         ),
       ),

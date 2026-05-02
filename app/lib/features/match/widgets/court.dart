@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:app/core/rules/touch_attribution.dart';
 import 'package:app/core/theme.dart';
 import 'package:app/features/match/domain/match_state.dart';
@@ -62,7 +64,27 @@ class Court extends ConsumerStatefulWidget {
   ConsumerState<Court> createState() => _CourtState();
 }
 
-class _CourtState extends ConsumerState<Court> {
+class _CourtState extends ConsumerState<Court>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulseCtrl;
+  late final Animation<double> _pulseAnim;
+  @override
+  void initState() {
+    super.initState();
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    unawaited(_pulseCtrl.repeat(reverse: true));
+    _pulseAnim = CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut);
+  }
+
+  @override
+  void dispose() {
+    _pulseCtrl.dispose();
+    super.dispose();
+  }
+
   Offset? _swipeDragStart;
 
   // Manual double-tap detection to avoid Flutter's 300ms single-tap delay.
@@ -244,6 +266,17 @@ class _CourtState extends ConsumerState<Court> {
                           ),
                         );
                       },
+                    ),
+                  if (!isReplay &&
+                      state.history.isEmpty &&
+                      state.rallyImpacts.isEmpty)
+                    _TapAffordance(
+                      animation: _pulseAnim,
+                      servingIsLeft: state.leftTeam ==
+                          state.teamOfPlayer(state.servingPlayerId),
+                      outerW: outerW,
+                      outerH: outerH,
+                      margin: kCourtMargin,
                     ),
                   if (state.popup?.kind == PopupKind.fault)
                     const Positioned.fill(child: FaultPopup()),
@@ -644,5 +677,57 @@ class _CourtState extends ConsumerState<Court> {
       return true;
     }
     return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// First-touch affordance overlay
+// ---------------------------------------------------------------------------
+
+class _TapAffordance extends StatelessWidget {
+  const _TapAffordance({
+    required this.animation,
+    required this.servingIsLeft,
+    required this.outerW,
+    required this.outerH,
+    required this.margin,
+  });
+
+  final Animation<double> animation;
+  final bool servingIsLeft;
+  final double outerW;
+  final double outerH;
+  final double margin;
+
+  @override
+  Widget build(BuildContext context) {
+    // Highlight the opponent's half (where the serve should land).
+    final opponentLeft = !servingIsLeft;
+    final halfLeft = opponentLeft ? margin : outerW / 2;
+    final halfWidth = outerW / 2 - margin;
+
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (_, child) => Positioned(
+        left: halfLeft,
+        top: margin,
+        width: halfWidth,
+        height: outerH - margin * 2,
+        child: IgnorePointer(
+          child: Container(
+            decoration: BoxDecoration(
+              color: MH.ball.withValues(
+                alpha: 0.04 + animation.value * 0.08,
+              ),
+              border: Border.all(
+                color: MH.ball.withValues(
+                  alpha: 0.15 + animation.value * 0.25,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

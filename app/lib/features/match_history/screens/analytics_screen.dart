@@ -54,8 +54,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _teamRow(input),
-          _playerRow(input),
+          _filterBar(input),
           const Divider(height: 1, color: MH.rule),
           Expanded(
             child: input.pts.isEmpty
@@ -69,8 +68,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 48),
                     children: [
                       _Summary(input),
-                      _sep,
-                      _ServiceEfficiency(input),
                       _sep,
                       _ServiceZones(input),
                       _sep,
@@ -135,20 +132,32 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  // ── Filter header ──────────────────────────────────────────────────────────
+  // ── Filter bar (teams + players, single horizontal row) ───────────────────
 
-  Widget _teamRow(_AnalyticsInput input) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+  Widget _filterBar(_AnalyticsInput input) => SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
         child: Row(
           children: [
-            Expanded(child: _teamChip(TeamSide.e1, input)),
-            const SizedBox(width: 8),
-            Expanded(child: _teamChip(TeamSide.e2, input)),
+            _teamToggleChip(TeamSide.e1, input),
+            const SizedBox(width: 6),
+            _teamToggleChip(TeamSide.e2, input),
+            Container(
+              width: 1,
+              height: 20,
+              margin: const EdgeInsets.symmetric(horizontal: 10),
+              color: MH.rule,
+            ),
+            _playerChip(null, 'Tous', input),
+            for (final p in input.team.players) ...[
+              const SizedBox(width: 6),
+              _playerChip(p.id, p.name, input),
+            ],
           ],
         ),
       );
 
-  Widget _teamChip(TeamSide side, _AnalyticsInput input) {
+  Widget _teamToggleChip(TeamSide side, _AnalyticsInput input) {
     final team = _s.teams[side]!;
     final color = side == TeamSide.e1 ? MH.them : MH.us;
     final active = input.selectedTeam == side;
@@ -157,16 +166,17 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         _selectedTeam = side;
         _filterPlayerId = null;
       }),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: active ? color.withValues(alpha: 0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: active
-              ? Border.all(color: color, width: 1.5)
-              : Border.all(color: MH.rule),
+          color: active ? color.withValues(alpha: 0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: active ? color : MH.rule,
+            width: active ? 1.5 : 1,
+          ),
         ),
-        alignment: Alignment.center,
         child: Text(
           team.name,
           style: MH.sans(
@@ -181,37 +191,27 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _playerRow(_AnalyticsInput input) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
-        child: Row(
-          children: [
-            _playerChip(null, 'Tous', input),
-            for (final p in input.team.players)
-              Padding(
-                padding: const EdgeInsets.only(left: 6),
-                child: _playerChip(p.id, p.name, input),
-              ),
-          ],
-        ),
-      );
-
   Widget _playerChip(String? id, String label, _AnalyticsInput input) {
     final active = input.filterPlayerId == id;
     return GestureDetector(
       onTap: () =>
           setState(() => _filterPlayerId = active && id != null ? null : id),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color:
-              active ? input.color.withValues(alpha: 0.1) : Colors.transparent,
+              active ? input.color.withValues(alpha: 0.12) : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: active ? input.color : MH.rule),
+          border: Border.all(
+            color: active ? input.color : MH.rule,
+            width: active ? 1.5 : 1,
+          ),
         ),
         child: Text(
           label,
           style: MH.sans(
-            size: 11,
+            size: 12,
             weight: FontWeight.w600,
             color: active ? input.color : MH.pencil,
           ),
@@ -272,6 +272,11 @@ class _Summary extends StatelessWidget {
     final myRecvWins =
         myRecv.where((p) => p.pt.winner == input.selectedTeam).length;
 
+    // Per-player service breakdown
+    final players = input.team.players;
+    final showPlayerBreakdown =
+        input.filterPlayerId == null && players.length > 1 && myServes.isNotEmpty;
+
     return _Section(
       title: 'RÉSUMÉ',
       child: Column(
@@ -326,56 +331,10 @@ class _Summary extends StatelessWidget {
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ServiceEfficiency extends StatelessWidget {
-  const _ServiceEfficiency(this.input);
-  final _AnalyticsInput input;
-
-  @override
-  Widget build(BuildContext context) {
-    final pairs = input.ptsWithServer;
-    if (pairs.isEmpty) return const SizedBox.shrink();
-
-    final myServes = pairs.where((p) {
-      if (p.server != input.selectedTeam) return false;
-      if (input.filterPlayerId != null && p.serverId != input.filterPlayerId) {
-        return false;
-      }
-      return true;
-    }).toList();
-
-    if (myServes.isEmpty) return const SizedBox.shrink();
-
-    final serveWins =
-        myServes.where((p) => p.pt.winner == input.selectedTeam).length;
-    final serveRate = serveWins / myServes.length;
-    final players = input.team.players;
-
-    return _Section(
-      title: 'EFFICACITÉ AU SERVICE',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _RingStat(
-                label: input.filterPlayerId != null
-                    ? _playerNameFor(input.team, input.filterPlayerId)
-                    : 'Total équipe',
-                count: '$serveWins/${myServes.length}',
-                rate: serveRate,
-                color: input.color,
-              ),
-            ],
-          ),
-          if (input.filterPlayerId == null && players.length > 1) ...[
+          if (showPlayerBreakdown) ...[
             const SizedBox(height: 16),
+            const Divider(height: 1, color: MH.rule),
+            const SizedBox(height: 12),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -392,7 +351,7 @@ class _ServiceEfficiency extends StatelessWidget {
                           .where((p) => p.pt.winner == input.selectedTeam)
                           .length;
                       return _RingStat(
-                        label: player.name,
+                        label: '${player.name} (serv.)',
                         count: '$w/${ps.length}',
                         rate: w / ps.length,
                         color: input.color.withValues(alpha: 0.7),
@@ -439,8 +398,7 @@ class _ServiceZones extends StatelessWidget {
       dots.add(_Dot(
         x: _halfX(input.selectedTeam, landing.x),
         y: landing.y,
-        color: input.color,
-        hollow: pt.winner != input.selectedTeam,
+        won: pt.winner == input.selectedTeam,
       ));
     }
 
@@ -448,7 +406,7 @@ class _ServiceZones extends StatelessWidget {
 
     return _Section(
       title: 'ZONES DE SERVICE',
-      subtitle: 'Plein = point gagné · cercle = point perdu  ·  ← Filet',
+      subtitle: '● Point gagné   ○ Point perdu   ← Filet',
       child: _AnalyticsCourt(dots: dots, halfCourt: true),
     );
   }
@@ -477,8 +435,7 @@ class _AttackZones extends StatelessWidget {
       dots.add(_Dot(
         x: _halfX(input.selectedTeam, attackLanding.x),
         y: attackLanding.y,
-        color: input.color,
-        hollow: attackLanding.isOutside || p.winner != input.selectedTeam,
+        won: !attackLanding.isOutside && p.winner == input.selectedTeam,
       ));
     }
 
@@ -486,7 +443,7 @@ class _AttackZones extends StatelessWidget {
 
     return _Section(
       title: "ZONES D'ATTAQUE",
-      subtitle: 'Plein = point gagné · cercle = faute / repoussé  ·  ← Filet',
+      subtitle: '● Point gagné   ○ Faute / repoussé   ← Filet',
       child: _AnalyticsCourt(dots: dots, halfCourt: true),
     );
   }
@@ -558,8 +515,8 @@ class _ActionTypes extends StatelessWidget {
       ..sort((a, b) => b.value.total.compareTo(a.value.total));
 
     return _Section(
-      title: 'COMMENT FINISSENT LES POINTS',
-      subtitle: 'Dernière action de ${input.team.name} — barre pleine = gagné',
+      title: 'FIN DE RALLYE',
+      subtitle: 'Dernière action de ${input.team.name} · barre pleine = gagné',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -656,7 +613,7 @@ class _RallyLength extends StatelessWidget {
       ..sort((a, b) => a.key.compareTo(b.key));
 
     return _Section(
-      title: 'LONGUEUR DES ÉCHANGES',
+      title: 'DURÉE DES ÉCHANGES',
       child: Column(
         children: [
           for (final e in sorted)
@@ -714,7 +671,7 @@ class _KeyMoments extends StatelessWidget {
     final f5Wins = first5.where((p) => p.winner == input.selectedTeam).length;
 
     return _Section(
-      title: 'MOMENTS DÉCISIFS',
+      title: 'POINTS CLÉS',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -803,16 +760,6 @@ double _halfX(TeamSide selectedTeam, double x) {
   return ((0.5 - x) * 2).clamp(0.0, 1.0);
 }
 
-String _playerNameFor(Team team, String? filterId) {
-  if (filterId == null) return '';
-  return team.players
-      .firstWhere(
-        (p) => p.id == filterId,
-        orElse: () => const Player(id: '', name: ''),
-      )
-      .name;
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Set filter chips
 // ─────────────────────────────────────────────────────────────────────────────
@@ -880,15 +827,10 @@ class _Chip extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _Dot {
-  const _Dot(
-      {required this.x,
-      required this.y,
-      required this.color,
-      this.hollow = false});
+  const _Dot({required this.x, required this.y, required this.won});
   final double x;
   final double y;
-  final Color color;
-  final bool hollow;
+  final bool won;
 }
 
 class _AnalyticsCourt extends StatelessWidget {
@@ -905,7 +847,8 @@ class _AnalyticsCourt extends StatelessWidget {
           final w = constraints.maxWidth;
           final m = halfCourt ? _mHalf : _m;
           final courtW = w - m * 2;
-          final courtH = halfCourt ? courtW : courtW / 2;
+          // Half-court: 2:3 ratio (taller than square for better readability)
+          final courtH = halfCourt ? courtW * 0.65 : courtW / 2;
           final h = courtH + m * 2;
           return SizedBox(
             width: w,
@@ -917,19 +860,19 @@ class _AnalyticsCourt extends StatelessWidget {
               ),
               for (final d in dots)
                 Positioned(
-                  left: m + d.x * courtW - 5,
-                  top: m + d.y * courtH - 5,
+                  left: m + d.x * courtW - 6,
+                  top: m + d.y * courtH - 6,
                   child: Container(
-                    width: 10,
-                    height: 10,
+                    width: 12,
+                    height: 12,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: d.hollow
-                          ? Colors.transparent
-                          : d.color.withValues(alpha: 0.8),
-                      border: d.hollow
-                          ? Border.all(color: d.color, width: 1.5)
-                          : null,
+                      color: d.won
+                          ? MH.good.withValues(alpha: 0.85)
+                          : Colors.transparent,
+                      border: d.won
+                          ? null
+                          : Border.all(color: MH.bad, width: 1.5),
                     ),
                   ),
                 ),
@@ -1116,12 +1059,8 @@ class _Section extends StatelessWidget {
               style: MH.mono(
                   size: 9, weight: FontWeight.w700, letterSpacing: 1.2)),
           if (subtitle != null) ...[
-            const SizedBox(height: 2),
-            Text(subtitle!,
-                style: MH.sans(
-                    size: 10,
-                    color: MH.pencil,
-                    fontStyle: FontStyle.italic)),
+            const SizedBox(height: 3),
+            Text(subtitle!, style: MH.sans(size: 11, color: MH.pencil)),
           ],
           const SizedBox(height: 14),
           child,
