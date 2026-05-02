@@ -65,6 +65,11 @@ class Court extends ConsumerStatefulWidget {
 class _CourtState extends ConsumerState<Court> {
   Offset? _swipeDragStart;
 
+  // Manual double-tap detection to avoid Flutter's 300ms single-tap delay.
+  DateTime? _lastTapTime;
+  Offset? _lastTapPos;
+  bool _tapHandled = false; // true = onTapDown added an impact this tap
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(matchProvider);
@@ -102,7 +107,7 @@ class _CourtState extends ConsumerState<Court> {
                       child: Text(
                         leftPlayers.isNotEmpty ? leftPlayers[0].name : '',
                         style: MH.sans(
-                          size: 10,
+                          size: 13,
                           weight: FontWeight.w700,
                           color: leftColor,
                         ),
@@ -116,7 +121,7 @@ class _CourtState extends ConsumerState<Court> {
                       child: Text(
                         rightPlayers.isNotEmpty ? rightPlayers[0].name : '',
                         style: MH.sans(
-                          size: 10,
+                          size: 13,
                           weight: FontWeight.w700,
                           color: rightColor,
                         ),
@@ -162,13 +167,11 @@ class _CourtState extends ConsumerState<Court> {
                       height: innerH,
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
-                        onTapUp: (d) =>
-                            _onInsideTap(d.localPosition, outerW, outerH),
+                        onTapDown: (d) =>
+                            _onInnerTapDown(d.localPosition, outerW, outerH, innerH),
+                        onTapCancel: _onInnerTapCancel,
                         onLongPressStart: (d) => _onInsideLongPress(
                             d.localPosition, outerW, outerH, innerW, state),
-                        onDoubleTapDown: (d) =>
-                            _onDoubleTap(d.localPosition, outerW, outerH, innerH),
-                        onDoubleTap: () {},
                         onVerticalDragStart: (d) {
                           _swipeDragStart = d.localPosition;
                         },
@@ -263,7 +266,7 @@ class _CourtState extends ConsumerState<Court> {
                       child: Text(
                         leftPlayers.length > 1 ? leftPlayers[1].name : '',
                         style: MH.sans(
-                          size: 10,
+                          size: 13,
                           weight: FontWeight.w700,
                           color: leftColor,
                         ),
@@ -277,7 +280,7 @@ class _CourtState extends ConsumerState<Court> {
                       child: Text(
                         rightPlayers.length > 1 ? rightPlayers[1].name : '',
                         style: MH.sans(
-                          size: 10,
+                          size: 13,
                           weight: FontWeight.w700,
                           color: rightColor,
                         ),
@@ -300,9 +303,60 @@ class _CourtState extends ConsumerState<Court> {
   // Gesture handlers
   // ---------------------------------------------------------------------------
 
-  /// Single tap inside: normal ball touch.
-  void _onInsideTap(Offset p, double outerW, double outerH) {
+  static const _doubleTapMaxMs = 320;
+  static const _doubleTapMaxDist = 55.0;
+
+  /// Fires immediately on finger-down (no 300ms Flutter disambiguation delay).
+  /// Handles both single tap and manual double-tap detection.
+  void _onInnerTapDown(Offset p, double outerW, double outerH, double innerH) {
     if (_maybeDismissReplay()) return;
+    final now = DateTime.now();
+    final last = _lastTapTime;
+    final lastPos = _lastTapPos;
+
+    final isDoubleTap = last != null &&
+        lastPos != null &&
+        now.difference(last).inMilliseconds < _doubleTapMaxMs &&
+        (p - lastPos).distance < _doubleTapMaxDist;
+
+    if (isDoubleTap) {
+      // Cancel first tap's impact, register block instead.
+      if (_tapHandled) {
+        final s = ref.read(matchProvider);
+        if (s.popup?.kind == PopupKind.pickPlayer) {
+          ref.read(matchProvider.notifier).dismissPopup();
+        } else {
+          ref.read(matchProvider.notifier).undoLastImpact();
+        }
+        _tapHandled = false;
+      }
+      _lastTapTime = null;
+      _lastTapPos = null;
+      _handleBlock(p, outerW, outerH, innerH);
+    } else {
+      _lastTapTime = now;
+      _lastTapPos = p;
+      _tapHandled = true;
+      _handleSingleTap(p, outerW, outerH);
+    }
+  }
+
+  /// Called when the tap is cancelled (drag or long-press wins the arena).
+  void _onInnerTapCancel() {
+    if (_tapHandled) {
+      final s = ref.read(matchProvider);
+      if (s.popup?.kind == PopupKind.pickPlayer) {
+        ref.read(matchProvider.notifier).dismissPopup();
+      } else {
+        ref.read(matchProvider.notifier).undoLastImpact();
+      }
+      _tapHandled = false;
+    }
+    _lastTapTime = null;
+    _lastTapPos = null;
+  }
+
+  void _handleSingleTap(Offset p, double outerW, double outerH) {
     final nx = (p.dx + kCourtMargin) / outerW;
     final ny = (p.dy + kCourtMargin) / outerH;
     _handleTouch(
@@ -313,10 +367,9 @@ class _CourtState extends ConsumerState<Court> {
     );
   }
 
-  /// Double-tap inside: block. The vertical position of the second tap
-  /// determines the player — top half = J1 (index 0), bottom half = J2 (index 1).
-  void _onDoubleTap(Offset p, double outerW, double outerH, double innerH) {
-    if (_maybeDismissReplay()) return;
+  /// Block annotation. Vertical position determines player:
+  /// top half = J1 (index 0), bottom half = J2 (index 1).
+  void _handleBlock(Offset p, double outerW, double outerH, double innerH) {
     final nx = (p.dx + kCourtMargin) / outerW;
     final ny = (p.dy + kCourtMargin) / outerH;
     final state = ref.read(matchProvider);

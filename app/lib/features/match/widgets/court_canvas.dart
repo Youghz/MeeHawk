@@ -1,6 +1,11 @@
-import 'package:app/core/theme.dart';
 import 'package:app/features/match/domain/match_state.dart';
 import 'package:flutter/material.dart';
+
+// Warm sandy court surface — independent of the app's dark theme.
+const _kCourtSurface = Color(0xFFC4A872);
+const _kCourtBorder = Color(0xFF7A5C30);
+const _kCourtTexture = Color(0xFFA88848);
+const _kCourtLine = Color(0xFF5C4020);
 
 /// The painted court surface — sand texture, inner dashed border, net and
 /// team names. No gestures, no overlays, no state mutation.
@@ -27,8 +32,8 @@ class CourtCanvas extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
         child: Container(
           decoration: BoxDecoration(
-            color: MH.sand,
-            border: Border.all(color: MH.ink, width: 2),
+            color: _kCourtSurface,
+            border: Border.all(color: _kCourtBorder, width: 2),
             borderRadius: BorderRadius.circular(6),
           ),
           child: Stack(children: [
@@ -49,7 +54,7 @@ class CourtCanvas extends StatelessWidget {
               bottom: 0,
               left: courtWidth / 2 - 1.5,
               width: 3,
-              child: Container(color: MH.ink),
+              child: const ColoredBox(color: _kCourtLine),
             ),
             Positioned(
               top: 0,
@@ -57,36 +62,6 @@ class CourtCanvas extends StatelessWidget {
               left: courtWidth / 2 - 7,
               width: 14,
               child: const CustomPaint(painter: _NetPainter()),
-            ),
-            Positioned(
-              top: 8,
-              left: 12,
-              child: IgnorePointer(
-                child: Text(
-                  state.teams[leftTeam]!.name.toUpperCase(),
-                  style: MH.sans(
-                    size: 12,
-                    weight: FontWeight.w700,
-                    color: leftColor,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 8,
-              right: 12,
-              child: IgnorePointer(
-                child: Text(
-                  state.teams[rightTeam]!.name.toUpperCase(),
-                  style: MH.sans(
-                    size: 12,
-                    weight: FontWeight.w700,
-                    color: rightColor,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-              ),
             ),
           ]),
         ),
@@ -98,12 +73,12 @@ class _SandTexturePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = MH.pencil.withValues(alpha: 0.25);
+    final paint = Paint()..color = _kCourtTexture.withValues(alpha: 0.5);
     for (double y = 0; y < size.height; y += 8) {
       for (double x = 0; x < size.width; x += 8) {
         canvas
-          ..drawCircle(Offset(x + 2, y + 2), 0.6, paint)
-          ..drawCircle(Offset(x + 6, y + 5), 0.4, paint);
+          ..drawCircle(Offset(x + 2, y + 2), 0.7, paint)
+          ..drawCircle(Offset(x + 6, y + 5), 0.5, paint);
       }
     }
   }
@@ -118,7 +93,7 @@ class _DashedInnerPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = MH.inkSoft.withValues(alpha: 0.3)
+      ..color = _kCourtLine.withValues(alpha: 0.40)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     const dashW = 4.0;
@@ -147,7 +122,7 @@ class _NetPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = MH.ink.withValues(alpha: 0.45)
+      ..color = _kCourtLine.withValues(alpha: 0.55)
       ..strokeWidth = 2;
     for (double y = 0; y < size.height; y += 6) {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);

@@ -427,4 +427,264 @@ void main() {
       expect(state(c).teams[TeamSide.e1]!.name, 'Rouges');
     });
   });
+
+  group('Scénarios de service (A)', () {
+    test('A1: service ace — 1 net crossing, service annotation', () {
+      final c = newMatch();
+      notifier(c)
+          .addBallImpact(impact(0.75, 0.5, side: TeamSide.e2, playerId: 'p3'));
+      notifier(c).addBallImpact(impact(0.25, 0.5, side: TeamSide.e1));
+      notifier(c).addPoint(winner: TeamSide.e2);
+      final pt = state(c).history.last;
+      expect(pt.netCrossings, 1);
+      expect(pt.annotations.any((a) => a.type == 'service'), isTrue);
+    });
+
+    test('A2: service fault — ball stays server-side, 0 net crossings', () {
+      final c = newMatch();
+      notifier(c).addBallImpact(
+          impact(0.75, 0.5, side: TeamSide.e2, out: true, playerId: 'p3'));
+      // awardPoints resolves the pickServer popup for e1's first win
+      awardPoints(c, TeamSide.e1, 1);
+      expect(state(c).history.last.netCrossings, 0);
+    });
+
+    test('A3: ball out after attack — 2 net crossings, attack annotation', () {
+      final c = newMatch();
+      notifier(c)
+          .addBallImpact(impact(0.75, 0.5, side: TeamSide.e2, playerId: 'p3'));
+      notifier(c).addBallImpact(impact(0.25, 0.5, side: TeamSide.e1));
+      notifier(c).addBallImpact(impact(0.25, 0.4, side: TeamSide.e1));
+      notifier(c).addBallImpact(
+          impact(0.75, 0.5, side: TeamSide.e2, out: true));
+      awardPoints(c, TeamSide.e1, 1);
+      final pt = state(c).history.last;
+      expect(pt.netCrossings, 2);
+      expect(pt.annotations.any((a) => a.type == 'attack'), isTrue);
+    });
+  });
+
+  group('Bloc (B)', () {
+    test('B1: block + same player retouch = 2 touches, no fault', () {
+      final c = newMatch();
+      notifier(c).addTouchWithPlayer(const BallImpact(
+        x: 0.25,
+        y: 0.5,
+        isOutside: false,
+        teamSide: TeamSide.e1,
+        isBlock: true,
+        playerId: 'p1',
+      ));
+      notifier(c)
+          .addBallImpact(impact(0.25, 0.4, side: TeamSide.e1, playerId: 'p1'));
+      expect(state(c).rallyImpacts.length, 2);
+      expect(state(c).scoreE2, 0);
+    });
+
+    test('B2: block + 2 more touches = 3 total, still legal', () {
+      final c = newMatch();
+      notifier(c).addTouchWithPlayer(const BallImpact(
+        x: 0.25,
+        y: 0.5,
+        isOutside: false,
+        teamSide: TeamSide.e1,
+        isBlock: true,
+        playerId: 'p1',
+      ));
+      notifier(c)
+          .addBallImpact(impact(0.25, 0.4, side: TeamSide.e1, playerId: 'p2'));
+      notifier(c)
+          .addBallImpact(impact(0.25, 0.3, side: TeamSide.e1, playerId: 'p1'));
+      expect(state(c).rallyImpacts.length, 3);
+      expect(state(c).scoreE2, 0);
+    });
+
+    test('B3: block + 3 more touches = 4 total → auto-fault, point to e2', () {
+      final c = newMatch();
+      notifier(c).addTouchWithPlayer(const BallImpact(
+        x: 0.25,
+        y: 0.5,
+        isOutside: false,
+        teamSide: TeamSide.e1,
+        isBlock: true,
+        playerId: 'p1',
+      ));
+      notifier(c)
+          .addBallImpact(impact(0.25, 0.4, side: TeamSide.e1, playerId: 'p2'));
+      notifier(c)
+          .addBallImpact(impact(0.25, 0.3, side: TeamSide.e1, playerId: 'p1'));
+      notifier(c)
+          .addBallImpact(impact(0.25, 0.6, side: TeamSide.e1, playerId: 'p2'));
+      expect(state(c).rallyImpacts, isEmpty);
+      expect(state(c).scoreE2, 1);
+      expect(
+        state(c).history.last.annotations.any((a) => a.type == 'fault'),
+        isTrue,
+      );
+    });
+
+    test('B4: addTouchWithPlayer(isBlock:true) creates a block annotation', () {
+      final c = newMatch();
+      notifier(c).addTouchWithPlayer(const BallImpact(
+        x: 0.25,
+        y: 0.5,
+        isOutside: false,
+        teamSide: TeamSide.e1,
+        isBlock: true,
+        playerId: 'p1',
+      ));
+      expect(
+        state(c).rallyAnnotations.any((a) => a.type == 'block'),
+        isTrue,
+      );
+    });
+
+    test('B5: provider accepts block as first impact, no contextual validation',
+        () {
+      final c = newMatch();
+      notifier(c).addTouchWithPlayer(const BallImpact(
+        x: 0.25,
+        y: 0.5,
+        isOutside: false,
+        teamSide: TeamSide.e1,
+        isBlock: true,
+        playerId: 'p1',
+      ));
+      expect(state(c).rallyImpacts.length, 1);
+      expect(state(c).scoreE2, 0);
+    });
+  });
+
+  group('undoLastImpact (C)', () {
+    test('C1: removes last impact, prior impacts intact', () {
+      final c = newMatch();
+      notifier(c).addBallImpact(impact(0.75, 0.5, side: TeamSide.e2));
+      notifier(c).addBallImpact(impact(0.25, 0.5, side: TeamSide.e1));
+      notifier(c).undoLastImpact();
+      expect(state(c).rallyImpacts.length, 1);
+      expect(state(c).rallyImpacts.first.teamSide, TeamSide.e2);
+    });
+
+    test('C2: undo after net crossing removes the crossing annotation', () {
+      final c = newMatch();
+      notifier(c)
+          .addBallImpact(impact(0.75, 0.5, side: TeamSide.e2, playerId: 'p3'));
+      notifier(c).addBallImpact(impact(0.25, 0.5, side: TeamSide.e1));
+      expect(state(c).rallyAnnotations.length, 1);
+      notifier(c).undoLastImpact();
+      expect(state(c).rallyAnnotations, isEmpty);
+    });
+
+    test('C3: undo block removes impact and block annotation', () {
+      final c = newMatch();
+      notifier(c).addTouchWithPlayer(const BallImpact(
+        x: 0.25,
+        y: 0.5,
+        isOutside: false,
+        teamSide: TeamSide.e1,
+        isBlock: true,
+        playerId: 'p1',
+      ));
+      expect(state(c).rallyAnnotations.any((a) => a.type == 'block'), isTrue);
+      notifier(c).undoLastImpact();
+      expect(state(c).rallyImpacts, isEmpty);
+      expect(state(c).rallyAnnotations, isEmpty);
+    });
+
+    test('C4: no impacts → undoLastImpact is a silent no-op', () {
+      final c = newMatch();
+      notifier(c).undoLastImpact();
+      expect(state(c).rallyImpacts, isEmpty);
+      expect(state(c).scoreE1, 0);
+      expect(state(c).scoreE2, 0);
+    });
+
+    test('C5: double undo on 3 impacts leaves 1 impact, annotations consistent',
+        () {
+      final c = newMatch();
+      notifier(c)
+          .addBallImpact(impact(0.75, 0.5, side: TeamSide.e2, playerId: 'p3'));
+      notifier(c).addBallImpact(
+          impact(0.25, 0.5, side: TeamSide.e1)); // crossing → service annot
+      notifier(c).addBallImpact(
+          impact(0.25, 0.4, side: TeamSide.e1)); // same side, no annotation
+      expect(state(c).rallyImpacts.length, 3);
+      expect(state(c).rallyAnnotations.length, 1);
+      notifier(c).undoLastImpact(); // remove 3rd (same-side) — no annotation removed
+      expect(state(c).rallyImpacts.length, 2);
+      expect(state(c).rallyAnnotations.length, 1);
+      notifier(c).undoLastImpact(); // remove 2nd (crossing) — removes service annotation
+      expect(state(c).rallyImpacts.length, 1);
+      expect(state(c).rallyAnnotations, isEmpty);
+    });
+  });
+
+  group('Combinaisons (D)', () {
+    test('D1: full rally with block mid-sequence — no fault, block annotation',
+        () {
+      final c = newMatch();
+      notifier(c)
+          .addBallImpact(impact(0.75, 0.5, side: TeamSide.e2, playerId: 'p3'));
+      notifier(c).addTouchWithPlayer(const BallImpact(
+        x: 0.25,
+        y: 0.5,
+        isOutside: false,
+        teamSide: TeamSide.e1,
+        isBlock: true,
+        playerId: 'p1',
+      ));
+      notifier(c)
+          .addBallImpact(impact(0.25, 0.4, side: TeamSide.e1, playerId: 'p2'));
+      notifier(c)
+          .addBallImpact(impact(0.25, 0.3, side: TeamSide.e1, playerId: 'p1'));
+      notifier(c).addBallImpact(impact(0.75, 0.5, side: TeamSide.e2));
+      expect(state(c).rallyImpacts.length, 5);
+      expect(
+          state(c).rallyAnnotations.any((a) => a.type == 'block'), isTrue);
+      expect(state(c).scoreE2, 0);
+    });
+
+    test('D2: custom setsToWin=1 — match ends after 1 set', () {
+      final c = ProviderContainer();
+      addTearDown(c.dispose);
+      c.read(matchProvider.notifier).startMatch(
+            teamE1Name: 'E1',
+            teamE2Name: 'E2',
+            p1: 'A',
+            p2: 'B',
+            p3: 'C',
+            p4: 'D',
+            initialServerId: 'p3',
+            format: const MatchFormat(setsToWin: 1),
+          );
+      awardPoints(c, TeamSide.e2, 21);
+      expect(state(c).popup?.kind, PopupKind.matchEnd);
+      expect(state(c).matchOver, isTrue);
+    });
+
+    test('D3: auto-fault at 19-20 triggers set end at 19-21', () {
+      final c = newMatch();
+      awardPoints(c, TeamSide.e2, 20);
+      awardPoints(c, TeamSide.e1, 19);
+      expect(state(c).scoreE1, 19);
+      expect(state(c).scoreE2, 20);
+      notifier(c).addBallImpact(impact(0.25, 0.3, side: TeamSide.e1));
+      notifier(c).addBallImpact(impact(0.25, 0.5, side: TeamSide.e1));
+      notifier(c).addBallImpact(impact(0.25, 0.7, side: TeamSide.e1));
+      notifier(c).addBallImpact(impact(0.25, 0.6, side: TeamSide.e1));
+      expect(state(c).popup?.kind, PopupKind.setEnd);
+      expect(state(c).sets.last.scoreE2, 21);
+      expect(state(c).sets.last.winner, TeamSide.e2);
+    });
+
+    test('D4: service annotation text includes the server player name', () {
+      final c = newMatch(); // p3 = 'C' is the initial server
+      notifier(c)
+          .addBallImpact(impact(0.75, 0.5, side: TeamSide.e2, playerId: 'p3'));
+      notifier(c).addBallImpact(impact(0.25, 0.5, side: TeamSide.e1));
+      final serviceAnnot =
+          state(c).rallyAnnotations.firstWhere((a) => a.type == 'service');
+      expect(serviceAnnot.text, contains('C'));
+    });
+  });
 }

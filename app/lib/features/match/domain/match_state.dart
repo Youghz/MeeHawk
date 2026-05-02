@@ -165,10 +165,10 @@ const _sentinel = Object();
 MatchState initialMatchState({
   String teamE1Name = 'Équipe 1',
   String teamE2Name = 'Équipe 2',
-  String p1 = 'Ana',
-  String p2 = 'Sara',
-  String p3 = 'Léa',
-  String p4 = 'Marie',
+  String p1 = 'Joueur 1',
+  String p2 = 'Joueur 2',
+  String p3 = 'Joueur 3',
+  String p4 = 'Joueur 4',
   String initialServerId = 'p3',
   MatchFormat format = MatchFormat.beachFivb,
 }) {

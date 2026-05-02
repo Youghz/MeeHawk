@@ -2,27 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class MH {
-  static const sand = Color(0xFFF5F1E8);
-  static const paper = Color(0xFFFFFEFB);
-  static const ink = Color(0xFF1A1A1A);
-  static const inkSoft = Color(0xFF3D3D3D);
-  static const pencil = Color(0xFF6B6B6B);
-  static const rule = Color(0xFFD4CFC1);
-  static const ruleSoft = Color(0xFFE8E2D2);
+  // Surfaces — dark
+  static const paper = Color(0xFF0D0F14);
+  static const sand = Color(0xFF161B24);
 
-  static const ball = Color(0xFFE4662A);
-  static const ballSoft = Color(0xFFFBE9DD);
+  // Text
+  static const ink = Color(0xFFEAEEF5);
+  static const inkSoft = Color(0xFFB2BACB);
+  static const pencil = Color(0xFF5C6577);
 
-  static const us = Color(0xFFC07A28);
-  static const usSoft = Color(0xFFF5E2C0);
-  static const them = Color(0xFF3A5FC2);
-  static const themSoft = Color(0xFFC8D4F5);
+  // Borders
+  static const rule = Color(0xFF252D3D);
+  static const ruleSoft = Color(0xFF1A2030);
 
-  static const good = Color(0xFF2E7D57);
-  static const mid = Color(0xFFC88A2E);
-  static const bad = Color(0xFFB33A3A);
-  static const badSoft = Color(0xFFF3DADA);
+  // Accent
+  static const ball = Color(0xFFFF5C26);
+  static const ballSoft = Color(0x14FF5C26);
 
+  // Teams
+  static const them = Color(0xFF4B8EFF);
+  static const themSoft = Color(0x144B8EFF);
+  static const us = Color(0xFFFFB020);
+  static const usSoft = Color(0x14FFB020);
+
+  // Status
+  static const good = Color(0xFF22C55E);
+  static const mid = Color(0xFFF59E0B);
+  static const bad = Color(0xFFEF4444);
+  static const badSoft = Color(0x14EF4444);
+
+  // Spacing scale
   static const s1 = 4.0;
   static const s2 = 8.0;
   static const s3 = 12.0;
@@ -40,7 +49,7 @@ class MH {
     FontStyle? fontStyle,
     double? height,
   }) =>
-      GoogleFonts.roboto(
+      GoogleFonts.inter(
         fontSize: size,
         fontWeight: weight,
         color: color,
@@ -55,19 +64,20 @@ class MH {
     Color color = pencil,
     double letterSpacing = 1,
   }) =>
-      GoogleFonts.rubik(
+      GoogleFonts.robotoMono(
         fontSize: size,
         fontWeight: weight,
         color: color,
         letterSpacing: letterSpacing,
       );
 
+  // hand kept for API compatibility — maps to Inter
   static TextStyle hand({
     double size = 18,
     FontWeight weight = FontWeight.w600,
     Color color = ink,
   }) =>
-      GoogleFonts.caveat(
+      GoogleFonts.inter(
         fontSize: size,
         fontWeight: weight,
         color: color,
@@ -75,12 +85,12 @@ class MH {
 }
 
 final appTheme = ThemeData(
-  brightness: Brightness.light,
+  brightness: Brightness.dark,
   scaffoldBackgroundColor: MH.paper,
-  colorScheme: const ColorScheme.light(
-    primary: MH.ink,
-    secondary: MH.ball,
-    surface: MH.paper,
+  colorScheme: const ColorScheme.dark(
+    primary: MH.ball,
+    secondary: MH.them,
+    surface: MH.sand,
     error: MH.bad,
   ),
   appBarTheme: const AppBarTheme(
@@ -88,7 +98,7 @@ final appTheme = ThemeData(
     foregroundColor: MH.ink,
     elevation: 0,
   ),
-  textTheme: GoogleFonts.robotoTextTheme().apply(
+  textTheme: GoogleFonts.interTextTheme().apply(
     bodyColor: MH.ink,
     displayColor: MH.ink,
   ),

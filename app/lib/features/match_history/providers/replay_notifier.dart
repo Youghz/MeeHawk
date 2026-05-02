@@ -20,6 +20,7 @@ class ReplayNotifier extends MatchNotifier {
     required String p3,
     required String p4,
     required String initialServerId,
+    MatchFormat format = MatchFormat.beachFivb,
   }) {}
 
   @override

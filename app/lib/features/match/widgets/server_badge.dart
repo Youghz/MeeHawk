@@ -23,23 +23,23 @@ class ServerBadge extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const BallIcon(size: 13),
+            const BallIcon(size: 15),
             const SizedBox(width: 6),
             Text('Service',
                 style: MH.sans(
-                  size: 11,
+                  size: 13,
                   weight: FontWeight.w600,
                   color: MH.ball,
                 )),
             Text(' · ',
                 style: MH.sans(
-                  size: 11,
+                  size: 13,
                   weight: FontWeight.w600,
                   color: MH.ball,
                 )),
             Text(playerName,
                 style: MH.sans(
-                  size: 11,
+                  size: 13,
                   weight: FontWeight.w600,
                   color: teamColor,
                 )),

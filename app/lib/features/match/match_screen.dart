@@ -103,26 +103,8 @@ class _MatchScreenState extends ConsumerState<MatchScreen>
               child: Stack(
                 children: [
                   const _MatchLayout(),
-                  const HelpHint(),
                   const ChangeSidePrompt(),
                   const SetEndPrompt(),
-                  Positioned(
-                    top: 4,
-                    left: 4,
-                    child: Material(
-                      color: MH.sand,
-                      borderRadius: BorderRadius.circular(8),
-                      child: InkWell(
-                        onTap: () => Navigator.of(context).pop(),
-                        borderRadius: BorderRadius.circular(8),
-                        child: const Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Icon(
-                              Icons.home_outlined, color: MH.ink, size: 20),
-                        ),
-                      ),
-                    ),
-                  ),
                   if (isReplay)
                     Positioned.fill(
                       child: Listener(
@@ -141,27 +123,78 @@ class _MatchScreenState extends ConsumerState<MatchScreen>
   }
 }
 
-class _MatchLayout extends StatelessWidget {
+class _MatchLayout extends StatefulWidget {
   const _MatchLayout();
 
   @override
-  Widget build(BuildContext context) => const Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  TopScore(),
-                  ServeBanner(),
-                  Court(),
-                  SwapSidesButton(),
-                  Timeline(),
-                  ReplayPanel(),
-                ],
+  State<_MatchLayout> createState() => _MatchLayoutState();
+}
+
+class _MatchLayoutState extends State<_MatchLayout> {
+  bool _helpOpen = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          color: MH.sand,
+          padding: const EdgeInsets.fromLTRB(4, 6, 12, 6),
+          child: Row(
+            children: [
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => Navigator.of(context).pop(),
+                  borderRadius: BorderRadius.circular(8),
+                  child: const Padding(
+                    padding: EdgeInsets.all(10),
+                    child: Icon(Icons.arrow_back_rounded, color: MH.ink, size: 22),
+                  ),
+                ),
               ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => setState(() => _helpOpen = !_helpOpen),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _helpOpen
+                        ? MH.ink
+                        : MH.paper.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: MH.rule),
+                  ),
+                  child: Text(
+                    'Aide',
+                    style: MH.sans(
+                      size: 13,
+                      weight: FontWeight.w700,
+                      color: _helpOpen ? MH.paper : MH.inkSoft,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (_helpOpen) const HelpPanel(),
+        const Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                TopScore(),
+                ServeBanner(),
+                Court(),
+                SwapSidesButton(),
+                Timeline(),
+                ReplayPanel(),
+              ],
             ),
           ),
-          BottomActions(),
-        ],
-      );
+        ),
+        const BottomActions(),
+      ],
+    );
+  }
 }

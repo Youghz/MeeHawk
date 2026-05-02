@@ -77,6 +77,8 @@ class _TimelineState extends ConsumerState<Timeline> {
         ref.watch(matchProvider.select((s) => s.teams[TeamSide.e1]!.name));
     final teamE2Name =
         ref.watch(matchProvider.select((s) => s.teams[TeamSide.e2]!.name));
+    final hasRallyImpacts =
+        ref.watch(matchProvider.select((s) => s.rallyImpacts.isNotEmpty));
 
     if (history.isEmpty) {
       return Padding(
@@ -116,21 +118,44 @@ class _TimelineState extends ConsumerState<Timeline> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SetPicker(
-            allSets: List.generate(maxSets, (i) => i + 1),
-            playedSets: playedSets,
-            selected: effectiveSet,
-            onSelect: (s) {
-              if (!playedSets.contains(s)) return;
-              setState(() => _selectedSet = s);
-              final firstIdx =
-                  history.indexWhere((p) => p.setNumber == s);
-              if (firstIdx >= 0) {
-                ref.read(matchProvider.notifier).selectPoint(firstIdx);
-              } else {
-                ref.read(matchProvider.notifier).viewSet(s);
-              }
-            },
+          Row(
+            children: [
+              Expanded(
+                child: _SetPicker(
+                  allSets: List.generate(maxSets, (i) => i + 1),
+                  playedSets: playedSets,
+                  selected: effectiveSet,
+                  onSelect: (s) {
+                    if (!playedSets.contains(s)) return;
+                    setState(() => _selectedSet = s);
+                    final firstIdx =
+                        history.indexWhere((p) => p.setNumber == s);
+                    if (firstIdx >= 0) {
+                      ref.read(matchProvider.notifier).selectPoint(firstIdx);
+                    } else {
+                      ref.read(matchProvider.notifier).viewSet(s);
+                    }
+                  },
+                ),
+              ),
+              if (hasRallyImpacts)
+                InkWell(
+                  onTap: ref.read(matchProvider.notifier).undoLastImpact,
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 10),
+                    child: Text(
+                      '↶ Annuler',
+                      style: MH.sans(
+                        size: 11,
+                        weight: FontWeight.w600,
+                        color: MH.ball,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 4),
           Row(
@@ -169,7 +194,7 @@ class _TimelineState extends ConsumerState<Timeline> {
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.end,
           style: MH.sans(
-            size: 9,
+            size: 10,
             weight: FontWeight.w700,
             color: color,
             letterSpacing: 0.4,
@@ -208,9 +233,10 @@ class _TimelineState extends ConsumerState<Timeline> {
     final globalIdx = globalIndices[i];
     final isSelected = selected == globalIdx;
     final p = setPts[i];
-    return GestureDetector(
+    return InkWell(
       onTap: () =>
           ref.read(matchProvider.notifier).selectPoint(globalIdx),
+      borderRadius: BorderRadius.circular(4),
       child: Container(
         width: _cellW,
         decoration: isSelected
@@ -278,11 +304,12 @@ class _SetPicker extends StatelessWidget {
           for (final s in allSets)
             Padding(
               padding: const EdgeInsets.only(right: 5),
-              child: GestureDetector(
+              child: InkWell(
                 onTap: () => onSelect(s),
+                borderRadius: BorderRadius.circular(12),
                 child: Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   decoration: BoxDecoration(
                     color: s == selected ? MH.ink : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),

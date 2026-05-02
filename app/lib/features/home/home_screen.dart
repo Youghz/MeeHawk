@@ -33,7 +33,7 @@ class HomeScreen extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
               children: [
                 const _Header(),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 _PrimaryCta(
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
@@ -44,18 +44,18 @@ class HomeScreen extends ConsumerWidget {
                 if (ongoingMatches.isNotEmpty) ...[
                   const SizedBox(height: 20),
                   const _SectionLabel(label: 'EN COURS'),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   for (final archive in ongoingMatches) ...[
                     _OngoingCard(
                       archive: archive,
                       isCurrent: archive.id == currentMatchId,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                   ],
                 ],
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
                 const _SectionLabel(label: 'NAVIGATION'),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 _NavCard(
                   children: [
                     _MenuItem(
@@ -89,7 +89,7 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 36),
                 const _Footer(),
               ],
         ),
@@ -109,7 +109,7 @@ class _Header extends StatelessWidget {
           Text(
             'MEEHAWK',
             style: MH.sans(
-              size: 30,
+              size: 36,
               weight: FontWeight.w800,
               letterSpacing: -0.5,
             ),
@@ -118,7 +118,7 @@ class _Header extends StatelessWidget {
           Text(
             'v0.1',
             style: MH.mono(
-              size: 9,
+              size: 11,
               color: MH.rule,
               letterSpacing: 0.5,
             ),
@@ -138,7 +138,7 @@ class _SectionLabel extends StatelessWidget {
         children: [
           Container(
             width: 3,
-            height: 11,
+            height: 13,
             decoration: BoxDecoration(
               color: MH.ball,
               borderRadius: BorderRadius.circular(2),
@@ -148,7 +148,7 @@ class _SectionLabel extends StatelessWidget {
           Text(
             label,
             style: MH.mono(
-              size: 9,
+              size: 11,
               weight: FontWeight.w600,
               letterSpacing: 1.5,
             ),
@@ -207,8 +207,8 @@ class _OngoingCard extends ConsumerWidget {
             child: Row(
               children: [
                 Container(
-                  width: 30,
-                  height: 30,
+                  width: 34,
+                  height: 34,
                   alignment: Alignment.center,
                   decoration: const BoxDecoration(
                     color: MH.ball,
@@ -216,7 +216,7 @@ class _OngoingCard extends ConsumerWidget {
                   ),
                   child: const Icon(
                     Icons.play_arrow_rounded,
-                    size: 18,
+                    size: 20,
                     color: Colors.white,
                   ),
                 ),
@@ -228,7 +228,7 @@ class _OngoingCard extends ConsumerWidget {
                     children: [
                       Text(
                         'Reprendre le match',
-                        style: MH.sans(size: 13, weight: FontWeight.w700),
+                        style: MH.sans(size: 15, weight: FontWeight.w700),
                       ),
                       const SizedBox(height: 3),
                       Text(
@@ -284,8 +284,8 @@ class _PrimaryCta extends StatelessWidget {
             child: Row(
               children: [
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 40,
+                  height: 40,
                   alignment: Alignment.center,
                   decoration: const BoxDecoration(
                     color: MH.ball,
@@ -293,7 +293,7 @@ class _PrimaryCta extends StatelessWidget {
                   ),
                   child: const Icon(
                     Icons.add_rounded,
-                    size: 20,
+                    size: 22,
                     color: Colors.white,
                   ),
                 ),
@@ -306,6 +306,7 @@ class _PrimaryCta extends StatelessWidget {
                       Text(
                         'NOUVELLE PARTIE',
                         style: MH.sans(
+                          size: 17,
                           weight: FontWeight.w800,
                           letterSpacing: 0.3,
                         ),
@@ -313,7 +314,7 @@ class _PrimaryCta extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         "Configurer et démarrer l'annotation",
-                        style: MH.sans(size: 11, color: MH.pencil),
+                        style: MH.sans(size: 13, color: MH.pencil),
                       ),
                     ],
                   ),
@@ -321,7 +322,7 @@ class _PrimaryCta extends StatelessWidget {
                 const SizedBox(width: 8),
                 const Icon(
                   Icons.arrow_forward_rounded,
-                  size: 18,
+                  size: 20,
                   color: MH.ball,
                 ),
               ],
@@ -400,14 +401,14 @@ class _MenuItem extends StatelessWidget {
             child: Row(
               children: [
                 Container(
-                  width: 32,
-                  height: 32,
+                  width: 36,
+                  height: 36,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: iconColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(icon, size: 16, color: iconColor),
+                  child: Icon(icon, size: 18, color: iconColor),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -417,12 +418,12 @@ class _MenuItem extends StatelessWidget {
                     children: [
                       Text(
                         label,
-                        style: MH.sans(size: 13, weight: FontWeight.w600),
+                        style: MH.sans(size: 15, weight: FontWeight.w600),
                       ),
                       const SizedBox(height: 1),
                       Text(
                         subtitle,
-                        style: MH.sans(size: 11, color: MH.pencil),
+                        style: MH.sans(size: 13, color: MH.pencil),
                       ),
                     ],
                   ),
@@ -449,7 +450,7 @@ class _Footer extends StatelessWidget {
         child: Text(
           'MEEHAWK · v0.1',
           style: MH.mono(
-            size: 9,
+            size: 11,
             color: MH.rule,
           ),
         ),

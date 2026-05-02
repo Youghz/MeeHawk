@@ -25,6 +25,7 @@ class ReplayPanel extends ConsumerWidget {
         ? point.annotations.last
         : null;
     final crossings = point.netCrossings;
+    final actionType = lastAction?.type;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
@@ -49,25 +50,29 @@ class ReplayPanel extends ConsumerWidget {
                   ),
                   child: Text('ÉCHANGE ${idx + 1}',
                       style: MH.sans(
-                        size: 9,
+                        size: 10,
                         weight: FontWeight.w700,
                         color: MH.paper,
                         letterSpacing: 0.6,
                       )),
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  '$crossings passage${crossings > 1 ? 's' : ''} au filet',
-                  style: MH.sans(
-                    size: 10,
-                    color: MH.paper.withValues(alpha: 0.6),
+                Flexible(
+                  child: Text(
+                    '$crossings passage${crossings > 1 ? 's' : ''} au filet',
+                    overflow: TextOverflow.ellipsis,
+                    style: MH.sans(
+                      size: 11,
+                      color: MH.paper.withValues(alpha: 0.6),
+                    ),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 Text(
                   'POINT ${winnerTeam.name.toUpperCase()}',
+                  overflow: TextOverflow.ellipsis,
                   style: MH.sans(
-                    size: 9,
+                    size: 10,
                     weight: FontWeight.w600,
                     color: MH.ball,
                     letterSpacing: 0.4,
@@ -77,13 +82,9 @@ class ReplayPanel extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('· ',
-                    style: MH.sans(
-                      size: 12,
-                      color: MH.paper.withValues(alpha: 0.5),
-                    )),
+                _actionIcon(actionType),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     lastAction?.text ?? 'Aucune action enregistrée',
@@ -103,5 +104,21 @@ class ReplayPanel extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+Widget _actionIcon(String? type) {
+  switch (type) {
+    case 'fault':
+      return const Icon(Icons.close_rounded, size: 16, color: MH.bad);
+    case 'service':
+      return const Icon(Icons.bolt_rounded, size: 16, color: MH.ball);
+    case 'block':
+      return const Icon(Icons.back_hand, size: 16, color: MH.paper);
+    case 'attack':
+      return const Icon(
+          Icons.arrow_forward_rounded, size: 16, color: MH.paper);
+    default:
+      return const SizedBox(width: 16);
   }
 }

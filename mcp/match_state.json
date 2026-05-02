@@ -1,0 +1,82 @@
+{
+  "v": 1,
+  "format": {
+    "setsToWin": 2,
+    "regularSetPoints": 21,
+    "decidingSetPoints": 15,
+    "winBy": 2,
+    "regularChangeSideEvery": 7,
+    "decidingChangeSideEvery": 5
+  },
+  "teams": {
+    "e1": {
+      "name": "Left Team",
+      "players": [
+        {
+          "id": "p1",
+          "name": "Player 1"
+        },
+        {
+          "id": "p2",
+          "name": "Player 2"
+        }
+      ]
+    },
+    "e2": {
+      "name": "Right Team",
+      "players": [
+        {
+          "id": "p3",
+          "name": "Player 3"
+        },
+        {
+          "id": "p4",
+          "name": "Player 4"
+        }
+      ]
+    }
+  },
+  "positions": {
+    "p1": [
+      0.25,
+      0.35
+    ],
+    "p2": [
+      0.25,
+      0.7
+    ],
+    "p3": [
+      0.75,
+      0.35
+    ],
+    "p4": [
+      0.75,
+      0.7
+    ]
+  },
+  "servingPlayerId": "p3",
+  "initialServerId": "p3",
+  "nextServerIndex": {
+    "e2": 1,
+    "e1": 0
+  },
+  "firstServerIndex": {
+    "e2": 0,
+    "e1": null
+  },
+  "history": [],
+  "sets": [],
+  "setNumber": 1,
+  "scoreE1": 0,
+  "scoreE2": 0,
+  "sidesSwapped": false,
+  "notes": "",
+  "changeSidePromptDismissed": false,
+  "matchOver": false,
+  "started": true,
+  "trackedTeams": [
+    "e2",
+    "e1"
+  ],
+  "startedAt": "2026-05-02T03:11:29.000Z"
+}

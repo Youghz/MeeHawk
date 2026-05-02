@@ -27,7 +27,7 @@ class TopScore extends ConsumerWidget {
         ref.watch(matchProvider.select((s) => s.teams[TeamSide.e2]!.name));
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
       decoration: const BoxDecoration(
         color: MH.sand,
         border: Border(bottom: BorderSide(color: MH.rule)),
@@ -100,7 +100,7 @@ class TopScore extends ConsumerWidget {
                     ? 'SET $setNumber  ·  $setsLeft — $setsRight'
                     : 'SET $setNumber',
                 style: MH.mono(
-                  size: 9,
+                  size: 11,
                   weight: FontWeight.w600,
                 ),
               ),
@@ -133,7 +133,7 @@ class _Score extends StatelessWidget {
           maxLines: 1,
           softWrap: false,
           style: MH.sans(
-            size: 52,
+            size: 60,
             weight: FontWeight.w800,
             height: 1,
             letterSpacing: -1,
@@ -171,7 +171,7 @@ class _TeamHead extends ConsumerWidget {
                   onChanged: (v) =>
                       ref.read(matchProvider.notifier).renameTeam(tk, v),
                   style: MH.sans(
-                    size: 11,
+                    size: 13,
                     weight: FontWeight.w800,
                     color: color,
                     letterSpacing: 0.6,
@@ -195,7 +195,7 @@ class _TeamHead extends ConsumerWidget {
                   onChanged: (v) =>
                       ref.read(matchProvider.notifier).renameTeam(tk, v),
                   style: MH.sans(
-                    size: 11,
+                    size: 13,
                     weight: FontWeight.w800,
                     color: color,
                     letterSpacing: 0.6,
@@ -223,8 +223,8 @@ class _RecordBadge extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(6),
           child: Container(
-            width: 8,
-            height: 8,
+            width: 10,
+            height: 10,
             decoration: BoxDecoration(
               color: active ? MH.bad : Colors.transparent,
               shape: BoxShape.circle,

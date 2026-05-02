@@ -5,6 +5,7 @@ import 'package:app/features/match_history/domain/match_archive.dart';
 List<MatchArchive> buildSeedMatches() {
   final now = DateTime.now();
   return [
+    // ── Match 1 : Sables d'Or vs Les Vagues (3 sets, Emma domine) ──────────
     _match(
       id: 'seed_1',
       e1Name: "Sables d'Or",
@@ -12,9 +13,11 @@ List<MatchArchive> buildSeedMatches() {
       p1: 'Emma', p2: 'Julie',
       p3: 'Sophie', p4: 'Manon',
       setScores: [(21, 16), (18, 21), (15, 12)],
-      startedAt: now.subtract(const Duration(days: 3, hours: 2, minutes: 15)),
+      startedAt: now.subtract(const Duration(days: 14, hours: 2, minutes: 15)),
       notes: 'Vent côté mer modéré. Emma dominante au service. Beau 3e set.',
     ),
+
+    // ── Match 2 : Théo / Emilien (live annoté) ──────────────────────────────
     _match(
       id: 'seed_theo_emilien',
       e1Name: 'Théo & Co',
@@ -22,8 +25,68 @@ List<MatchArchive> buildSeedMatches() {
       p1: 'Théo', p2: 'Partenaire',
       p3: 'Emilien', p4: 'Partenaire',
       setScores: [(21, 18), (19, 21), (15, 13)],
-      startedAt: now.subtract(const Duration(days: 2, hours: 3)),
+      startedAt: now.subtract(const Duration(days: 12, hours: 3)),
       notes: 'Match annoté en live.',
+    ),
+
+    // ── Match 3 : Récif vs Les Vagues (victoire nette Récif) ────────────────
+    _match(
+      id: 'seed_3',
+      e1Name: 'Récif',
+      e2Name: 'Les Vagues',
+      p1: 'Lucas', p2: 'Mathieu',
+      p3: 'Sophie', p4: 'Manon',
+      setScores: [(21, 14), (21, 18)],
+      startedAt: now.subtract(const Duration(days: 10, hours: 1, minutes: 30)),
+      notes: 'Lucas très efficace en attaque diagonale. Sophie peu de balles à jouer.',
+    ),
+
+    // ── Match 4 : Sables d'Or vs Récif (3 sets serrés) ──────────────────────
+    _match(
+      id: 'seed_4',
+      e1Name: "Sables d'Or",
+      e2Name: 'Récif',
+      p1: 'Emma', p2: 'Julie',
+      p3: 'Lucas', p4: 'Mathieu',
+      setScores: [(19, 21), (21, 17), (13, 15)],
+      startedAt: now.subtract(const Duration(days: 8, hours: 4)),
+      notes: "Mathieu au service très régulier. Julie a pris de l'assurance en 2e set.",
+    ),
+
+    // ── Match 5 : Dune vs Les Vagues (victoire Dune en 2 sets) ──────────────
+    _match(
+      id: 'seed_5',
+      e1Name: 'Dune',
+      e2Name: 'Les Vagues',
+      p1: 'Théo', p2: 'Antoine',
+      p3: 'Sophie', p4: 'Manon',
+      setScores: [(21, 17), (21, 19)],
+      startedAt: now.subtract(const Duration(days: 6, hours: 2, minutes: 45)),
+      notes: 'Antoine très solide en réception. Théo a réussi 4 aces dans le 2e set.',
+    ),
+
+    // ── Match 6 : Récif vs Dune (derby 3 sets) ──────────────────────────────
+    _match(
+      id: 'seed_6',
+      e1Name: 'Récif',
+      e2Name: 'Dune',
+      p1: 'Lucas', p2: 'Mathieu',
+      p3: 'Théo', p4: 'Antoine',
+      setScores: [(18, 21), (21, 15), (15, 10)],
+      startedAt: now.subtract(const Duration(days: 4, hours: 1, minutes: 10)),
+      notes: 'Turnover en 1er set. Lucas retrouve son niveau en 2e et 3e.',
+    ),
+
+    // ── Match 7 : Sables d'Or vs Dune (finale) ──────────────────────────────
+    _match(
+      id: 'seed_7',
+      e1Name: "Sables d'Or",
+      e2Name: 'Dune',
+      p1: 'Emma', p2: 'Julie',
+      p3: 'Théo', p4: 'Antoine',
+      setScores: [(21, 19), (20, 22), (16, 14)],
+      startedAt: now.subtract(const Duration(days: 2, hours: 3, minutes: 20)),
+      notes: 'Match très serré. Emma décisive en fin de 3e set. Théo régulier sur les 3 sets.',
     ),
   ];
 }

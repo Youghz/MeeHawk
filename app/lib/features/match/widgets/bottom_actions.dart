@@ -43,6 +43,30 @@ class BottomActions extends ConsumerWidget {
           Row(
             children: [
               Expanded(
+                child: _UndoButton(
+                  label: hasPopup
+                      ? '↺  Annuler la sélection'
+                      : "↺  Annuler l'action",
+                  onPressed: hasPopup
+                      ? notifier.dismissPopup
+                      : hasRallyImpacts
+                          ? notifier.undoLastImpact
+                          : null,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _UndoButton(
+                  label: '↶  Annuler le point',
+                  onPressed: canUndo ? notifier.undoPoint : null,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
                 child: _PointButton(
                   teamKey: leftTeam,
                   teamName: leftName,
@@ -77,30 +101,6 @@ class BottomActions extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: _UndoButton(
-                  label: hasPopup
-                      ? '↺  Annuler la sélection'
-                      : "↺  Annuler l'action",
-                  onPressed: hasPopup
-                      ? notifier.dismissPopup
-                      : hasRallyImpacts
-                          ? notifier.undoLastImpact
-                          : null,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _UndoButton(
-                  label: '↶  Annuler le point',
-                  onPressed: canUndo ? notifier.undoPoint : null,
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -130,14 +130,14 @@ class _UndoButton extends StatelessWidget {
         onTap: onPressed,
         splashColor: MH.ink.withValues(alpha: 0.08),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
           child: Center(
             child: Text(
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: MH.sans(
-                size: 12,
+                size: 15,
                 weight: FontWeight.w600,
                 color: fgColor,
               ),
@@ -188,7 +188,6 @@ class _PointButton extends StatelessWidget {
               Text(
                 'POINT',
                 style: MH.mono(
-                  size: 8,
                   weight: FontWeight.w600,
                   color: fg.withValues(alpha: (enabled ? 0.65 : 0.4)),
                   letterSpacing: 1.5,
@@ -200,7 +199,7 @@ class _PointButton extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: MH.sans(
-                  size: 15,
+                  size: 18,
                   weight: FontWeight.w700,
                   color: fg,
                 ),

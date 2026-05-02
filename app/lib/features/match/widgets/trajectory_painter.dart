@@ -20,6 +20,9 @@ class TrajectoryPainter extends CustomPainter {
   final double outerW;
   final double outerH;
 
+  // Radius of the ImpactMarker circle (22px diameter / 2).
+  static const _kMarkerR = 11.0;
+
   @override
   void paint(Canvas canvas, Size size) {
     if (impacts.length < 2) return;
@@ -35,43 +38,60 @@ class TrajectoryPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     for (var i = 1; i < impacts.length; i++) {
-      final a = Offset(impacts[i - 1].x * outerW, impacts[i - 1].y * outerH);
-      final b = Offset(impacts[i].x * outerW, impacts[i].y * outerH);
+      final aCenter =
+          Offset(impacts[i - 1].x * outerW, impacts[i - 1].y * outerH);
+      final bCenter = Offset(impacts[i].x * outerW, impacts[i].y * outerH);
+
+      final delta = bCenter - aCenter;
+      final dist = delta.distance;
+      if (dist < 2) continue;
+
+      final dir = delta / dist;
+      // Clamp offset so it never exceeds 40 % of segment length on each side.
+      final off = _kMarkerR.clamp(0.0, dist * 0.40);
+      final a = aCenter + dir * off;
+      final b = bCenter - dir * off;
 
       final isNetCrossing = impacts[i - 1].isServerPosition ||
           impacts[i - 1].teamSide != impacts[i].teamSide;
 
       if (isNetCrossing) {
         canvas.drawLine(a, b, solidPaint);
-        _drawArrowhead(canvas, solidPaint, a, b);
+        _drawFletching(canvas, solidPaint, a, b);
       } else {
         _drawDashedLine(canvas, dashedPaint, a, b);
       }
     }
   }
 
-  void _drawArrowhead(Canvas canvas, Paint paint, Offset a, Offset b) {
-    const arrowLen = 7.0;
-    const arrowAngle = 0.42; // radians (~24°)
+  /// Small chevron ticks along the shaft pointing backward — one at 35 % and
+  /// one at 65 % of the segment length.
+  void _drawFletching(Canvas canvas, Paint paint, Offset a, Offset b) {
+    const tickLen = 5.0;
+    const tickAngle = 0.52; // ~30° — spread of each wing from backward direction
     final delta = b - a;
     final dist = delta.distance;
-    if (dist < 2) return;
+    if (dist < 28) return;
     final dirX = delta.dx / dist;
     final dirY = delta.dy / dist;
+    // Backward direction (opposite of travel).
+    final bdX = -dirX;
+    final bdY = -dirY;
 
-    // Two wing lines rotated ±arrowAngle from the direction (a→b).
-    for (final sign in [-1.0, 1.0]) {
-      final ang = arrowAngle * sign;
-      final cos = math.cos(ang);
-      final sin = math.sin(ang);
-      // Rotate (dirX, dirY) by ang, then reverse direction for the wing.
-      final wingX = -(dirX * cos - dirY * sin);
-      final wingY = -(dirX * sin + dirY * cos);
-      canvas.drawLine(
-        b,
-        Offset(b.dx + wingX * arrowLen, b.dy + wingY * arrowLen),
-        paint,
-      );
+    for (final t in [0.35, 0.65]) {
+      final center = Offset(a.dx + delta.dx * t, a.dy + delta.dy * t);
+      for (final sign in [-1.0, 1.0]) {
+        final ang = tickAngle * sign;
+        final cosA = math.cos(ang);
+        final sinA = math.sin(ang);
+        final wX = bdX * cosA - bdY * sinA;
+        final wY = bdX * sinA + bdY * cosA;
+        canvas.drawLine(
+          center,
+          Offset(center.dx + wX * tickLen, center.dy + wY * tickLen),
+          paint,
+        );
+      }
     }
   }
 

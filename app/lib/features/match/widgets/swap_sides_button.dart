@@ -8,19 +8,19 @@ class SwapSidesButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => Padding(
-        padding: const EdgeInsets.only(top: 8),
+        padding: const EdgeInsets.symmetric(vertical: 14),
         child: Center(
           child: OutlinedButton.icon(
             onPressed: () => ref.read(matchProvider.notifier).swapSides(),
-            icon: const Icon(Icons.swap_horiz, size: 14, color: MH.ink),
+            icon: const Icon(Icons.swap_horiz, size: 20, color: MH.ink),
             label: Text('Changer de côté',
                 style: MH.sans(
-                  size: 11,
+                  size: 15,
                   weight: FontWeight.w600,
                 )),
             style: OutlinedButton.styleFrom(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               side: const BorderSide(color: MH.ink, width: 1.5),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(999),

@@ -1,161 +1,64 @@
 import 'package:app/core/theme.dart';
-import 'package:app/core/widgets/ball_icon.dart';
 import 'package:app/features/match/domain/match_state.dart';
-import 'package:app/features/match/providers/drag_preview_provider.dart';
 import 'package:app/features/match/providers/match_provider.dart';
 import 'package:app/features/match/widgets/court.dart' show kCourtMargin;
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+/// Corner-bracket player marker positioned in the outer court band zone.
+///
+/// Each player appears as an L-shaped bracket at the corner of the court
+/// corresponding to their team side (left/right) and their relative position
+/// within the team (top/bottom compared to their teammate).
 class PlayerDot extends ConsumerWidget {
   const PlayerDot({
     required this.playerId,
+    required this.outerHeight,
     required this.courtWidth,
     required this.courtHeight,
     super.key,
   });
 
   final String playerId;
+  final double outerHeight;
   final double courtWidth;
   final double courtHeight;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final player = ref.watch(
-      matchProvider.select((s) => s.playerById(playerId)!),
-    );
-    final teamKey = ref.watch(
-      matchProvider.select((s) => s.teamOfPlayer(playerId)!),
-    );
-    final originalPos = ref.watch(
-      matchProvider.select((s) => s.positions[playerId]!),
-    );
-    final isServer = ref.watch(
-      matchProvider.select((s) => s.servingPlayerId == playerId),
-    );
+    final teamKey =
+        ref.watch(matchProvider.select((s) => s.teamOfPlayer(playerId)!));
+    final pos =
+        ref.watch(matchProvider.select((s) => s.positions[playerId]!));
+    final isServer =
+        ref.watch(matchProvider.select((s) => s.servingPlayerId == playerId));
     final mateId = ref.watch(matchProvider.select((s) {
       final team = s.teams[teamKey]!;
       return team.players.firstWhere((p) => p.id != playerId).id;
     }));
-    final matePos = ref.watch(
-      matchProvider.select((s) => s.positions[mateId]!),
-    );
+    final matePos =
+        ref.watch(matchProvider.select((s) => s.positions[mateId]!));
+    final isLeft =
+        ref.watch(matchProvider.select((s) => s.leftTeam == teamKey));
 
-    final drag = ref.watch(dragPreviewProvider);
     final color = teamKey == TeamSide.e1 ? MH.them : MH.us;
-    final amDragger = drag?.playerId == playerId;
-    final isMateOfDragger =
-        drag != null && drag.playerId != playerId && drag.playerId == mateId;
-    final armed = drag?.armed ?? false;
-
-    CourtPos pos;
-    if (amDragger) {
-      pos = drag!.pos ?? originalPos;
-    } else if (isMateOfDragger && armed) {
-      pos = matePos;
-    } else {
-      pos = originalPos;
-    }
+    final isTop = pos.y <= matePos.y;
+    final topVal = isTop ? 0.0 : (outerHeight - kCourtMargin);
 
     return AnimatedPositioned(
-      duration: amDragger ? Duration.zero : const Duration(milliseconds: 260),
+      duration: const Duration(milliseconds: 260),
       curve: Curves.easeInOut,
-      left: pos.x * courtWidth,
-      top: pos.y * courtHeight,
-      child: FractionalTranslation(
-        translation: const Offset(-0.5, -0.5),
-        child: RawGestureDetector(
-          behavior: HitTestBehavior.opaque,
-          gestures: {
-            TapGestureRecognizer:
-                GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
-              TapGestureRecognizer.new,
-              (i) {
-                i.onTap = () => _onTap(ref, originalPos, teamKey);
-              },
-            ),
-            LongPressGestureRecognizer:
-                GestureRecognizerFactoryWithHandlers<LongPressGestureRecognizer>(
-              // Reduced deadline so the highlight appears immediately.
-              () => LongPressGestureRecognizer(
-                duration: const Duration(milliseconds: 180),
-              ),
-              (i) {
-                i.onLongPressStart =
-                    (_) => ref.read(dragPreviewProvider.notifier).start(playerId);
-                // ignore: cascade_invocations, cascade breaks on multi-line function literal
-                i.onLongPressMoveUpdate = (details) {
-                  // Vertical movement only — x is locked to original.
-                  final ny = (originalPos.y +
-                          details.offsetFromOrigin.dy / courtHeight)
-                      .clamp(0.0, 1.0);
-                  final newPos = CourtPos(originalPos.x, ny);
-                  final armedNow = _closerTo(newPos, matePos, originalPos);
-                  ref
-                      .read(dragPreviewProvider.notifier)
-                      .move(newPos, armed: armedNow);
-                };
-                // ignore: cascade_invocations, cascade breaks on multi-line function literal
-                i.onLongPressEnd = (_) => _release(ref, armed);
-                // ignore: cascade_invocations, cascade breaks on multi-line function literal
-                i.onLongPressCancel = () => _release(ref, false);
-              },
-            ),
-          },
-          child: AnimatedScale(
-            scale: amDragger ? 1.12 : 1,
-            duration: const Duration(milliseconds: 120),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              constraints: const BoxConstraints(minWidth: 52),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: MH.paper,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: color,
-                  width: amDragger ? 2.5 : 2,
-                ),
-                boxShadow: [
-                  if (isServer)
-                    const BoxShadow(color: MH.ballSoft, spreadRadius: 3),
-                  if (amDragger)
-                    BoxShadow(
-                      color: color.withValues(alpha: armed ? 0.5 : 0.25),
-                      blurRadius: armed ? 14 : 10,
-                      spreadRadius: armed ? 6 : 4,
-                    ),
-                ],
-              ),
-              child: Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.center,
-                children: [
-                  Text(
-                    player.name,
-                    style: MH.sans(
-                      size: 11,
-                      weight: FontWeight.w700,
-                      color: color,
-                    ),
-                  ),
-                  if (isServer)
-                    const Positioned(
-                      top: -20,
-                      child: BallIcon(size: 12),
-                    ),
-                  if (amDragger)
-                    Positioned(
-                      top: -8,
-                      right: -8,
-                      child: _SwapBadge(color: armed ? color : MH.ink),
-                    ),
-                ],
-              ),
-            ),
-          ),
+      left: isLeft ? 0.0 : null,
+      right: isLeft ? null : 0.0,
+      top: topVal,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _onTap(ref, pos, teamKey),
+        child: _CornerMarker(
+          isLeft: isLeft,
+          isTop: isTop,
+          color: color,
+          isServer: isServer,
         ),
       ),
     );
@@ -176,40 +79,83 @@ class PlayerDot extends ConsumerWidget {
           ),
         );
   }
-
-  void _release(WidgetRef ref, bool armed) {
-    if (armed) {
-      ref.read(matchProvider.notifier).swapTeammates(playerId);
-    }
-    ref.read(dragPreviewProvider.notifier).clear();
-  }
-
-  static bool _closerTo(CourtPos p, CourtPos target, CourtPos origin) {
-    final dT =
-        (p.x - target.x) * (p.x - target.x) + (p.y - target.y) * (p.y - target.y);
-    final dO =
-        (p.x - origin.x) * (p.x - origin.x) + (p.y - origin.y) * (p.y - origin.y);
-    return dT < dO;
-  }
 }
 
-class _SwapBadge extends StatelessWidget {
-  const _SwapBadge({required this.color});
+class _CornerMarker extends StatelessWidget {
+  const _CornerMarker({
+    required this.isLeft,
+    required this.isTop,
+    required this.color,
+    required this.isServer,
+  });
 
+  final bool isLeft;
+  final bool isTop;
   final Color color;
+  final bool isServer;
 
   @override
-  Widget build(BuildContext context) => Container(
-        width: 20,
-        height: 20,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: color,
-        ),
-        child: const Icon(
-          Icons.swap_vert,
-          size: 14,
-          color: MH.paper,
+  Widget build(BuildContext context) => SizedBox.square(
+        dimension: kCourtMargin,
+        child: CustomPaint(
+          painter: _BracketPainter(
+            isLeft: isLeft,
+            isTop: isTop,
+            color: color,
+            isServer: isServer,
+          ),
         ),
       );
+}
+
+class _BracketPainter extends CustomPainter {
+  const _BracketPainter({
+    required this.isLeft,
+    required this.isTop,
+    required this.color,
+    required this.isServer,
+  });
+
+  final bool isLeft;
+  final bool isTop;
+  final Color color;
+  final bool isServer;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color.withValues(alpha: 0.85)
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.square
+      ..style = PaintingStyle.stroke;
+
+    // Inset slightly from the outer container rounded corners.
+    const inset = 5.0;
+    final cx = isLeft ? inset : size.width - inset;
+    final cy = isTop ? inset : size.height - inset;
+
+    // Arm endpoints reach the court boundary edge of the band zone.
+    final hEnd = isLeft ? size.width : 0.0;
+    final vEnd = isTop ? size.height : 0.0;
+
+    canvas
+      ..drawLine(Offset(cx, cy), Offset(hEnd, cy), paint)
+      ..drawLine(Offset(cx, cy), Offset(cx, vEnd), paint);
+
+    // Serving player: small filled dot at the bracket corner.
+    if (isServer) {
+      canvas.drawCircle(
+        Offset(cx, cy),
+        4.5,
+        Paint()..color = MH.ball,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BracketPainter old) =>
+      old.isLeft != isLeft ||
+      old.isTop != isTop ||
+      old.color != color ||
+      old.isServer != isServer;
 }
