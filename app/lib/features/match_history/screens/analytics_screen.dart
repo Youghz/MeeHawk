@@ -21,52 +21,17 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   String? _filterPlayerId;
 
   MatchState get _s => widget.state;
-  Team get _team => _s.teams[_selectedTeam]!;
-  Color get _color => _selectedTeam == TeamSide.e1 ? MH.them : MH.us;
-
-  List<PointRecord> get _pts => _filterSet == null
-      ? _s.history
-      : _s.history.where((p) => p.setNumber == _filterSet).toList();
-
   List<int> get _sets => _s.sets.map((s) => s.setNumber).toList()..sort();
 
-  /// Set-filtered points narrowed to those where the selected player had an
-  /// annotation. Used by action-type and zone sections.
-  List<PointRecord> get _ptsForPlayer {
-    if (_filterPlayerId == null) return _pts;
-    final player = _team.players.firstWhere(
-      (p) => p.id == _filterPlayerId,
-      orElse: () => const Player(id: '', name: ''),
-    );
-    if (player.id.isEmpty) return _pts;
-    return _pts
-        .where((pt) => pt.annotations.any((a) => a.text.contains(player.name)))
-        .toList();
-  }
-
-  /// Reconstructs serving player per point (set-filtered).
-  List<({PointRecord pt, TeamSide server, String serverId})>
-      get _ptsWithServer {
-    var serverId = _s.initialServerId;
-    final result =
-        <({PointRecord pt, TeamSide server, String serverId})>[];
-    for (final p in _s.history) {
-      final team = _s.teamOfPlayer(serverId) ?? TeamSide.e1;
-      if (_filterSet == null || p.setNumber == _filterSet) {
-        result.add((pt: p, server: team, serverId: serverId));
-      }
-      serverId = p.serverId;
-    }
-    return result;
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Build
-  // ─────────────────────────────────────────────────────────────────────────
+  static const _sep = Padding(
+    padding: EdgeInsets.symmetric(vertical: 4),
+    child: Divider(height: 32, color: MH.rule),
+  );
 
   @override
   Widget build(BuildContext context) {
     final hasSets = _sets.length > 1;
+    final input = _buildInput();
     return Scaffold(
       backgroundColor: MH.paper,
       appBar: AppBar(
@@ -89,11 +54,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _teamRow(),
-          _playerRow(),
+          _teamRow(input),
+          _playerRow(input),
           const Divider(height: 1, color: MH.rule),
           Expanded(
-            child: _pts.isEmpty
+            child: input.pts.isEmpty
                 ? Center(
                     child: Text(
                       'Aucun point enregistré',
@@ -103,19 +68,19 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 48),
                     children: [
-                      _summary(),
-                      _sep(),
-                      _serviceEfficiency(),
-                      _sep(),
-                      _serviceZones(),
-                      _sep(),
-                      _attackZones(),
-                      _sep(),
-                      _actionTypes(),
-                      _sep(),
-                      _rallyLength(),
-                      _sep(),
-                      _keyMoments(),
+                      _Summary(input),
+                      _sep,
+                      _ServiceEfficiency(input),
+                      _sep,
+                      _ServiceZones(input),
+                      _sep,
+                      _AttackZones(input),
+                      _sep,
+                      _ActionTypes(input),
+                      _sep,
+                      _RallyLength(input),
+                      _sep,
+                      _KeyMoments(input),
                     ],
                   ),
           ),
@@ -124,25 +89,69 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Team / player selectors (sticky header)
-  // ─────────────────────────────────────────────────────────────────────────
+  /// Builds pre-computed analytics data for this render pass.
+  /// The server history scan is expensive; computing it here ensures it runs once.
+  _AnalyticsInput _buildInput() {
+    final team = _s.teams[_selectedTeam]!;
+    final color = _selectedTeam == TeamSide.e1 ? MH.them : MH.us;
 
-  Widget _teamRow() => Padding(
+    final pts = _filterSet == null
+        ? _s.history
+        : _s.history.where((p) => p.setNumber == _filterSet).toList();
+
+    var serverId = _s.initialServerId;
+    final ptsWithServer =
+        <({PointRecord pt, TeamSide server, String serverId})>[];
+    for (final p in _s.history) {
+      final srv = _s.teamOfPlayer(serverId) ?? TeamSide.e1;
+      if (_filterSet == null || p.setNumber == _filterSet) {
+        ptsWithServer.add((pt: p, server: srv, serverId: serverId));
+      }
+      serverId = p.serverId;
+    }
+
+    final filteredPlayer = _filterPlayerId == null
+        ? null
+        : team.players.firstWhere(
+            (p) => p.id == _filterPlayerId,
+            orElse: () => const Player(id: '', name: ''),
+          );
+    final ptsForPlayer = filteredPlayer == null || filteredPlayer.id.isEmpty
+        ? pts
+        : pts
+            .where((pt) =>
+                pt.annotations.any((a) => a.text.contains(filteredPlayer.name)))
+            .toList();
+
+    return _AnalyticsInput(
+      pts: pts,
+      ptsWithServer: ptsWithServer,
+      ptsForPlayer: ptsForPlayer,
+      selectedTeam: _selectedTeam,
+      otherTeamName: _s.teams[_selectedTeam.other]!.name,
+      team: team,
+      color: color,
+      filterPlayerId: _filterPlayerId,
+    );
+  }
+
+  // ── Filter header ──────────────────────────────────────────────────────────
+
+  Widget _teamRow(_AnalyticsInput input) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
         child: Row(
           children: [
-            Expanded(child: _teamChip(TeamSide.e1)),
+            Expanded(child: _teamChip(TeamSide.e1, input)),
             const SizedBox(width: 8),
-            Expanded(child: _teamChip(TeamSide.e2)),
+            Expanded(child: _teamChip(TeamSide.e2, input)),
           ],
         ),
       );
 
-  Widget _teamChip(TeamSide side) {
+  Widget _teamChip(TeamSide side, _AnalyticsInput input) {
     final team = _s.teams[side]!;
     final color = side == TeamSide.e1 ? MH.them : MH.us;
-    final active = _selectedTeam == side;
+    final active = input.selectedTeam == side;
     return GestureDetector(
       onTap: () => setState(() {
         _selectedTeam = side;
@@ -172,204 +181,246 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _playerRow() => Padding(
+  Widget _playerRow(_AnalyticsInput input) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
         child: Row(
           children: [
-            _playerChip(null, 'Tous'),
-            for (final p in _team.players)
+            _playerChip(null, 'Tous', input),
+            for (final p in input.team.players)
               Padding(
                 padding: const EdgeInsets.only(left: 6),
-                child: _playerChip(p.id, p.name),
+                child: _playerChip(p.id, p.name, input),
               ),
           ],
         ),
       );
 
-  Widget _playerChip(String? id, String label) {
-    final active = _filterPlayerId == id;
+  Widget _playerChip(String? id, String label, _AnalyticsInput input) {
+    final active = input.filterPlayerId == id;
     return GestureDetector(
       onTap: () =>
           setState(() => _filterPlayerId = active && id != null ? null : id),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: active ? _color.withValues(alpha: 0.1) : Colors.transparent,
+          color:
+              active ? input.color.withValues(alpha: 0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: active ? _color : MH.rule),
+          border: Border.all(color: active ? input.color : MH.rule),
         ),
         child: Text(
           label,
           style: MH.sans(
             size: 11,
             weight: FontWeight.w600,
-            color: active ? _color : MH.pencil,
+            color: active ? input.color : MH.pencil,
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _sep() => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 4),
-        child: Divider(height: 32, color: MH.rule),
-      );
+// ─────────────────────────────────────────────────────────────────────────────
+// Pre-computed analytics data (built once per render pass)
+// ─────────────────────────────────────────────────────────────────────────────
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // RÉSUMÉ
-  // ─────────────────────────────────────────────────────────────────────────
+class _AnalyticsInput {
+  const _AnalyticsInput({
+    required this.pts,
+    required this.ptsWithServer,
+    required this.ptsForPlayer,
+    required this.selectedTeam,
+    required this.otherTeamName,
+    required this.team,
+    required this.color,
+    required this.filterPlayerId,
+  });
 
-  Widget _summary() {
-    final pts = _pts;
+  final List<PointRecord> pts;
+  final List<({PointRecord pt, TeamSide server, String serverId})> ptsWithServer;
+  final List<PointRecord> ptsForPlayer;
+  final TeamSide selectedTeam;
+  final String otherTeamName;
+  final Team team;
+  final Color color;
+  final String? filterPlayerId;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Section widgets
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _Summary extends StatelessWidget {
+  const _Summary(this.input);
+  final _AnalyticsInput input;
+
+  @override
+  Widget build(BuildContext context) {
+    final pts = input.pts;
     if (pts.isEmpty) return const SizedBox.shrink();
 
-    final pairs = _ptsWithServer;
-    final myWins = pts.where((p) => p.winner == _selectedTeam).length;
+    final pairs = input.ptsWithServer;
+    final myWins = pts.where((p) => p.winner == input.selectedTeam).length;
 
     final myServes =
-        pairs.where((p) => p.server == _selectedTeam).toList();
+        pairs.where((p) => p.server == input.selectedTeam).toList();
     final myRecv =
-        pairs.where((p) => p.server != _selectedTeam).toList();
+        pairs.where((p) => p.server != input.selectedTeam).toList();
     final myServeWins =
-        myServes.where((p) => p.pt.winner == _selectedTeam).length;
+        myServes.where((p) => p.pt.winner == input.selectedTeam).length;
     final myRecvWins =
-        myRecv.where((p) => p.pt.winner == _selectedTeam).length;
+        myRecv.where((p) => p.pt.winner == input.selectedTeam).length;
 
     return _Section(
       title: 'RÉSUMÉ',
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(width: 3, height: 14, color: _color),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              _team.name,
-              style: MH.sans(weight: FontWeight.w700, color: _color),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(width: 3, height: 14, color: input.color),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                input.team.name,
+                style: MH.sans(weight: FontWeight.w700, color: input.color),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Text(
+              'vs ${input.otherTeamName}',
+              style: MH.sans(size: 11, color: MH.pencil),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
+          ]),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _RingStat(
+                  label: 'Points',
+                  count: '$myWins/${pts.length}',
+                  rate: pts.isNotEmpty ? myWins / pts.length : 0,
+                  color: input.color,
+                ),
+              ),
+              Expanded(
+                child: _RingStat(
+                  label: 'Service',
+                  count: '$myServeWins/${myServes.length}',
+                  rate:
+                      myServes.isNotEmpty ? myServeWins / myServes.length : 0,
+                  color: input.color,
+                ),
+              ),
+              Expanded(
+                child: _RingStat(
+                  label: 'Réception',
+                  count: '$myRecvWins/${myRecv.length}',
+                  rate: myRecv.isNotEmpty ? myRecvWins / myRecv.length : 0,
+                  color: input.color.withValues(alpha: 0.5),
+                ),
+              ),
+            ],
           ),
-          Text(
-            'vs ${_s.teams[_selectedTeam.other]!.name}',
-            style: MH.sans(size: 11, color: MH.pencil),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ]),
-        const SizedBox(height: 16),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: _RingStat(
-                label: 'Points',
-                count: '$myWins/${pts.length}',
-                rate: pts.isNotEmpty ? myWins / pts.length : 0,
-                color: _color,
-              ),
-            ),
-            Expanded(
-              child: _RingStat(
-                label: 'Service',
-                count: '$myServeWins/${myServes.length}',
-                rate: myServes.isNotEmpty ? myServeWins / myServes.length : 0,
-                color: _color,
-              ),
-            ),
-            Expanded(
-              child: _RingStat(
-                label: 'Réception',
-                count: '$myRecvWins/${myRecv.length}',
-                rate: myRecv.isNotEmpty ? myRecvWins / myRecv.length : 0,
-                color: _color.withValues(alpha: 0.5),
-              ),
-            ),
-          ],
-        ),
-      ]),
+        ],
+      ),
     );
   }
+}
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // SERVICE EFFICIENCY
-  // ─────────────────────────────────────────────────────────────────────────
+class _ServiceEfficiency extends StatelessWidget {
+  const _ServiceEfficiency(this.input);
+  final _AnalyticsInput input;
 
-  Widget _serviceEfficiency() {
-    final pairs = _ptsWithServer;
+  @override
+  Widget build(BuildContext context) {
+    final pairs = input.ptsWithServer;
     if (pairs.isEmpty) return const SizedBox.shrink();
 
-    // Apply player filter to service side.
     final myServes = pairs.where((p) {
-      if (p.server != _selectedTeam) return false;
-      if (_filterPlayerId != null && p.serverId != _filterPlayerId) return false;
+      if (p.server != input.selectedTeam) return false;
+      if (input.filterPlayerId != null && p.serverId != input.filterPlayerId) {
+        return false;
+      }
       return true;
     }).toList();
 
     if (myServes.isEmpty) return const SizedBox.shrink();
 
     final serveWins =
-        myServes.where((p) => p.pt.winner == _selectedTeam).length;
+        myServes.where((p) => p.pt.winner == input.selectedTeam).length;
     final serveRate = serveWins / myServes.length;
-
-    final players = _team.players;
+    final players = input.team.players;
 
     return _Section(
       title: 'EFFICACITÉ AU SERVICE',
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _RingStat(
-              label: _filterPlayerId != null ? _playerName() : 'Total équipe',
-              count: '$serveWins/${myServes.length}',
-              rate: serveRate,
-              color: _color,
-            ),
-          ],
-        ),
-        // Per-player breakdown when showing full team.
-        if (_filterPlayerId == null && players.length > 1) ...[
-          const SizedBox(height: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              for (final player in players)
-                Expanded(
-                  child: Builder(builder: (_) {
-                    final ps = pairs
-                        .where((p) =>
-                            p.server == _selectedTeam &&
-                            p.serverId == player.id)
-                        .toList();
-                    if (ps.isEmpty) return const SizedBox.shrink();
-                    final w =
-                        ps.where((p) => p.pt.winner == _selectedTeam).length;
-                    return _RingStat(
-                      label: player.name,
-                      count: '$w/${ps.length}',
-                      rate: w / ps.length,
-                      color: _color.withValues(alpha: 0.7),
-                    );
-                  }),
-                ),
+              _RingStat(
+                label: input.filterPlayerId != null
+                    ? _playerNameFor(input.team, input.filterPlayerId)
+                    : 'Total équipe',
+                count: '$serveWins/${myServes.length}',
+                rate: serveRate,
+                color: input.color,
+              ),
             ],
           ),
+          if (input.filterPlayerId == null && players.length > 1) ...[
+            const SizedBox(height: 16),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final player in players)
+                  Expanded(
+                    child: Builder(builder: (_) {
+                      final ps = pairs
+                          .where((p) =>
+                              p.server == input.selectedTeam &&
+                              p.serverId == player.id)
+                          .toList();
+                      if (ps.isEmpty) return const SizedBox.shrink();
+                      final w = ps
+                          .where((p) => p.pt.winner == input.selectedTeam)
+                          .length;
+                      return _RingStat(
+                        label: player.name,
+                        count: '$w/${ps.length}',
+                        rate: w / ps.length,
+                        color: input.color.withValues(alpha: 0.7),
+                      );
+                    }),
+                  ),
+              ],
+            ),
+          ],
         ],
-      ]),
+      ),
     );
   }
+}
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // SERVICE LANDING ZONES
-  // ─────────────────────────────────────────────────────────────────────────
+class _ServiceZones extends StatelessWidget {
+  const _ServiceZones(this.input);
+  final _AnalyticsInput input;
 
-  Widget _serviceZones() {
-    final pairs = _ptsWithServer;
+  @override
+  Widget build(BuildContext context) {
     final dots = <_Dot>[];
 
-    for (final (:pt, :server, :serverId) in pairs) {
-      if (server != _selectedTeam) continue;
-      if (_filterPlayerId != null && serverId != _filterPlayerId) continue;
+    for (final (:pt, :server, :serverId) in input.ptsWithServer) {
+      if (server != input.selectedTeam) continue;
+      if (input.filterPlayerId != null && serverId != input.filterPlayerId) {
+        continue;
+      }
 
       BallImpact? landing;
       var seenServer = false;
@@ -386,10 +437,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       if (landing == null) continue;
 
       dots.add(_Dot(
-        x: _halfX(landing.x),
+        x: _halfX(input.selectedTeam, landing.x),
         y: landing.y,
-        color: _color,
-        hollow: pt.winner != _selectedTeam,
+        color: input.color,
+        hollow: pt.winner != input.selectedTeam,
       ));
     }
 
@@ -401,18 +452,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       child: _AnalyticsCourt(dots: dots, halfCourt: true),
     );
   }
+}
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // ATTACK ZONES
-  // ─────────────────────────────────────────────────────────────────────────
+class _AttackZones extends StatelessWidget {
+  const _AttackZones(this.input);
+  final _AnalyticsInput input;
 
-  Widget _attackZones() {
-    final pts = _ptsForPlayer;
+  @override
+  Widget build(BuildContext context) {
     final dots = <_Dot>[];
-    final opponent = _selectedTeam.other;
+    final opponent = input.selectedTeam.other;
 
-    for (final p in pts) {
-      // Last impact on opponent's side = our team's last attack.
+    for (final p in input.ptsForPlayer) {
       BallImpact? attackLanding;
       for (final imp in p.impacts.reversed) {
         if (imp.isServerPosition) continue;
@@ -424,10 +475,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       if (attackLanding == null) continue;
 
       dots.add(_Dot(
-        x: _halfX(attackLanding.x),
+        x: _halfX(input.selectedTeam, attackLanding.x),
         y: attackLanding.y,
-        color: _color,
-        hollow: attackLanding.isOutside || p.winner != _selectedTeam,
+        color: input.color,
+        hollow: attackLanding.isOutside || p.winner != input.selectedTeam,
       ));
     }
 
@@ -439,30 +490,31 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       child: _AnalyticsCourt(dots: dots, halfCourt: true),
     );
   }
+}
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // ACTION TYPES
-  // ─────────────────────────────────────────────────────────────────────────
+class _ActionTypes extends StatelessWidget {
+  const _ActionTypes(this.input);
+  final _AnalyticsInput input;
 
-  Widget _actionTypes() {
-    final pts = _ptsForPlayer;
+  @override
+  Widget build(BuildContext context) {
+    final pts = input.ptsForPlayer;
     if (pts.isEmpty) return const SizedBox.shrink();
 
-    // Last annotation belonging to the selected team per point.
     final endings = <String, ({int total, int wins})>{};
     final attackSubs = <String, ({int total, int wins})>{};
 
     for (final p in pts) {
       Annotation? last;
       for (final a in p.annotations.reversed) {
-        if (a.team == _selectedTeam) {
+        if (a.team == input.selectedTeam) {
           last = a;
           break;
         }
       }
       if (last == null) continue;
 
-      final won = p.winner == _selectedTeam;
+      final won = p.winner == input.selectedTeam;
       final prev = endings[last.type] ?? (total: 0, wins: 0);
       endings[last.type] =
           (total: prev.total + 1, wins: prev.wins + (won ? 1 : 0));
@@ -507,68 +559,72 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     return _Section(
       title: 'COMMENT FINISSENT LES POINTS',
-      subtitle: 'Dernière action de ${_team.name} — barre pleine = gagné',
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        for (final e in sorted) ...[
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: _LabeledBar(
-              label: typeLabels[e.key] ?? e.key,
-              value:
-                  '${e.value.wins}/${e.value.total}  ${(e.value.total / grandTotal * 100).round()}%',
-              ratio: e.value.total / grandTotal,
-              color: typeColors[e.key] ?? MH.pencil,
-              winRatio:
-                  e.value.total > 0 ? e.value.wins / e.value.total : 0,
-            ),
-          ),
-        ],
-        if (subSorted.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Text('Détail attaques',
-              style: MH.mono(size: 9, letterSpacing: 0.8)),
-          const SizedBox(height: 10),
-          for (final e in subSorted)
+      subtitle: 'Dernière action de ${input.team.name} — barre pleine = gagné',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final e in sorted) ...[
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: _LabeledBar(
-                label: _cap(e.key),
+                label: typeLabels[e.key] ?? e.key,
                 value:
-                    '${e.value.wins}/${e.value.total}  ${(e.value.total / subMaxTotal * 100).round()}%',
-                ratio: e.value.total / subMaxTotal,
-                color: MH.ink,
+                    '${e.value.wins}/${e.value.total}  ${(e.value.total / grandTotal * 100).round()}%',
+                ratio: e.value.total / grandTotal,
+                color: typeColors[e.key] ?? MH.pencil,
                 winRatio:
                     e.value.total > 0 ? e.value.wins / e.value.total : 0,
               ),
             ),
+          ],
+          if (subSorted.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Détail attaques',
+              style: MH.mono(size: 9, letterSpacing: 0.8),
+            ),
+            const SizedBox(height: 10),
+            for (final e in subSorted)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _LabeledBar(
+                  label: _cap(e.key),
+                  value:
+                      '${e.value.wins}/${e.value.total}  ${(e.value.total / subMaxTotal * 100).round()}%',
+                  ratio: e.value.total / subMaxTotal,
+                  color: MH.ink,
+                  winRatio:
+                      e.value.total > 0 ? e.value.wins / e.value.total : 0,
+                ),
+              ),
+          ],
         ],
-      ]),
+      ),
     );
   }
+}
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // RALLY LENGTH
-  // ─────────────────────────────────────────────────────────────────────────
+class _RallyLength extends StatelessWidget {
+  const _RallyLength(this.input);
+  final _AnalyticsInput input;
 
-  Widget _rallyLength() {
-    final pairs = _ptsWithServer;
+  @override
+  Widget build(BuildContext context) {
+    final pairs = input.ptsWithServer;
     if (pairs.isEmpty) return const SizedBox.shrink();
 
-    // serveW/serveT: when team served; recvW/recvT: when team received.
-    final data =
-        <int, ({int serveW, int serveT, int recvW, int recvT})>{};
+    final data = <int, ({int serveW, int serveT, int recvW, int recvT})>{};
 
     for (final (:pt, :server, :serverId) in pairs) {
-      // Player filter only on service side (can't track who received).
-      if (_filterPlayerId != null &&
-          server == _selectedTeam &&
-          serverId != _filterPlayerId) {
+      if (input.filterPlayerId != null &&
+          server == input.selectedTeam &&
+          serverId != input.filterPlayerId) {
         continue;
       }
 
       final ex = _exchanges(pt);
-      final isServing = server == _selectedTeam;
-      final won = pt.winner == _selectedTeam;
+      final isServing = server == input.selectedTeam;
+      final won = pt.winner == input.selectedTeam;
       final prev = data[ex] ?? (serveW: 0, serveT: 0, recvW: 0, recvT: 0);
 
       data[ex] = isServing
@@ -601,155 +657,160 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     return _Section(
       title: 'LONGUEUR DES ÉCHANGES',
-      child: Column(children: [
-        for (final e in sorted)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: _RallyRow(
-              label: labels[e.key] ?? '${e.key}+ échanges',
-              color: _color,
-              serveWins: e.value.serveW,
-              serveTotal: e.value.serveT,
-              recvWins: e.value.recvW,
-              recvTotal: e.value.recvT,
+      child: Column(
+        children: [
+          for (final e in sorted)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: _RallyRow(
+                label: labels[e.key] ?? '${e.key}+ échanges',
+                color: input.color,
+                serveWins: e.value.serveW,
+                serveTotal: e.value.serveT,
+                recvWins: e.value.recvW,
+                recvTotal: e.value.recvT,
+              ),
             ),
-          ),
-      ]),
+        ],
+      ),
     );
   }
+}
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // KEY MOMENTS
-  // ─────────────────────────────────────────────────────────────────────────
+class _KeyMoments extends StatelessWidget {
+  const _KeyMoments(this.input);
+  final _AnalyticsInput input;
 
-  Widget _keyMoments() {
-    final pts = _pts;
+  @override
+  Widget build(BuildContext context) {
+    final pts = input.pts;
     if (pts.isEmpty) return const SizedBox.shrink();
 
-    final streak = _maxStreak(pts, _selectedTeam);
+    final streak = _maxStreak(pts, input.selectedTeam);
 
     var maxLead = 0;
     for (final p in pts) {
-      final lead = p.scoreOf(_selectedTeam) - p.scoreOf(_selectedTeam.other);
+      final lead =
+          p.scoreOf(input.selectedTeam) - p.scoreOf(input.selectedTeam.other);
       if (lead > maxLead) maxLead = lead;
     }
 
     final pressurePts = pts
         .where((p) =>
-            p.scoreOf(_selectedTeam) >= 15 ||
-            p.scoreOf(_selectedTeam.other) >= 15)
+            p.scoreOf(input.selectedTeam) >= 15 ||
+            p.scoreOf(input.selectedTeam.other) >= 15)
         .toList();
     final pressWins =
-        pressurePts.where((p) => p.winner == _selectedTeam).length;
+        pressurePts.where((p) => p.winner == input.selectedTeam).length;
 
     final decPts = pts
         .where((p) =>
-            p.scoreOf(_selectedTeam) >= 18 ||
-            p.scoreOf(_selectedTeam.other) >= 18)
+            p.scoreOf(input.selectedTeam) >= 18 ||
+            p.scoreOf(input.selectedTeam.other) >= 18)
         .toList();
-    final decWins = decPts.where((p) => p.winner == _selectedTeam).length;
+    final decWins = decPts.where((p) => p.winner == input.selectedTeam).length;
 
     final first5 = pts.take(min(5, pts.length)).toList();
-    final f5Wins = first5.where((p) => p.winner == _selectedTeam).length;
+    final f5Wins = first5.where((p) => p.winner == input.selectedTeam).length;
 
     return _Section(
       title: 'MOMENTS DÉCISIFS',
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _KeyRow(label: 'Série max consécutive', value: '$streak pts'),
-        const SizedBox(height: 8),
-        _KeyRow(label: 'Avance maximale', value: '+$maxLead pts'),
-        const SizedBox(height: 16),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (pressurePts.isNotEmpty)
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _KeyRow(label: 'Série max consécutive', value: '$streak pts'),
+          const SizedBox(height: 8),
+          _KeyRow(label: 'Avance maximale', value: '+$maxLead pts'),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (pressurePts.isNotEmpty)
+                Expanded(
+                  child: _RingStat(
+                    label: 'Points ≥ 15',
+                    count: '$pressWins/${pressurePts.length}',
+                    rate: pressWins / pressurePts.length,
+                    color: input.color,
+                  ),
+                ),
+              if (decPts.isNotEmpty)
+                Expanded(
+                  child: _RingStat(
+                    label: 'Points ≥ 18',
+                    count: '$decWins/${decPts.length}',
+                    rate: decWins / decPts.length,
+                    color: input.color,
+                  ),
+                ),
               Expanded(
                 child: _RingStat(
-                  label: 'Points ≥ 15',
-                  count: '$pressWins/${pressurePts.length}',
-                  rate: pressWins / pressurePts.length,
-                  color: _color,
+                  label: '5 premiers',
+                  count: '$f5Wins/${first5.length}',
+                  rate: first5.isNotEmpty ? f5Wins / first5.length : 0,
+                  color: input.color,
                 ),
               ),
-            if (decPts.isNotEmpty)
-              Expanded(
-                child: _RingStat(
-                  label: 'Points ≥ 18',
-                  count: '$decWins/${decPts.length}',
-                  rate: decWins / decPts.length,
-                  color: _color,
-                ),
-              ),
-            Expanded(
-              child: _RingStat(
-                label: '5 premiers',
-                count: '$f5Wins/${first5.length}',
-                rate: first5.isNotEmpty ? f5Wins / first5.length : 0,
-                color: _color,
-              ),
-            ),
-          ],
-        ),
-      ]),
+            ],
+          ),
+        ],
+      ),
     );
   }
+}
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Pure helpers
-  // ─────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Pure helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
-  /// Exchanges = net crossings minus the service crossing (capped at 4).
-  /// netCrossings 0-1 → 0 exchanges (ace / service fault / direct point).
-  int _exchanges(PointRecord p) {
-    final nc = p.netCrossings;
-    if (nc <= 1) return 0;
-    return min(nc - 1, 4);
-  }
+/// Exchanges = net crossings minus the service crossing (capped at 4).
+int _exchanges(PointRecord p) {
+  final nc = p.netCrossings;
+  if (nc <= 1) return 0;
+  return min(nc - 1, 4);
+}
 
-  int _maxStreak(List<PointRecord> pts, TeamSide team) {
-    var best = 0;
-    var cur = 0;
-    for (final p in pts) {
-      if (p.winner == team) {
-        cur++;
-        if (cur > best) best = cur;
-      } else {
-        cur = 0;
-      }
+int _maxStreak(List<PointRecord> pts, TeamSide team) {
+  var best = 0;
+  var cur = 0;
+  for (final p in pts) {
+    if (p.winner == team) {
+      cur++;
+      if (cur > best) best = cur;
+    } else {
+      cur = 0;
     }
-    return best;
   }
+  return best;
+}
 
-  String? _subtype(String text) {
-    final parts = text.split('·');
-    if (parts.isEmpty) return null;
-    final words = parts[0].trim().split(' ');
-    if (words.length <= 1) return null;
-    return words.sublist(1).join(' ').trim();
+String? _subtype(String text) {
+  final parts = text.split('·');
+  if (parts.isEmpty) return null;
+  final words = parts[0].trim().split(' ');
+  if (words.length <= 1) return null;
+  return words.sublist(1).join(' ').trim();
+}
+
+String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+
+/// Maps a raw court x ∈ [0, 1] to a half-court x ∈ [0=net, 1=baseline].
+/// The selected team's zone always lands on the opponent's half.
+double _halfX(TeamSide selectedTeam, double x) {
+  if (selectedTeam == TeamSide.e1) {
+    return ((x - 0.5) * 2).clamp(0.0, 1.0);
   }
+  return ((0.5 - x) * 2).clamp(0.0, 1.0);
+}
 
-  String _cap(String s) =>
-      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
-
-  String _playerName() {
-    if (_filterPlayerId == null) return '';
-    return _team.players
-        .firstWhere(
-          (p) => p.id == _filterPlayerId,
-          orElse: () => const Player(id: '', name: ''),
-        )
-        .name;
-  }
-
-  /// Maps a raw court x ∈ [0, 1] to a half-court x ∈ [0=net, 1=baseline].
-  /// The selected team's attacks always land on the opponent's half.
-  /// E1 attacks → opponent half x ∈ [0.5, 1.0]; E2 attacks → x ∈ [0.0, 0.5].
-  double _halfX(double x) {
-    if (_selectedTeam == TeamSide.e1) {
-      return ((x - 0.5) * 2).clamp(0.0, 1.0);
-    }
-    return ((0.5 - x) * 2).clamp(0.0, 1.0);
-  }
+String _playerNameFor(Team team, String? filterId) {
+  if (filterId == null) return '';
+  return team.players
+      .firstWhere(
+        (p) => p.id == filterId,
+        orElse: () => const Player(id: '', name: ''),
+      )
+      .name;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -895,7 +956,6 @@ class _CourtBgPainter extends CustomPainter {
       ..drawRect(inner, Paint()..color = MH.sand);
 
     if (!halfCourt) {
-      // Full court: center line = net.
       canvas.drawLine(
         Offset(size.width / 2, margin),
         Offset(size.width / 2, size.height - margin),
@@ -904,7 +964,6 @@ class _CourtBgPainter extends CustomPainter {
           ..strokeWidth = 1.5,
       );
     } else {
-      // Half court: left edge = net (thicker, darker).
       canvas.drawLine(
         Offset(margin, margin),
         Offset(margin, size.height - margin),
@@ -952,8 +1011,7 @@ class _RallyRow extends StatelessWidget {
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: MH.mono(weight: FontWeight.w600)),
+          Text(label, style: MH.mono(weight: FontWeight.w600)),
           const SizedBox(height: 6),
           if (serveTotal > 0)
             _MiniBar(
@@ -1166,7 +1224,6 @@ class _ArcPainter extends CustomPainter {
   @override
   bool shouldRepaint(_ArcPainter o) => o.rate != rate || o.color != color;
 }
-
 
 class _LabeledBar extends StatelessWidget {
   const _LabeledBar({

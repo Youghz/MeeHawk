@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:app/core/rules/match_format.dart';
 import 'package:app/core/theme.dart';
 import 'package:app/features/match/match_screen.dart';
 import 'package:app/features/match/providers/match_provider.dart';
@@ -16,11 +17,14 @@ class MatchSetupScreen extends ConsumerStatefulWidget {
 class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
   final _team1 = TextEditingController(text: 'Équipe 1');
   final _team2 = TextEditingController(text: 'Équipe 2');
-  final _p1 = TextEditingController(text: 'Ana');
-  final _p2 = TextEditingController(text: 'Sara');
-  final _p3 = TextEditingController(text: 'Léa');
-  final _p4 = TextEditingController(text: 'Marie');
-  String _initialServerId = 'p3';
+  final _p1 = TextEditingController(text: 'Joueur 1');
+  final _p2 = TextEditingController(text: 'Joueur 2');
+  final _p3 = TextEditingController(text: 'Joueur 3');
+  final _p4 = TextEditingController(text: 'Joueur 4');
+  String _initialServerId = 'p1';
+  int _setsToWin = 2;
+  int _setPoints = 21;
+  int _changeSideEvery = 7;
 
   @override
   void dispose() {
@@ -34,16 +38,14 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
   }
 
   String _pickerLabel(String id) {
-    switch (id) {
-      case 'p1':
-        return _p1.text.trim().isEmpty ? 'Joueur 1' : _p1.text.trim();
-      case 'p2':
-        return _p2.text.trim().isEmpty ? 'Joueur 2' : _p2.text.trim();
-      case 'p3':
-        return _p3.text.trim().isEmpty ? 'Joueur 3' : _p3.text.trim();
-      default:
-        return _p4.text.trim().isEmpty ? 'Joueur 4' : _p4.text.trim();
-    }
+    final (ctrl, fallback) = switch (id) {
+      'p1' => (_p1, 'Joueur 1'),
+      'p2' => (_p2, 'Joueur 2'),
+      'p3' => (_p3, 'Joueur 3'),
+      _ => (_p4, 'Joueur 4'),
+    };
+    final text = ctrl.text.trim();
+    return text.isEmpty ? fallback : text;
   }
 
   @override
@@ -57,10 +59,7 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
             onPressed: () => Navigator.of(context).pop(),
           ),
         ),
-        body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
-            child: SingleChildScrollView(
+        body: SingleChildScrollView(
               padding:
                   const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
               child: Column(
@@ -79,6 +78,8 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
                   _teamSection(MH.us, _team2, _p3, _p4),
                   const SizedBox(height: 24),
                   _serverPicker(),
+                  const SizedBox(height: 24),
+                  _formatSection(),
                   const SizedBox(height: 32),
                   SizedBox(
                     width: double.infinity,
@@ -104,8 +105,6 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
                   const SizedBox(height: 24),
                 ],
               ),
-            ),
-          ),
         ),
       );
 
@@ -191,7 +190,7 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Qui sert au départ ?',
+        Text('Premier serveur',
             style: MH.sans(
               size: 13,
               weight: FontWeight.w600,
@@ -230,19 +229,178 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
   }
 
   void _start() {
+    String name(TextEditingController c, String fallback) {
+      final t = c.text.trim();
+      return t.isEmpty ? fallback : t;
+    }
+
     ref.read(matchProvider.notifier).startMatch(
-          teamE1Name:
-              _team1.text.trim().isEmpty ? 'Équipe 1' : _team1.text.trim(),
-          teamE2Name:
-              _team2.text.trim().isEmpty ? 'Équipe 2' : _team2.text.trim(),
-          p1: _p1.text.trim().isEmpty ? 'Ana' : _p1.text.trim(),
-          p2: _p2.text.trim().isEmpty ? 'Sara' : _p2.text.trim(),
-          p3: _p3.text.trim().isEmpty ? 'Léa' : _p3.text.trim(),
-          p4: _p4.text.trim().isEmpty ? 'Marie' : _p4.text.trim(),
+          teamE1Name: name(_team1, 'Équipe 1'),
+          teamE2Name: name(_team2, 'Équipe 2'),
+          p1: name(_p1, 'Joueur 1'),
+          p2: name(_p2, 'Joueur 2'),
+          p3: name(_p3, 'Joueur 3'),
+          p4: name(_p4, 'Joueur 4'),
           initialServerId: _initialServerId,
+          format: MatchFormat(
+            setsToWin: _setsToWin,
+            regularSetPoints: _setPoints,
+            regularChangeSideEvery: _changeSideEvery,
+          ),
         );
     unawaited(Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(builder: (_) => const MatchScreen()),
     ));
   }
+
+  Widget _formatSection() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'FORMAT',
+            style: MH.mono(
+              weight: FontWeight.w600,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: MH.paper,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: MH.rule, width: 1.5),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Sets à gagner',
+                    style: MH.sans(size: 12, color: MH.inkSoft)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [1, 2].map((n) {
+                    final selected = n == _setsToWin;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(
+                          '$n',
+                          style: MH.sans(
+                            size: 12,
+                            weight: FontWeight.w600,
+                            color: selected ? MH.paper : MH.inkSoft,
+                          ),
+                        ),
+                        selected: selected,
+                        selectedColor: MH.pencil,
+                        backgroundColor: MH.sand,
+                        side: BorderSide(
+                          color: selected ? MH.pencil : MH.rule,
+                          width: 1.5,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        onSelected: (_) => setState(() => _setsToWin = n),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 14),
+                Text('Points par set',
+                    style: MH.sans(size: 12, color: MH.inkSoft)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [15, 21, 25].map((n) {
+                    final selected = n == _setPoints;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(
+                          '$n',
+                          style: MH.sans(
+                            size: 12,
+                            weight: FontWeight.w600,
+                            color: selected ? MH.paper : MH.inkSoft,
+                          ),
+                        ),
+                        selected: selected,
+                        selectedColor: MH.pencil,
+                        backgroundColor: MH.sand,
+                        side: BorderSide(
+                          color: selected ? MH.pencil : MH.rule,
+                          width: 1.5,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        onSelected: (_) => setState(() => _setPoints = n),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Changer de côté tous les',
+                        style: MH.sans(size: 12, color: MH.inkSoft),
+                      ),
+                    ),
+                    _counter(
+                      value: _changeSideEvery,
+                      onDec: () => setState(() {
+                        if (_changeSideEvery > 1) _changeSideEvery--;
+                      }),
+                      onInc: () =>
+                          setState(() => _changeSideEvery++),
+                    ),
+                    const SizedBox(width: 8),
+                    Text('pts', style: MH.sans(size: 12, color: MH.inkSoft)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+
+  Widget _counter({
+    required int value,
+    required VoidCallback onDec,
+    required VoidCallback onInc,
+  }) =>
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _counterBtn(Icons.remove, onDec),
+          SizedBox(
+            width: 32,
+            child: Center(
+              child: Text(
+                '$value',
+                style: MH.sans(weight: FontWeight.w700),
+              ),
+            ),
+          ),
+          _counterBtn(Icons.add, onInc),
+        ],
+      );
+
+  Widget _counterBtn(IconData icon, VoidCallback onTap) => InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          width: 28,
+          height: 28,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: MH.sand,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: MH.rule),
+          ),
+          child: Icon(icon, size: 14, color: MH.ink),
+        ),
+      );
 }

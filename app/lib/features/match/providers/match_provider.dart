@@ -1,3 +1,4 @@
+import 'package:app/core/rules/annotation_rules.dart';
 import 'package:app/core/rules/attack_inference.dart';
 import 'package:app/core/rules/service_rotation.dart';
 import 'package:app/core/rules/set_rules.dart';
@@ -273,7 +274,7 @@ class MatchNotifier extends Notifier<MatchState> {
   void addBallImpact(BallImpact impact) {
     if (!impact.isServerPosition &&
         _consecutiveSameSideTouches(state.rallyImpacts, impact.teamSide) >=
-            3) {
+            AnnotationRules.maxTeamTouches) {
       // 4th touch: record the impact position then auto-fault.
       final player = impact.playerId != null
           ? state.playerById(impact.playerId!)

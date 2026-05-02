@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:app/features/match/persistence/match_codec.dart';
 import 'package:app/features/match_history/domain/match_archive.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ArchiveStorage {
@@ -21,7 +22,8 @@ class ArchiveStorage {
     try {
       final list = jsonDecode(raw) as List<dynamic>;
       return list.map((e) => _fromJson(e as Map<String, dynamic>)).toList();
-    } on Object catch (_) {
+    } on Object catch (e, st) {
+      debugPrint('ArchiveStorage.loadAll: failed to decode archives\n$e\n$st');
       return [];
     }
   }

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:app/features/match/domain/match_state.dart';
 import 'package:app/features/match/persistence/match_codec.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Persists a [MatchState] snapshot to device storage. Single slot — the
@@ -27,7 +28,8 @@ class MatchStorage {
     try {
       final json = jsonDecode(raw) as Map<String, dynamic>;
       return MatchCodec.fromJson(json);
-    } on Object catch (_) {
+    } on Object catch (e, st) {
+      debugPrint('MatchStorage.load: failed to decode match state\n$e\n$st');
       return null;
     }
   }
