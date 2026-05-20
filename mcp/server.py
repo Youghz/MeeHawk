@@ -57,17 +57,24 @@ def add_ball_impact(
     is_block: bool = False,
     is_server_position: bool = False,
     player_id: str | None = None,
+    video_time_sec: float | None = None,
 ) -> dict:
     """Record a ball impact during the current rally.
 
     x, y: normalised court coordinates in [0.0, 1.0]. Net at x=0.5.
-    team_side: 'e1' or 'e2' — the team on whose side the ball landed.
-    is_outside: True when the ball was out of bounds.
-    is_block: True when this touch was a block at the net.
-    is_server_position: True for the server's starting position marker (not a ball contact).
-    player_id: optional player id ('p1'..'p4').
+        x=0 is left baseline, x=1 is right baseline.
+        y=0 is top sideline, y=1 is bottom sideline.
+        Estimate real positions from the video — do NOT always use 0.25/0.75/0.5.
+    team_side: 'e1' (left) or 'e2' (right).
+    is_outside: True when the ball lands out of bounds.
+    is_block: True when a player blocks at the net.
+    is_server_position: True for the server's starting-position marker (not a ball contact).
+    player_id: 'p1' (e1 front), 'p2' (e1 back), 'p3' (e2 front), 'p4' (e2 back).
+    video_time_sec: timestamp in seconds when this touch occurs in the video.
     """
-    result = annotator.add_ball_impact(x, y, team_side, is_outside, is_block, is_server_position, player_id)
+    result = annotator.add_ball_impact(
+        x, y, team_side, is_outside, is_block, is_server_position, player_id, video_time_sec
+    )
     _save()
     return result
 

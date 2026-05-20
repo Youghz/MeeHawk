@@ -59,6 +59,7 @@ class BallImpact:
     player_id: Optional[str] = None
     is_server_position: bool = False
     is_block: bool = False
+    video_time_sec: Optional[float] = None
 
 
 @dataclass
@@ -176,6 +177,8 @@ def _impact_to_json(i: BallImpact) -> dict:
         d["isServerPosition"] = True
     if i.is_block:
         d["isBlock"] = True
+    if i.video_time_sec is not None:
+        d["videoTimeSec"] = round(i.video_time_sec, 2)
     return d
 
 
@@ -188,6 +191,7 @@ def _impact_from_json(j: dict) -> BallImpact:
         player_id=j.get("playerId"),
         is_server_position=bool(j.get("isServerPosition", False)),
         is_block=bool(j.get("isBlock", False)),
+        video_time_sec=float(j["videoTimeSec"]) if j.get("videoTimeSec") is not None else None,
     )
 
 
