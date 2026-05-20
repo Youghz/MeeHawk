@@ -285,7 +285,13 @@ def _log_event(event, trace_write) -> None:
                 print(part.text)
 
 
-async def run_agent(video_uri: str, output: str, trace_path: Path | None = None) -> None:
+async def run_agent(
+    video_uri: str,
+    output: str,
+    trace_path: Path | None = None,
+    model: str = MODEL,
+    label: str | None = None,
+) -> None:
     load_dotenv(MCP_DIR / ".env")
 
     state_path = Path(output).resolve()
@@ -295,7 +301,7 @@ async def run_agent(video_uri: str, output: str, trace_path: Path | None = None)
     trace_file = None
     if trace_path is not None:
         trace_write, trace_file = _trace_writer(trace_path)
-        trace_write({"type": "run_start", "ts": _now(), "video": video_uri, "model": MODEL, "output": str(state_path)})
+        trace_write({"type": "run_start", "ts": _now(), "video": video_uri, "model": model, "output": str(state_path)})
 
     toolset = McpToolset(
         connection_params=StdioConnectionParams(
@@ -312,14 +318,14 @@ async def run_agent(video_uri: str, output: str, trace_path: Path | None = None)
 
     # Analysis agent (no tools) — pass 1: produce structured rally breakdown.
     analysis_agent = LlmAgent(
-        model=MODEL,
+        model=model,
         name="rally_analyst",
         instruction="You are a precise sports video analyst. Analyze the video and output a structured breakdown as requested.",
     )
 
     # Annotation agent (with tools) — pass 2: turn breakdown into tool calls.
     annotation_agent = LlmAgent(
-        model=MODEL,
+        model=model,
         name="beach_volleyball_annotator",
         instruction=ANNOTATION_INSTRUCTIONS,
         tools=[toolset],
@@ -328,7 +334,7 @@ async def run_agent(video_uri: str, output: str, trace_path: Path | None = None)
     session_service = InMemorySessionService()
 
     # ── Pass 1: rally analysis ─────────────────────────────────────────────────
-    print(f"Pass 1 — analysing video: {video_uri}", file=sys.stderr)
+    print(f"Pass 1 — analysing video: {video_uri}  [model={model}]", file=sys.stderr)
     if trace_path:
         print(f"Trace: {trace_path}", file=sys.stderr)
 
@@ -403,14 +409,14 @@ async def run_agent(video_uri: str, output: str, trace_path: Path | None = None)
 
     # Auto-import into the Flutter web app's matches folder.
     from import_to_app import import_match  # noqa: PLC0415
-    match_id = import_match(state_path)
+    match_id = import_match(state_path, match_id=label)
     print(f"Imported as {match_id} — open http://localhost:8080 to view", file=sys.stderr)
 
     # Cost tracking.
     quality = _quality_metrics(state_path)
     record = _write_cost_log(
         video=video_uri,
-        model=MODEL,
+        model=model,
         duration_s=time.monotonic() - run_start,
         pass1=pass1_usage,
         pass2=pass2_usage,
@@ -426,8 +432,18 @@ def main() -> None:
     parser.add_argument("url", help="YouTube URL or GCS URI (gs://bucket/file.mp4)")
     parser.add_argument(
         "--output",
-        default=str(MCP_DIR / "match_state.json"),
-        help="Output path for Flutter-compatible match_state.json",
+        default=None,
+        help="Output path for match_state.json (defaults to mcp/match_state_{label}.json)",
+    )
+    parser.add_argument(
+        "--label",
+        default=None,
+        help="Human-readable run label used as match ID (e.g. 'gemini-2.5-pro', 'prompt-v2')",
+    )
+    parser.add_argument(
+        "--model",
+        default=MODEL,
+        help=f"Gemini model to use (default: {MODEL})",
     )
     parser.add_argument(
         "--trace",
@@ -435,8 +451,10 @@ def main() -> None:
         help="Path for JSONL trace file (tool calls + responses). Omit to disable.",
     )
     args = parser.parse_args()
+    label = args.label
+    output = args.output or str(MCP_DIR / f"match_state{'_' + label if label else ''}.json")
     trace_path = Path(args.trace) if args.trace else None
-    asyncio.run(run_agent(args.url, args.output, trace_path))
+    asyncio.run(run_agent(args.url, output, trace_path, model=args.model, label=label))
 
 
 if __name__ == "__main__":
