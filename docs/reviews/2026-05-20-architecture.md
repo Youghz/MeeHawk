@@ -46,7 +46,7 @@ Aucun cycle A → B + B → A détecté.
   - `app/lib/features/match/widgets/replay_panel.dart` → `app/lib/core/widgets/replay_panel.dart`
   - `app/lib/features/match/widgets/match_notes.dart` → `app/lib/features/match_history/widgets/match_notes.dart`
 
-- [ ] **R9 — Extraire les méthodes analytiques pures vers `core/rules/analytics_rules.dart`**
+- [x] **R9 — Extraire les méthodes analytiques pures vers `core/rules/analytics_rules.dart`**
 
   `analytics_input.dart` déclare `AnalyticsInput` (classe de données) mais embarque aussi 5 méthodes statiques pures : `exchanges()`, `maxStreak()`, `subtype()`, `cap()`, `halfX()`. Ces méthodes opèrent uniquement sur `PointRecord`/`List<PointRecord>` sans accès à Flutter, Riverpod, ou contexte. Elles appartiennent à `core/rules/`.
 

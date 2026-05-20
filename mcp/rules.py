@@ -1,8 +1,9 @@
 # Port of:
-#   app/lib/core/rules/set_rules.dart        → SetRules
-#   app/lib/core/rules/service_rotation.dart → ServiceRotation
-#   app/lib/core/rules/attack_inference.dart → AttackInference
-#   app/lib/core/rules/rally_analyzer.dart   → RallyAnalyzer
+#   app/lib/core/rules/set_rules.dart          → SetRules
+#   app/lib/core/rules/service_rotation.dart   → ServiceRotation
+#   app/lib/core/rules/attack_inference.dart   → AttackInference
+#   app/lib/core/rules/rally_analyzer.dart     → RallyAnalyzer
+#   app/lib/core/rules/analytics_rules.dart    → AnalyticsRules
 # Keep in sync with those files.
 from __future__ import annotations
 
@@ -10,6 +11,8 @@ from match_state import BallImpact, MatchFormat, TeamSide, other_side
 
 
 class SetRules:
+    MAX_TEAM_TOUCHES = 3  # §9.1 FIVB Rules 2021-2024
+
     @staticmethod
     def is_set_won(points_a: int, points_b: int, set_number: int, fmt: MatchFormat) -> bool:
         target = fmt.target_for(set_number)
@@ -76,6 +79,51 @@ class RallyAnalyzer:
                 crossings += 1
             prev = side
         return crossings
+
+
+class AnalyticsRules:
+    """Pure analytics helpers — port of app/lib/core/rules/analytics_rules.dart."""
+
+    @staticmethod
+    def exchanges(net_crossings: int) -> int:
+        """Exchanges = net crossings minus the service crossing (capped at 4)."""
+        if net_crossings <= 1:
+            return 0
+        return min(net_crossings - 1, 4)
+
+    @staticmethod
+    def max_streak(points: list, team: TeamSide) -> int:
+        best = 0
+        cur = 0
+        for p in points:
+            if p.winner == team:
+                cur += 1
+                if cur > best:
+                    best = cur
+            else:
+                cur = 0
+        return best
+
+    @staticmethod
+    def subtype(text: str) -> str | None:
+        parts = text.split('·')
+        if not parts:
+            return None
+        words = parts[0].strip().split(' ')
+        if len(words) <= 1:
+            return None
+        return ' '.join(words[1:]).strip()
+
+    @staticmethod
+    def cap(s: str) -> str:
+        return s if not s else s[0].upper() + s[1:]
+
+    @staticmethod
+    def half_x(x: float) -> float:
+        """Maps raw court x ∈ [0, 1] to half-court x ∈ [0=net, 1=baseline]."""
+        if x >= 0.5:
+            return min(max((x - 0.5) * 2, 0.0), 1.0)
+        return min(max((0.5 - x) * 2, 0.0), 1.0)
 
 
 def consecutive_same_side_touches(impacts: list[BallImpact], side: TeamSide) -> int:
