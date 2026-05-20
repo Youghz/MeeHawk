@@ -75,7 +75,7 @@ Aucun cycle A → B + B → A détecté.
 
 ### Low Impact
 
-- [ ] **R12 — Découper `home_screen.dart` (419 lignes, 6 classes privées)**
+- [x] **R12 — Découper `home_screen.dart` (419 lignes, 6 classes privées)**
 
   `_Header`, `_SectionLabel`, `_OngoingCard`, `_PrimaryCta`, `_NavCard`, `_MenuItem` sont autosuffisantes et pourraient vivre dans `features/home/widgets/`. Réduirait le fichier à un coordinateur de ~80 lignes.
 
