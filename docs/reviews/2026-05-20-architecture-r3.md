@@ -79,7 +79,7 @@ Aucun cycle A → B + B → A détecté.
 
 ### Low Impact
 
-- [ ] **R19 — Découper `match_setup_screen.dart` (424 lignes)**
+- [x] **R19 — Découper `match_setup_screen.dart` (424 lignes)**
 
   `_MatchSetupScreenState` contient des méthodes builder privées (`_teamSection`, `_serverPicker`, `_serverChip`, `_formatSection`) qui pourraient être des `StatelessWidget` dans `match_setup/widgets/`. Ces méthodes ne dépendent pas directement du state — elles reçoivent des controllers et callbacks en paramètre.
 
