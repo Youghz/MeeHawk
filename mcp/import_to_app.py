@@ -1,12 +1,13 @@
 """
-Import a match_state.json produced by agent.py into the Flutter web app.
+Import a match_state.json produced by agent.py into Firestore + local web assets.
 
-Writes app/web/matches/archives.json  → survives flutter build web rebuilds.
-Writes app/build/web/matches/archives.json → immediately visible on the running server.
+Writes to Firestore collection 'matches' (project meehawk-87417).
+Copies video file to app/web/videos/ and app/build/web/videos/ for local serving.
 
 Usage:
     uv run python mcp/import_to_app.py mcp/match_state.json
     uv run python mcp/import_to_app.py mcp/match_state.json --id my_custom_id
+    uv run python mcp/import_to_app.py mcp/match_state.json --video /path/to/video.mp4
 """
 from __future__ import annotations
 
@@ -16,38 +17,27 @@ import shutil
 import sys
 from pathlib import Path
 
+import subprocess
+
+from google.cloud import firestore
+from google.oauth2 import credentials as oauth2_creds
+
 REPO_ROOT = Path(__file__).parent.parent
-WEB_MATCHES = REPO_ROOT / "app" / "web" / "matches"
-BUILD_MATCHES = REPO_ROOT / "app" / "build" / "web" / "matches"
 WEB_VIDEOS = REPO_ROOT / "app" / "web" / "videos"
 BUILD_VIDEOS = REPO_ROOT / "app" / "build" / "web" / "videos"
-ARCHIVES_FILE = "archives.json"
+
+FIREBASE_PROJECT = "meehawk-87417"
+FIREBASE_ACCOUNT = "hugo.boronat@moov.ai"
+COLLECTION = "matches"
 
 
-def load_archives(path: Path) -> list[dict]:
-    if path.exists():
-        try:
-            return json.loads(path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            pass
-    return []
-
-
-def upsert(archives: list[dict], new_entry: dict) -> list[dict]:
-    idx = next((i for i, a in enumerate(archives) if a["id"] == new_entry["id"]), -1)
-    if idx >= 0:
-        archives[idx] = new_entry
-    else:
-        archives.insert(0, new_entry)
-    return archives
-
-
-def write_archives(path: Path, archives: list[dict]) -> None:
-    path.mkdir(parents=True, exist_ok=True)
-    (path / ARCHIVES_FILE).write_text(
-        json.dumps(archives, ensure_ascii=False, separators=(",", ":")),
-        encoding="utf-8",
-    )
+def _firestore_client() -> firestore.Client:
+    token = subprocess.check_output(
+        ["gcloud", "auth", "print-access-token", f"--account={FIREBASE_ACCOUNT}"],
+        text=True,
+    ).strip()
+    creds = oauth2_creds.Credentials(token=token)
+    return firestore.Client(project=FIREBASE_PROJECT, credentials=creds)
 
 
 def import_match(
@@ -70,27 +60,35 @@ def import_match(
         video_url = f"/videos/{dest_name}"
         print(f"  → video: {video_url}", file=sys.stderr)
 
-    entry: dict = {"id": match_id, "startedAt": started_at, "state": state}
+    doc: dict = {"id": match_id, "startedAt": started_at, "state": state}
     if video_url:
-        entry["videoUrl"] = video_url
+        doc["videoUrl"] = video_url
 
-    for dest in (WEB_MATCHES, BUILD_MATCHES):
-        archives = load_archives(dest / ARCHIVES_FILE)
-        archives = upsert(archives, entry)
-        write_archives(dest, archives)
-        print(f"  → {dest / ARCHIVES_FILE} ({len(archives)} match(es))", file=sys.stderr)
+    db = _firestore_client()
+    db.collection(COLLECTION).document(match_id).set(doc)
+    print(f"  → Firestore: {FIREBASE_PROJECT}/{COLLECTION}/{match_id}", file=sys.stderr)
 
     return match_id
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Import a match_state.json into the Flutter web app")
+    parser = argparse.ArgumentParser(
+        description="Import a match_state.json into Firestore"
+    )
     parser.add_argument("state_file", help="Path to match_state.json")
-    parser.add_argument("--id", default=None, help="Custom match ID (auto-generated from startedAt if omitted)")
-    parser.add_argument("--video", default=None, help="Local video file to copy into app/web/videos/")
+    parser.add_argument(
+        "--id", default=None, help="Custom match ID (auto-generated from startedAt if omitted)"
+    )
+    parser.add_argument(
+        "--video", default=None, help="Local video file to copy into app/web/videos/"
+    )
     args = parser.parse_args()
 
-    match_id = import_match(Path(args.state_file), args.id, Path(args.video) if args.video else None)
+    match_id = import_match(
+        Path(args.state_file),
+        args.id,
+        Path(args.video) if args.video else None,
+    )
     print(f"Imported match {match_id}", file=sys.stderr)
 
 

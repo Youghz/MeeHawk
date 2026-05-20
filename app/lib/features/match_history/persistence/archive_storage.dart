@@ -1,63 +1,26 @@
-import 'dart:convert';
-
 import 'package:app/features/match/persistence/match_codec.dart';
 import 'package:app/features/match_history/domain/match_archive.dart';
-import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ArchiveStorage {
-  ArchiveStorage._(this._prefs);
+  ArchiveStorage() : _db = FirebaseFirestore.instance;
 
-  static const _key = 'match_archives_v5';
-  final SharedPreferences _prefs;
+  static const _collection = 'matches';
+  final FirebaseFirestore _db;
 
-  static Future<ArchiveStorage> open() async {
-    final prefs = await SharedPreferences.getInstance();
-    return ArchiveStorage._(prefs);
-  }
+  Stream<List<MatchArchive>> watchAll() => _db
+      .collection(_collection)
+      .orderBy('startedAt', descending: true)
+      .snapshots()
+      .map(
+        (snap) => snap.docs.map((d) => _fromJson(d.data())).toList(),
+      );
 
-  List<MatchArchive> loadAll() {
-    final raw = _prefs.getString(_key);
-    if (raw == null) return [];
-    try {
-      final list = jsonDecode(raw) as List<dynamic>;
-      return list.map((e) => _fromJson(e as Map<String, dynamic>)).toList();
-    } on Object catch (e, st) {
-      debugPrint('ArchiveStorage.loadAll: failed to decode archives\n$e\n$st');
-      return [];
-    }
-  }
+  Future<void> upsert(MatchArchive archive) =>
+      _db.collection(_collection).doc(archive.id).set(_toJson(archive));
 
-  Future<void> saveAll(List<MatchArchive> archives) async {
-    final json = jsonEncode(archives.map(_toJson).toList());
-    await _prefs.setString(_key, json);
-  }
-
-  Future<void> upsert(MatchArchive archive) async {
-    final all = loadAll();
-    final idx = all.indexWhere((a) => a.id == archive.id);
-    if (idx >= 0) {
-      all[idx] = archive;
-    } else {
-      all.insert(0, archive);
-    }
-    await saveAll(all);
-  }
-
-  Future<void> add(MatchArchive archive) async {
-    await saveAll(loadAll()..insert(0, archive));
-  }
-
-  Future<void> remove(String id) async {
-    await saveAll(loadAll()..removeWhere((a) => a.id == id));
-  }
-
-  bool get isEmpty => loadAll().isEmpty;
-
-  static List<MatchArchive> decodeAll(String raw) {
-    final list = jsonDecode(raw) as List<dynamic>;
-    return list.map((e) => _fromJson(e as Map<String, dynamic>)).toList();
-  }
+  Future<void> remove(String id) =>
+      _db.collection(_collection).doc(id).delete();
 
   static Map<String, dynamic> _toJson(MatchArchive a) => {
         'id': a.id,
