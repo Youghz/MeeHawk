@@ -10,28 +10,28 @@
   },
   "teams": {
     "e1": {
-      "name": "Left Team",
+      "name": "Team A",
       "players": [
         {
           "id": "p1",
-          "name": "Player 1"
+          "name": "Player in light blue shirt"
         },
         {
           "id": "p2",
-          "name": "Player 2"
+          "name": "Player in multicoloured shorts"
         }
       ]
     },
     "e2": {
-      "name": "Right Team",
+      "name": "Team B",
       "players": [
         {
           "id": "p3",
-          "name": "Player 3"
+          "name": "Player in red shorts"
         },
         {
           "id": "p4",
-          "name": "Player 4"
+          "name": "Player in blue shorts"
         }
       ]
     }
@@ -54,29 +54,636 @@
       0.7
     ]
   },
-  "servingPlayerId": "p3",
-  "initialServerId": "p3",
+  "servingPlayerId": "p2",
+  "initialServerId": "p1",
   "nextServerIndex": {
-    "e2": 1,
-    "e1": 0
+    "e1": 0,
+    "e2": 1
   },
   "firstServerIndex": {
-    "e2": 0,
-    "e1": null
+    "e1": 0,
+    "e2": 0
   },
-  "history": [],
+  "history": [
+    {
+      "winner": "e1",
+      "annotations": [
+        {
+          "type": "attack",
+          "text": "Attaque Diagonale · Player in light blue shirt",
+          "team": "e1"
+        },
+        {
+          "type": "attack",
+          "text": "Attaque Diagonale · Player in red shorts",
+          "team": "e2"
+        },
+        {
+          "type": "block",
+          "text": "Bloc · Player in light blue shirt",
+          "team": "e1"
+        }
+      ],
+      "scoreE1": 1,
+      "scoreE2": 0,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": [
+        {
+          "x": 0.05,
+          "y": 0.65,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "isServerPosition": true,
+          "videoTimeSec": 0.0
+        },
+        {
+          "x": 0.05,
+          "y": 0.65,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 0.0
+        },
+        {
+          "x": 0.75,
+          "y": 0.45,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "videoTimeSec": 2.5
+        },
+        {
+          "x": 0.58,
+          "y": 0.3,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p4",
+          "videoTimeSec": 5.0
+        },
+        {
+          "x": 0.53,
+          "y": 0.4,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "videoTimeSec": 7.5
+        },
+        {
+          "x": 0.49,
+          "y": 0.65,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "isBlock": true,
+          "videoTimeSec": 10.0
+        },
+        {
+          "x": 0.35,
+          "y": 0.65,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p2",
+          "videoTimeSec": 12.5
+        },
+        {
+          "x": 0.48,
+          "y": 0.6,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 15.0
+        }
+      ]
+    },
+    {
+      "winner": "e2",
+      "annotations": [
+        {
+          "type": "attack",
+          "text": "Attaque Diagonale · Player in light blue shirt",
+          "team": "e1"
+        },
+        {
+          "type": "attack",
+          "text": "Attaque Diagonale · Player in red shorts",
+          "team": "e2"
+        },
+        {
+          "type": "attack",
+          "text": "Attaque Diagonale · Player in light blue shirt",
+          "team": "e1"
+        },
+        {
+          "type": "attack",
+          "text": "Attaque Diagonale · Player in red shorts",
+          "team": "e2"
+        },
+        {
+          "type": "attack",
+          "text": "Attaque Diagonale · Player in multicoloured shorts",
+          "team": "e1"
+        },
+        {
+          "type": "attack",
+          "text": "Attaque Diagonale · Player in red shorts",
+          "team": "e2"
+        },
+        {
+          "type": "attack",
+          "text": "Attaque Diagonale · Player in multicoloured shorts",
+          "team": "e1"
+        },
+        {
+          "type": "attack",
+          "text": "Attaque Diagonale · Player in red shorts",
+          "team": "e2"
+        }
+      ],
+      "scoreE1": 1,
+      "scoreE2": 1,
+      "setNumber": 1,
+      "serverId": "p3",
+      "impacts": [
+        {
+          "x": 0.05,
+          "y": 0.65,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "isServerPosition": true,
+          "videoTimeSec": 25.0
+        },
+        {
+          "x": 0.05,
+          "y": 0.65,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 25.0
+        },
+        {
+          "x": 0.78,
+          "y": 0.5,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "videoTimeSec": 26.3
+        },
+        {
+          "x": 0.6,
+          "y": 0.3,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p4",
+          "videoTimeSec": 27.6
+        },
+        {
+          "x": 0.55,
+          "y": 0.35,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "videoTimeSec": 28.9
+        },
+        {
+          "x": 0.45,
+          "y": 0.7,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 30.2
+        },
+        {
+          "x": 0.28,
+          "y": 0.65,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p2",
+          "videoTimeSec": 31.5
+        },
+        {
+          "x": 0.48,
+          "y": 0.55,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 32.8
+        },
+        {
+          "x": 0.75,
+          "y": 0.5,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "videoTimeSec": 34.1
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p4",
+          "videoTimeSec": 35.4
+        },
+        {
+          "x": 0.55,
+          "y": 0.35,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "videoTimeSec": 36.7
+        },
+        {
+          "x": 0.4,
+          "y": 0.65,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p2",
+          "videoTimeSec": 38.0
+        },
+        {
+          "x": 0.25,
+          "y": 0.7,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 39.3
+        },
+        {
+          "x": 0.45,
+          "y": 0.65,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p2",
+          "videoTimeSec": 40.6
+        },
+        {
+          "x": 0.7,
+          "y": 0.45,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "videoTimeSec": 41.9
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p4",
+          "videoTimeSec": 43.2
+        },
+        {
+          "x": 0.55,
+          "y": 0.4,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "videoTimeSec": 44.5
+        },
+        {
+          "x": 0.4,
+          "y": 0.65,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p2",
+          "videoTimeSec": 45.8
+        },
+        {
+          "x": 0.25,
+          "y": 0.65,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 47.1
+        },
+        {
+          "x": 0.45,
+          "y": 0.65,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p2",
+          "videoTimeSec": 48.4
+        },
+        {
+          "x": 0.75,
+          "y": 0.4,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "videoTimeSec": 49.7
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p4",
+          "videoTimeSec": 51.0
+        },
+        {
+          "x": 0.55,
+          "y": 0.4,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "videoTimeSec": 52.3
+        },
+        {
+          "x": 0.4,
+          "y": 0.65,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p2",
+          "videoTimeSec": 53.6
+        },
+        {
+          "x": 0.25,
+          "y": 0.7,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 54.9
+        },
+        {
+          "x": 0.45,
+          "y": 0.65,
+          "isOutside": true,
+          "teamSide": "e1",
+          "playerId": "p2",
+          "videoTimeSec": 56.2
+        }
+      ]
+    },
+    {
+      "winner": "e1",
+      "annotations": [
+        {
+          "type": "attack",
+          "text": "Attaque Diagonale · Player in blue shorts",
+          "team": "e2"
+        },
+        {
+          "type": "attack",
+          "text": "Attaque Diagonale · Player in light blue shirt",
+          "team": "e1"
+        }
+      ],
+      "scoreE1": 2,
+      "scoreE2": 1,
+      "setNumber": 1,
+      "serverId": "p2",
+      "impacts": [
+        {
+          "x": 0.95,
+          "y": 0.35,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p4",
+          "isServerPosition": true,
+          "videoTimeSec": 52.0
+        },
+        {
+          "x": 0.95,
+          "y": 0.35,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p4",
+          "videoTimeSec": 52.0
+        },
+        {
+          "x": 0.28,
+          "y": 0.6,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 52.75
+        },
+        {
+          "x": 0.4,
+          "y": 0.65,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p2",
+          "videoTimeSec": 53.5
+        },
+        {
+          "x": 0.49,
+          "y": 0.6,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 54.25
+        },
+        {
+          "x": 0.6,
+          "y": 0.4,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "videoTimeSec": 55.0
+        }
+      ]
+    },
+    {
+      "winner": "e1",
+      "annotations": [
+        {
+          "type": "attack",
+          "text": "Attaque Diagonale · Player in blue shorts",
+          "team": "e2"
+        }
+      ],
+      "scoreE1": 3,
+      "scoreE2": 1,
+      "setNumber": 1,
+      "serverId": "p2",
+      "impacts": [
+        {
+          "x": 0.95,
+          "y": 0.35,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p4",
+          "isServerPosition": true,
+          "videoTimeSec": 80.0
+        },
+        {
+          "x": 0.95,
+          "y": 0.35,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p4",
+          "videoTimeSec": 80.0
+        },
+        {
+          "x": 0.28,
+          "y": 0.6,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 81.3
+        },
+        {
+          "x": 0.4,
+          "y": 0.65,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p2",
+          "videoTimeSec": 82.6
+        },
+        {
+          "x": 0.49,
+          "y": 0.6,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 83.9
+        }
+      ]
+    },
+    {
+      "winner": "e1",
+      "annotations": [
+        {
+          "type": "attack",
+          "text": "Attaque Diagonale · Player in blue shorts",
+          "team": "e2"
+        },
+        {
+          "type": "attack",
+          "text": "Attaque Diagonale · Player in light blue shirt",
+          "team": "e1"
+        }
+      ],
+      "scoreE1": 4,
+      "scoreE2": 1,
+      "setNumber": 1,
+      "serverId": "p2",
+      "impacts": [
+        {
+          "x": 0.95,
+          "y": 0.35,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p4",
+          "isServerPosition": true,
+          "videoTimeSec": 97.0
+        },
+        {
+          "x": 0.95,
+          "y": 0.35,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p4",
+          "videoTimeSec": 97.0
+        },
+        {
+          "x": 0.28,
+          "y": 0.6,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 99.0
+        },
+        {
+          "x": 0.4,
+          "y": 0.65,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p2",
+          "videoTimeSec": 101.0
+        },
+        {
+          "x": 0.49,
+          "y": 0.6,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 103.0
+        },
+        {
+          "x": 0.7,
+          "y": 0.4,
+          "isOutside": true,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "videoTimeSec": 105.0
+        }
+      ]
+    },
+    {
+      "winner": "e1",
+      "annotations": [
+        {
+          "type": "attack",
+          "text": "Attaque Diagonale · Player in light blue shirt",
+          "team": "e1"
+        }
+      ],
+      "scoreE1": 5,
+      "scoreE2": 1,
+      "setNumber": 1,
+      "serverId": "p2",
+      "impacts": [
+        {
+          "x": 0.05,
+          "y": 0.65,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "isServerPosition": true,
+          "videoTimeSec": 111.0
+        },
+        {
+          "x": 0.05,
+          "y": 0.65,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 111.0
+        },
+        {
+          "x": 0.78,
+          "y": 0.5,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "videoTimeSec": 114.3
+        },
+        {
+          "x": 0.6,
+          "y": 0.3,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p4",
+          "videoTimeSec": 117.6
+        },
+        {
+          "x": 0.55,
+          "y": 0.35,
+          "isOutside": true,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "videoTimeSec": 120.9
+        }
+      ]
+    }
+  ],
   "sets": [],
   "setNumber": 1,
-  "scoreE1": 0,
-  "scoreE2": 0,
+  "scoreE1": 5,
+  "scoreE2": 1,
   "sidesSwapped": false,
   "notes": "",
   "changeSidePromptDismissed": false,
   "matchOver": false,
   "started": true,
   "trackedTeams": [
-    "e2",
-    "e1"
+    "e1",
+    "e2"
   ],
-  "startedAt": "2026-05-02T03:11:29.000Z"
+  "startedAt": "2026-05-20T14:57:25.000Z"
 }

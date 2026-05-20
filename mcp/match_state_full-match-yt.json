@@ -1,0 +1,749 @@
+{
+  "v": 1,
+  "format": {
+    "setsToWin": 2,
+    "regularSetPoints": 21,
+    "decidingSetPoints": 15,
+    "winBy": 2,
+    "regularChangeSideEvery": 7,
+    "decidingChangeSideEvery": 5
+  },
+  "teams": {
+    "e1": {
+      "name": "Team A",
+      "players": [
+        {
+          "id": "p1",
+          "name": "Alice"
+        },
+        {
+          "id": "p2",
+          "name": "Bob"
+        }
+      ]
+    },
+    "e2": {
+      "name": "Team B",
+      "players": [
+        {
+          "id": "p3",
+          "name": "Charlie"
+        },
+        {
+          "id": "p4",
+          "name": "David"
+        }
+      ]
+    }
+  },
+  "positions": {
+    "p1": [
+      0.25,
+      0.35
+    ],
+    "p2": [
+      0.25,
+      0.7
+    ],
+    "p3": [
+      0.75,
+      0.35
+    ],
+    "p4": [
+      0.75,
+      0.7
+    ]
+  },
+  "servingPlayerId": "p4",
+  "initialServerId": "p3",
+  "nextServerIndex": {
+    "e2": 0,
+    "e1": 1
+  },
+  "firstServerIndex": {
+    "e2": 0,
+    "e1": 0
+  },
+  "history": [
+    {
+      "winner": "e2",
+      "annotations": [
+        {
+          "type": "service",
+          "text": "Service Ligne · Charlie",
+          "team": "e2"
+        },
+        {
+          "type": "fault",
+          "text": "Faute 4e touche · Alice",
+          "team": "e1"
+        }
+      ],
+      "scoreE1": 0,
+      "scoreE2": 1,
+      "setNumber": 1,
+      "serverId": "p3",
+      "impacts": [
+        {
+          "x": 0.93,
+          "y": 0.48,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "isServerPosition": true,
+          "videoTimeSec": 3.0
+        },
+        {
+          "x": 0.07,
+          "y": 0.48,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": null,
+          "videoTimeSec": 3.0
+        },
+        {
+          "x": 0.8,
+          "y": 0.3,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p2",
+          "videoTimeSec": 4.0
+        },
+        {
+          "x": 0.55,
+          "y": 0.35,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 5.0
+        },
+        {
+          "x": 0.45,
+          "y": 0.28,
+          "isOutside": true,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 6.0
+        }
+      ]
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 1,
+      "scoreE2": 1,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [
+        {
+          "type": "service",
+          "text": "Service Ligne · Bob",
+          "team": "e1"
+        },
+        {
+          "type": "fault",
+          "text": "Faute 4e touche · Charlie",
+          "team": "e2"
+        }
+      ],
+      "scoreE1": 2,
+      "scoreE2": 1,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": [
+        {
+          "x": 0.14,
+          "y": 0.27,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p2",
+          "isServerPosition": true,
+          "videoTimeSec": 27.0
+        },
+        {
+          "x": 0.86,
+          "y": 0.27,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": null,
+          "videoTimeSec": 27.0
+        },
+        {
+          "x": 0.2,
+          "y": 0.55,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p4",
+          "videoTimeSec": 28.0
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "videoTimeSec": 29.0
+        },
+        {
+          "x": 0.45,
+          "y": 0.45,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "videoTimeSec": 30.0
+        }
+      ]
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 3,
+      "scoreE2": 1,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e2",
+      "annotations": [],
+      "scoreE1": 3,
+      "scoreE2": 2,
+      "setNumber": 1,
+      "serverId": "p4",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 4,
+      "scoreE2": 2,
+      "setNumber": 1,
+      "serverId": "p2",
+      "impacts": []
+    },
+    {
+      "winner": "e2",
+      "annotations": [],
+      "scoreE1": 4,
+      "scoreE2": 3,
+      "setNumber": 1,
+      "serverId": "p3",
+      "impacts": []
+    },
+    {
+      "winner": "e2",
+      "annotations": [
+        {
+          "type": "service",
+          "text": "Service Ligne · Charlie",
+          "team": "e2"
+        },
+        {
+          "type": "attack",
+          "text": "Attaque Diagonale · Alice",
+          "team": "e1"
+        }
+      ],
+      "scoreE1": 4,
+      "scoreE2": 4,
+      "setNumber": 1,
+      "serverId": "p3",
+      "impacts": [
+        {
+          "x": 0.92,
+          "y": 0.48,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "isServerPosition": true,
+          "videoTimeSec": 149.0
+        },
+        {
+          "x": 0.08,
+          "y": 0.48,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": null,
+          "videoTimeSec": 149.0
+        },
+        {
+          "x": 0.8,
+          "y": 0.6,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p2",
+          "videoTimeSec": 150.0
+        },
+        {
+          "x": 0.6,
+          "y": 0.3,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 151.0
+        },
+        {
+          "x": 0.7,
+          "y": 0.5,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p4",
+          "videoTimeSec": 152.0
+        },
+        {
+          "x": 0.55,
+          "y": 0.45,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "videoTimeSec": 153.0
+        },
+        {
+          "x": 0.48,
+          "y": 0.4,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "videoTimeSec": 154.0
+        }
+      ]
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 5,
+      "scoreE2": 4,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 6,
+      "scoreE2": 4,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 7,
+      "scoreE2": 4,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [
+        {
+          "type": "service",
+          "text": "Service Ligne · Bob",
+          "team": "e1"
+        },
+        {
+          "type": "fault",
+          "text": "Faute 4e touche · Charlie",
+          "team": "e2"
+        }
+      ],
+      "scoreE1": 8,
+      "scoreE2": 4,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": [
+        {
+          "x": 0.15,
+          "y": 0.28,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p2",
+          "isServerPosition": true,
+          "videoTimeSec": 229.0
+        },
+        {
+          "x": 0.85,
+          "y": 0.28,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": null,
+          "videoTimeSec": 229.0
+        },
+        {
+          "x": 0.2,
+          "y": 0.55,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p4",
+          "videoTimeSec": 230.0
+        },
+        {
+          "x": 0.4,
+          "y": 0.4,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "videoTimeSec": 231.0
+        },
+        {
+          "x": 0.45,
+          "y": 0.4,
+          "isOutside": true,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "videoTimeSec": 232.0
+        }
+      ]
+    },
+    {
+      "winner": "e2",
+      "annotations": [],
+      "scoreE1": 8,
+      "scoreE2": 5,
+      "setNumber": 1,
+      "serverId": "p4",
+      "impacts": []
+    },
+    {
+      "winner": "e2",
+      "annotations": [],
+      "scoreE1": 8,
+      "scoreE2": 6,
+      "setNumber": 1,
+      "serverId": "p4",
+      "impacts": []
+    },
+    {
+      "winner": "e2",
+      "annotations": [
+        {
+          "type": "service",
+          "text": "Service Ligne · Charlie",
+          "team": "e2"
+        },
+        {
+          "type": "fault",
+          "text": "Faute 4e touche · Alice",
+          "team": "e1"
+        }
+      ],
+      "scoreE1": 8,
+      "scoreE2": 7,
+      "setNumber": 1,
+      "serverId": "p4",
+      "impacts": [
+        {
+          "x": 0.92,
+          "y": 0.48,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "isServerPosition": true,
+          "videoTimeSec": 314.0
+        },
+        {
+          "x": 0.08,
+          "y": 0.48,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": null,
+          "videoTimeSec": 314.0
+        },
+        {
+          "x": 0.8,
+          "y": 0.6,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p2",
+          "videoTimeSec": 315.0
+        },
+        {
+          "x": 0.55,
+          "y": 0.65,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 316.0
+        },
+        {
+          "x": 0.45,
+          "y": 0.3,
+          "isOutside": true,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 317.0
+        }
+      ]
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 9,
+      "scoreE2": 7,
+      "setNumber": 1,
+      "serverId": "p2",
+      "impacts": []
+    },
+    {
+      "winner": "e2",
+      "annotations": [],
+      "scoreE1": 9,
+      "scoreE2": 8,
+      "setNumber": 1,
+      "serverId": "p3",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 10,
+      "scoreE2": 8,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e2",
+      "annotations": [],
+      "scoreE1": 10,
+      "scoreE2": 9,
+      "setNumber": 1,
+      "serverId": "p4",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 11,
+      "scoreE2": 9,
+      "setNumber": 1,
+      "serverId": "p2",
+      "impacts": []
+    },
+    {
+      "winner": "e2",
+      "annotations": [],
+      "scoreE1": 11,
+      "scoreE2": 10,
+      "setNumber": 1,
+      "serverId": "p3",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 12,
+      "scoreE2": 10,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 13,
+      "scoreE2": 10,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 14,
+      "scoreE2": 10,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 15,
+      "scoreE2": 10,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e2",
+      "annotations": [],
+      "scoreE1": 15,
+      "scoreE2": 11,
+      "setNumber": 1,
+      "serverId": "p4",
+      "impacts": []
+    },
+    {
+      "winner": "e2",
+      "annotations": [],
+      "scoreE1": 15,
+      "scoreE2": 12,
+      "setNumber": 1,
+      "serverId": "p4",
+      "impacts": []
+    },
+    {
+      "winner": "e2",
+      "annotations": [],
+      "scoreE1": 15,
+      "scoreE2": 13,
+      "setNumber": 1,
+      "serverId": "p4",
+      "impacts": []
+    },
+    {
+      "winner": "e2",
+      "annotations": [
+        {
+          "type": "service",
+          "text": "Service Ligne · Charlie",
+          "team": "e2"
+        },
+        {
+          "type": "fault",
+          "text": "Faute 4e touche · Alice",
+          "team": "e1"
+        }
+      ],
+      "scoreE1": 15,
+      "scoreE2": 14,
+      "setNumber": 1,
+      "serverId": "p4",
+      "impacts": [
+        {
+          "x": 0.92,
+          "y": 0.48,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "isServerPosition": true,
+          "videoTimeSec": 825.0
+        },
+        {
+          "x": 0.08,
+          "y": 0.48,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": null,
+          "videoTimeSec": 825.0
+        },
+        {
+          "x": 0.8,
+          "y": 0.6,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p2",
+          "videoTimeSec": 826.0
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 827.0
+        },
+        {
+          "x": 0.45,
+          "y": 0.28,
+          "isOutside": true,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 828.0
+        }
+      ]
+    },
+    {
+      "winner": "e2",
+      "annotations": [],
+      "scoreE1": 15,
+      "scoreE2": 15,
+      "setNumber": 1,
+      "serverId": "p4",
+      "impacts": []
+    },
+    {
+      "winner": "e2",
+      "annotations": [
+        {
+          "type": "service",
+          "text": "Service Ligne · Charlie",
+          "team": "e2"
+        },
+        {
+          "type": "fault",
+          "text": "Faute 4e touche · Alice",
+          "team": "e1"
+        }
+      ],
+      "scoreE1": 15,
+      "scoreE2": 16,
+      "setNumber": 1,
+      "serverId": "p4",
+      "impacts": [
+        {
+          "x": 0.92,
+          "y": 0.48,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "isServerPosition": true,
+          "videoTimeSec": 927.0
+        },
+        {
+          "x": 0.08,
+          "y": 0.48,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": null,
+          "videoTimeSec": 927.0
+        },
+        {
+          "x": 0.8,
+          "y": 0.6,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p2",
+          "videoTimeSec": 928.0
+        },
+        {
+          "x": 0.6,
+          "y": 0.35,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 929.0
+        },
+        {
+          "x": 0.45,
+          "y": 0.28,
+          "isOutside": true,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "videoTimeSec": 930.0
+        }
+      ]
+    }
+  ],
+  "sets": [],
+  "setNumber": 1,
+  "scoreE1": 15,
+  "scoreE2": 16,
+  "sidesSwapped": false,
+  "notes": "",
+  "changeSidePromptDismissed": false,
+  "matchOver": false,
+  "started": true,
+  "trackedTeams": [
+    "e2",
+    "e1"
+  ],
+  "startedAt": "2026-05-20T16:51:57.000Z"
+}
