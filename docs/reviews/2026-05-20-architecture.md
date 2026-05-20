@@ -56,7 +56,7 @@ Aucun cycle A → B + B → A détecté.
 
 ### Medium Impact
 
-- [ ] **R10 — Découper `court_popups.dart` (426 lignes, 5 classes privées)**
+- [x] **R10 — Découper `court_popups.dart` (426 lignes, 5 classes privées)**
 
   Le fichier contient 3 overlays publics indépendants (`FaultOverlay`, `PickServerOverlay`, `PlayerPickerOverlay`) et leurs helpers privés (`_AnchoredDropdown`, `_DropdownRow`, `_AnchoredPlayerPicker`, `_PopupScrim`, `_PopupCard`). La granularité est bonne mais la taille et le mélange de 3 préoccupations différentes rendent la navigation difficile.
 
@@ -67,7 +67,7 @@ Aucun cycle A → B + B → A détecté.
 
   Fichier : `app/lib/features/match/widgets/court_popups.dart`
 
-- [ ] **R11 — Examiner `match_provider.dart` (590 lignes)**
+- [x] **R11 — Examiner `match_provider.dart` (590 lignes)**
 
   Seul fichier de la couche providers, 590 lignes avec ~25 méthodes. Le fichier est correctement structuré par sections commentées (scoring, rally, mutation, etc.). Il n'y a pas de découpage évident sans créer un couplage artificiel. Option : extraire `_commitPoint` + `_finishSet` + `_shouldChangeSides` dans un mixin ou helper privé `_MatchPointLogic` — réduit le fichier principal à ~350 lignes et isole la logique de scoring des mutations UI.
 

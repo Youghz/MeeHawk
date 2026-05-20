@@ -8,82 +8,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 final matchProvider =
     NotifierProvider<MatchNotifierBase, MatchState>(MatchNotifier.new);
 
-class MatchNotifier extends MatchNotifierBase {
-  /// One-shot bootstrap state set by main() when rehydrating from storage.
-  /// Consumed on first build().
-  static MatchState? bootstrapState;
-
-  @override
-  MatchState build() {
-    final b = bootstrapState;
-    bootstrapState = null;
-    return b ?? initialMatchState();
-  }
-
-  @override
-  void startMatch({
-    required String teamE1Name,
-    required String teamE2Name,
-    required String p1,
-    required String p2,
-    required String p3,
-    required String p4,
-    required String initialServerId,
-    MatchFormat format = MatchFormat.beachFivb,
-  }) {
-    state = initialMatchState(
-      teamE1Name: teamE1Name,
-      teamE2Name: teamE2Name,
-      p1: p1, p2: p2, p3: p3, p4: p4,
-      initialServerId: initialServerId,
-      format: format,
-    ).copyWith(started: true);
-  }
-
-  // ---------------------------------------------------------------------
-  // Scoring
-  // ---------------------------------------------------------------------
-
-  @override
-  void addPoint({
-    required TeamSide winner,
-    List<Annotation> annotations = const [],
-  }) {
-    if (state.matchOver) return;
-    final servingTeam = state.teamOfPlayer(state.servingPlayerId)!;
-    final gainsServe = winner != servingTeam;
-    if (gainsServe && state.firstServerIndex[winner] == null) {
-      state = state.copyWith(
-        popup: PickServerPopup(
-          winner: winner,
-          pendingAnnotations: annotations,
-        ),
-      );
-      return;
-    }
-    _commitPoint(winner: winner, annotations: annotations);
-  }
-
-  @override
-  void pickFirstServer(String playerId) {
-    final popup = state.popup;
-    if (popup == null || popup is! PickServerPopup) return;
-    final winner = popup.winner;
-    final team = state.teams[winner]!;
-    final idx = team.players.indexWhere((p) => p.id == playerId);
-    if (idx < 0) return;
-    final firstIdx = Map<TeamSide, int?>.of(state.firstServerIndex);
-    final nextIdx = Map<TeamSide, int>.of(state.nextServerIndex);
-    firstIdx[winner] = idx;
-    nextIdx[winner] = idx;
-    state = state.copyWith(
-      firstServerIndex: firstIdx,
-      nextServerIndex: nextIdx,
-      popup: null,
-    );
-    _commitPoint(winner: winner, annotations: popup.pendingAnnotations);
-  }
-
+// Scoring state machine: commit, finish-set, replay. Kept separate from the
+// public API surface so MatchNotifier stays focused on lifecycle + delegation.
+mixin _MatchPointLogic on MatchNotifierBase {
   void _commitPoint({
     required TeamSide winner,
     required List<Annotation> annotations,
@@ -184,6 +111,147 @@ class MatchNotifier extends MatchNotifierBase {
       matchOver: matchOver,
       changeSidePromptOpen: false,
     );
+  }
+
+  ({
+    String serverId,
+    Map<TeamSide, int> nextIndex,
+    int scoreE1,
+    int scoreE2,
+    int setNumber,
+    List<SetRecord> sets,
+  }) _replay(List<PointRecord> history) {
+    var serverId = state.initialServerId;
+    final startingTeam = state.teamOfPlayer(serverId)!;
+    final startingFirst = state.firstServerIndex[startingTeam]!;
+    final otherFirst = state.firstServerIndex[startingTeam.other];
+    var nextIndex = <TeamSide, int>{
+      startingTeam: (startingFirst + 1) %
+          state.teams[startingTeam]!.players.length,
+      startingTeam.other: otherFirst ?? 0,
+    };
+    var scoreE1 = 0;
+    var scoreE2 = 0;
+    var setNumber = 1;
+    final sets = <SetRecord>[];
+
+    for (final p in history) {
+      // Catch up set transitions if this point belongs to a later set.
+      while (p.setNumber > setNumber) {
+        sets.add(SetRecord(
+          setNumber: setNumber,
+          scoreE1: scoreE1,
+          scoreE2: scoreE2,
+          winner: scoreE1 > scoreE2 ? TeamSide.e1 : TeamSide.e2,
+        ));
+        scoreE1 = 0;
+        scoreE2 = 0;
+        setNumber++;
+      }
+
+      final servingTeam = state.teamOfPlayer(serverId)!;
+      final rot = ServiceRotation.next(
+        currentServerId: serverId,
+        servingTeam: servingTeam,
+        winner: p.winner,
+        playersByTeam: {
+          for (final ts in TeamSide.values)
+            ts: state.teams[ts]!.players.map((pl) => pl.id).toList(),
+        },
+        nextServerIndex: nextIndex,
+      );
+      serverId = rot.serverId;
+      nextIndex = rot.nextIndex;
+
+      if (p.winner == TeamSide.e1) scoreE1++;
+      if (p.winner == TeamSide.e2) scoreE2++;
+    }
+
+    return (
+      serverId: serverId,
+      nextIndex: nextIndex,
+      scoreE1: scoreE1,
+      scoreE2: scoreE2,
+      setNumber: setNumber,
+      sets: sets,
+    );
+  }
+}
+
+class MatchNotifier extends MatchNotifierBase with _MatchPointLogic {
+  /// One-shot bootstrap state set by main() when rehydrating from storage.
+  /// Consumed on first build().
+  static MatchState? bootstrapState;
+
+  @override
+  MatchState build() {
+    final b = bootstrapState;
+    bootstrapState = null;
+    return b ?? initialMatchState();
+  }
+
+  @override
+  void startMatch({
+    required String teamE1Name,
+    required String teamE2Name,
+    required String p1,
+    required String p2,
+    required String p3,
+    required String p4,
+    required String initialServerId,
+    MatchFormat format = MatchFormat.beachFivb,
+  }) {
+    state = initialMatchState(
+      teamE1Name: teamE1Name,
+      teamE2Name: teamE2Name,
+      p1: p1, p2: p2, p3: p3, p4: p4,
+      initialServerId: initialServerId,
+      format: format,
+    ).copyWith(started: true);
+  }
+
+  // ---------------------------------------------------------------------
+  // Scoring
+  // ---------------------------------------------------------------------
+
+  @override
+  void addPoint({
+    required TeamSide winner,
+    List<Annotation> annotations = const [],
+  }) {
+    if (state.matchOver) return;
+    final servingTeam = state.teamOfPlayer(state.servingPlayerId)!;
+    final gainsServe = winner != servingTeam;
+    if (gainsServe && state.firstServerIndex[winner] == null) {
+      state = state.copyWith(
+        popup: PickServerPopup(
+          winner: winner,
+          pendingAnnotations: annotations,
+        ),
+      );
+      return;
+    }
+    _commitPoint(winner: winner, annotations: annotations);
+  }
+
+  @override
+  void pickFirstServer(String playerId) {
+    final popup = state.popup;
+    if (popup == null || popup is! PickServerPopup) return;
+    final winner = popup.winner;
+    final team = state.teams[winner]!;
+    final idx = team.players.indexWhere((p) => p.id == playerId);
+    if (idx < 0) return;
+    final firstIdx = Map<TeamSide, int?>.of(state.firstServerIndex);
+    final nextIdx = Map<TeamSide, int>.of(state.nextServerIndex);
+    firstIdx[winner] = idx;
+    nextIdx[winner] = idx;
+    state = state.copyWith(
+      firstServerIndex: firstIdx,
+      nextServerIndex: nextIdx,
+      popup: null,
+    );
+    _commitPoint(winner: winner, annotations: popup.pendingAnnotations);
   }
 
   /// Start a new set after a setEnd popup.
@@ -389,70 +457,6 @@ class MatchNotifier extends MatchNotifierBase {
       setNumber: replay.setNumber,
       matchOver: false,
       popup: null,
-    );
-  }
-
-  ({
-    String serverId,
-    Map<TeamSide, int> nextIndex,
-    int scoreE1,
-    int scoreE2,
-    int setNumber,
-    List<SetRecord> sets,
-  }) _replay(List<PointRecord> history) {
-    var serverId = state.initialServerId;
-    final startingTeam = state.teamOfPlayer(serverId)!;
-    final startingFirst = state.firstServerIndex[startingTeam]!;
-    final otherFirst = state.firstServerIndex[startingTeam.other];
-    var nextIndex = <TeamSide, int>{
-      startingTeam: (startingFirst + 1) %
-          state.teams[startingTeam]!.players.length,
-      startingTeam.other: otherFirst ?? 0,
-    };
-    var scoreE1 = 0;
-    var scoreE2 = 0;
-    var setNumber = 1;
-    final sets = <SetRecord>[];
-
-    for (final p in history) {
-      // Catch up set transitions if this point belongs to a later set.
-      while (p.setNumber > setNumber) {
-        sets.add(SetRecord(
-          setNumber: setNumber,
-          scoreE1: scoreE1,
-          scoreE2: scoreE2,
-          winner: scoreE1 > scoreE2 ? TeamSide.e1 : TeamSide.e2,
-        ));
-        scoreE1 = 0;
-        scoreE2 = 0;
-        setNumber++;
-      }
-
-      final servingTeam = state.teamOfPlayer(serverId)!;
-      final rot = ServiceRotation.next(
-        currentServerId: serverId,
-        servingTeam: servingTeam,
-        winner: p.winner,
-        playersByTeam: {
-          for (final ts in TeamSide.values)
-            ts: state.teams[ts]!.players.map((pl) => pl.id).toList(),
-        },
-        nextServerIndex: nextIndex,
-      );
-      serverId = rot.serverId;
-      nextIndex = rot.nextIndex;
-
-      if (p.winner == TeamSide.e1) scoreE1++;
-      if (p.winner == TeamSide.e2) scoreE2++;
-    }
-
-    return (
-      serverId: serverId,
-      nextIndex: nextIndex,
-      scoreE1: scoreE1,
-      scoreE2: scoreE2,
-      setNumber: setNumber,
-      sets: sets,
     );
   }
 
