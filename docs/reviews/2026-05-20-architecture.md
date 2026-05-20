@@ -32,7 +32,7 @@ Aucun cycle A → B + B → A détecté.
 
 ### High Impact
 
-- [ ] **R8 — Compléter R4 : déplacer `timeline`, `top_score`, `replay_panel` dans `core/widgets/`**
+- [x] **R8 — Compléter R4 : déplacer `timeline`, `top_score`, `replay_panel` dans `core/widgets/`**
 
   Ces trois widgets sont importés par **à la fois** `match_screen.dart` et `match_replay_screen.dart`. Selon la règle CLAUDE.md, tout widget utilisé par ≥ 2 features appartient à `core/widgets/`. La situation est strictement identique à `court.dart` traité en R4.
 
