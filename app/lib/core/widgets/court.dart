@@ -56,287 +56,15 @@ String? _lastPlayerWhoTouched(MatchState state) {
 }
 
 // ---------------------------------------------------------------------------
-// Widget
+// Gesture handler mixin
 // ---------------------------------------------------------------------------
 
-class Court extends ConsumerStatefulWidget {
-  const Court({super.key});
-
-  @override
-  ConsumerState<Court> createState() => _CourtState();
-}
-
-class _CourtState extends ConsumerState<Court>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _pulseCtrl;
-  late final Animation<double> _pulseAnim;
-  @override
-  void initState() {
-    super.initState();
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
-    unawaited(_pulseCtrl.repeat(reverse: true));
-    _pulseAnim = CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut);
-  }
-
-  @override
-  void dispose() {
-    _pulseCtrl.dispose();
-    super.dispose();
-  }
-
-  Offset? _swipeDragStart;
-
+mixin _CourtGestures on ConsumerState<Court> {
   // Manual double-tap detection to avoid Flutter's 300ms single-tap delay.
+  Offset? _swipeDragStart;
   DateTime? _lastTapTime;
   Offset? _lastTapPos;
   bool _tapHandled = false; // true = onTapDown added an impact this tap
-
-  @override
-  Widget build(BuildContext context) {
-    final state = ref.watch(matchProvider);
-    final leftTeam = state.leftTeam;
-    final rightTeam = state.rightTeam;
-    final leftColor = leftTeam == TeamSide.e1 ? MH.them : MH.us;
-    final rightColor = rightTeam == TeamSide.e1 ? MH.them : MH.us;
-
-    final replayIdx = state.selectedPointIndex;
-    final isReplay = replayIdx != null && replayIdx < state.history.length;
-    final impactsToShow =
-        isReplay ? state.history[replayIdx].impacts : state.rallyImpacts;
-
-    final leftPlayers = state.teams[leftTeam]!.players;
-    final rightPlayers = state.teams[rightTeam]!.players;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: LayoutBuilder(builder: (ctx, constraints) {
-        final outerW = constraints.maxWidth.clamp(0.0, _maxOuterW);
-        final innerW = (outerW - kCourtMargin * 2).clamp(80.0, double.infinity);
-        final innerH = innerW / 2;
-        final outerH = innerH + kCourtMargin * 2;
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Player labels above court: J1 for each team
-            SizedBox(
-              height: 20,
-              child: Row(
-                children: [
-                  const SizedBox(width: kCourtMargin),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        leftPlayers.isNotEmpty ? leftPlayers[0].name : '',
-                        style: MH.sans(
-                          size: 13,
-                          weight: FontWeight.w700,
-                          color: leftColor,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        rightPlayers.isNotEmpty ? rightPlayers[0].name : '',
-                        style: MH.sans(
-                          size: 13,
-                          weight: FontWeight.w700,
-                          color: rightColor,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: kCourtMargin),
-                ],
-              ),
-            ),
-            const SizedBox(height: 4),
-            Center(
-              child: Container(
-                width: outerW,
-                height: outerH,
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                  color: MH.ruleSoft,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: const [
-                    BoxShadow(color: MH.rule, spreadRadius: 1.5),
-                  ],
-                ),
-                child: Stack(children: [
-                  Positioned.fill(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTapUp: (d) =>
-                          _onOutsideTap(d.localPosition, outerW, outerH),
-                      onLongPressStart: (d) => _onOutsideLongPress(
-                          d.localPosition, outerW, outerH, state),
-                    ),
-                  ),
-                  Positioned(
-                    left: kCourtMargin,
-                    top: kCourtMargin,
-                    width: innerW,
-                    height: innerH,
-                    child: SizedBox(
-                      width: innerW,
-                      height: innerH,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTapDown: (d) =>
-                            _onInnerTapDown(d.localPosition, outerW, outerH, innerH),
-                        onTapCancel: _onInnerTapCancel,
-                        onLongPressStart: (d) => _onInsideLongPress(
-                            d.localPosition, outerW, outerH, innerW, state),
-                        onVerticalDragStart: (d) {
-                          _swipeDragStart = d.localPosition;
-                        },
-                        onVerticalDragEnd: (d) => _onInsideSwipe(
-                            d.velocity, outerW, outerH),
-                        onVerticalDragCancel: () {
-                          _swipeDragStart = null;
-                        },
-                        child: RepaintBoundary(
-                          child: CourtCanvas(
-                            state: state,
-                            leftTeam: leftTeam,
-                            rightTeam: rightTeam,
-                            leftColor: leftColor,
-                            rightColor: rightColor,
-                            courtWidth: innerW,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (!isReplay)
-                    ...['p1', 'p2', 'p3', 'p4'].map(
-                      (id) => PlayerDot(
-                        key: ValueKey('dot-$id'),
-                        playerId: id,
-                        outerHeight: outerH,
-                        courtWidth: innerW,
-                        courtHeight: innerH,
-                      ),
-                    ),
-                  if (impactsToShow.length > 1)
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: CustomPaint(
-                          painter: TrajectoryPainter(
-                            impacts: impactsToShow,
-                            outerW: outerW,
-                            outerH: outerH,
-                          ),
-                        ),
-                      ),
-                    ),
-                  for (int i = 0; i < impactsToShow.length; i++)
-                    Builder(
-                      builder: (ctx) {
-                        final imp = impactsToShow[i];
-                        final isLastImpact = i == impactsToShow.length - 1;
-                        final pName = (!imp.isServerPosition && imp.playerId != null)
-                            ? (isLastImpact && !imp.isOutside && isReplay
-                                ? null
-                                : state.playerById(imp.playerId!)?.name)
-                            : null;
-                        final topOff = pName != null ? 22.0 : 11.0;
-                        return Positioned(
-                          left: imp.x * outerW - 11,
-                          top: imp.y * outerH - topOff,
-                          child: IgnorePointer(
-                            child: ImpactMarker(
-                              index: _impactIndex(impactsToShow, i),
-                              isOutside: imp.isOutside,
-                              isServerPosition: imp.isServerPosition,
-                              isBlock: imp.isBlock,
-                              isFinal: isReplay &&
-                                  i == impactsToShow.length - 1 &&
-                                  !imp.isServerPosition,
-                              visitIndex: _visitIndex(impactsToShow, i),
-                              playerName: pName,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  if (!isReplay &&
-                      state.history.isEmpty &&
-                      state.rallyImpacts.isEmpty)
-                    _TapAffordance(
-                      animation: _pulseAnim,
-                      servingIsLeft: state.leftTeam ==
-                          state.teamOfPlayer(state.servingPlayerId),
-                      outerW: outerW,
-                      outerH: outerH,
-                      margin: kCourtMargin,
-                    ),
-                  if (state.popup is FaultPopup)
-                    const Positioned.fill(child: FaultOverlay()),
-                  if (state.popup is PickServerPopup)
-                    const Positioned.fill(child: PickServerOverlay()),
-                  if (state.popup is PickPlayerPopup)
-                    const Positioned.fill(child: PlayerPickerOverlay()),
-                ]),
-              ),
-            ),
-            const SizedBox(height: 4),
-            // Player labels below court: J2 for each team
-            SizedBox(
-              height: 20,
-              child: Row(
-                children: [
-                  const SizedBox(width: kCourtMargin),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        leftPlayers.length > 1 ? leftPlayers[1].name : '',
-                        style: MH.sans(
-                          size: 13,
-                          weight: FontWeight.w700,
-                          color: leftColor,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        rightPlayers.length > 1 ? rightPlayers[1].name : '',
-                        style: MH.sans(
-                          size: 13,
-                          weight: FontWeight.w700,
-                          color: rightColor,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: kCourtMargin),
-                ],
-              ),
-            ),
-          ],
-        );
-      }),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Gesture handlers
-  // ---------------------------------------------------------------------------
 
   static const _doubleTapMaxMs = 320;
   static const _doubleTapMaxDist = 55.0;
@@ -579,10 +307,6 @@ class _CourtState extends ConsumerState<Court>
         );
   }
 
-  // ---------------------------------------------------------------------------
-  // Core touch dispatcher
-  // ---------------------------------------------------------------------------
-
   /// Central entry point for all court touches. Shows the player-picker bubble
   /// on the first touch of each "visit" to a side; auto-attributes otherwise.
   void _handleTouch(
@@ -632,10 +356,6 @@ class _CourtState extends ConsumerState<Court>
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Pure helpers
-  // ---------------------------------------------------------------------------
-
   bool _isServerZone(
     Offset p,
     double outerW,
@@ -678,6 +398,280 @@ class _CourtState extends ConsumerState<Court>
       return true;
     }
     return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Widget
+// ---------------------------------------------------------------------------
+
+class Court extends ConsumerStatefulWidget {
+  const Court({super.key});
+
+  @override
+  ConsumerState<Court> createState() => _CourtState();
+}
+
+class _CourtState extends ConsumerState<Court>
+    with SingleTickerProviderStateMixin, _CourtGestures {
+  late final AnimationController _pulseCtrl;
+  late final Animation<double> _pulseAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    unawaited(_pulseCtrl.repeat(reverse: true));
+    _pulseAnim = CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut);
+  }
+
+  @override
+  void dispose() {
+    _pulseCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(matchProvider);
+    final leftTeam = state.leftTeam;
+    final rightTeam = state.rightTeam;
+    final leftColor = leftTeam == TeamSide.e1 ? MH.them : MH.us;
+    final rightColor = rightTeam == TeamSide.e1 ? MH.them : MH.us;
+
+    final replayIdx = state.selectedPointIndex;
+    final isReplay = replayIdx != null && replayIdx < state.history.length;
+    final impactsToShow =
+        isReplay ? state.history[replayIdx].impacts : state.rallyImpacts;
+
+    final leftPlayers = state.teams[leftTeam]!.players;
+    final rightPlayers = state.teams[rightTeam]!.players;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: LayoutBuilder(builder: (ctx, constraints) {
+        final outerW = constraints.maxWidth.clamp(0.0, _maxOuterW);
+        final innerW = (outerW - kCourtMargin * 2).clamp(80.0, double.infinity);
+        final innerH = innerW / 2;
+        final outerH = innerH + kCourtMargin * 2;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Player labels above court: J1 for each team
+            SizedBox(
+              height: 20,
+              child: Row(
+                children: [
+                  const SizedBox(width: kCourtMargin),
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        leftPlayers.isNotEmpty ? leftPlayers[0].name : '',
+                        style: MH.sans(
+                          size: 13,
+                          weight: FontWeight.w700,
+                          color: leftColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        rightPlayers.isNotEmpty ? rightPlayers[0].name : '',
+                        style: MH.sans(
+                          size: 13,
+                          weight: FontWeight.w700,
+                          color: rightColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: kCourtMargin),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Center(
+              child: Container(
+                width: outerW,
+                height: outerH,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: MH.ruleSoft,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: const [
+                    BoxShadow(color: MH.rule, spreadRadius: 1.5),
+                  ],
+                ),
+                child: Stack(children: [
+                  Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTapUp: (d) =>
+                          _onOutsideTap(d.localPosition, outerW, outerH),
+                      onLongPressStart: (d) => _onOutsideLongPress(
+                          d.localPosition, outerW, outerH, state),
+                    ),
+                  ),
+                  Positioned(
+                    left: kCourtMargin,
+                    top: kCourtMargin,
+                    width: innerW,
+                    height: innerH,
+                    child: SizedBox(
+                      width: innerW,
+                      height: innerH,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTapDown: (d) =>
+                            _onInnerTapDown(d.localPosition, outerW, outerH, innerH),
+                        onTapCancel: _onInnerTapCancel,
+                        onLongPressStart: (d) => _onInsideLongPress(
+                            d.localPosition, outerW, outerH, innerW, state),
+                        onVerticalDragStart: (d) {
+                          _swipeDragStart = d.localPosition;
+                        },
+                        onVerticalDragEnd: (d) => _onInsideSwipe(
+                            d.velocity, outerW, outerH),
+                        onVerticalDragCancel: () {
+                          _swipeDragStart = null;
+                        },
+                        child: RepaintBoundary(
+                          child: CourtCanvas(
+                            state: state,
+                            leftTeam: leftTeam,
+                            rightTeam: rightTeam,
+                            leftColor: leftColor,
+                            rightColor: rightColor,
+                            courtWidth: innerW,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (!isReplay)
+                    ...['p1', 'p2', 'p3', 'p4'].map(
+                      (id) => PlayerDot(
+                        key: ValueKey('dot-$id'),
+                        playerId: id,
+                        outerHeight: outerH,
+                        courtWidth: innerW,
+                        courtHeight: innerH,
+                      ),
+                    ),
+                  if (impactsToShow.length > 1)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: CustomPaint(
+                          painter: TrajectoryPainter(
+                            impacts: impactsToShow,
+                            outerW: outerW,
+                            outerH: outerH,
+                          ),
+                        ),
+                      ),
+                    ),
+                  for (int i = 0; i < impactsToShow.length; i++)
+                    Builder(
+                      builder: (ctx) {
+                        final imp = impactsToShow[i];
+                        final isLastImpact = i == impactsToShow.length - 1;
+                        final pName = (!imp.isServerPosition && imp.playerId != null)
+                            ? (isLastImpact && !imp.isOutside && isReplay
+                                ? null
+                                : state.playerById(imp.playerId!)?.name)
+                            : null;
+                        final topOff = pName != null ? 22.0 : 11.0;
+                        return Positioned(
+                          left: imp.x * outerW - 11,
+                          top: imp.y * outerH - topOff,
+                          child: IgnorePointer(
+                            child: ImpactMarker(
+                              index: _impactIndex(impactsToShow, i),
+                              isOutside: imp.isOutside,
+                              isServerPosition: imp.isServerPosition,
+                              isBlock: imp.isBlock,
+                              isFinal: isReplay &&
+                                  i == impactsToShow.length - 1 &&
+                                  !imp.isServerPosition,
+                              visitIndex: _visitIndex(impactsToShow, i),
+                              playerName: pName,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  if (!isReplay &&
+                      state.history.isEmpty &&
+                      state.rallyImpacts.isEmpty)
+                    _TapAffordance(
+                      animation: _pulseAnim,
+                      servingIsLeft: state.leftTeam ==
+                          state.teamOfPlayer(state.servingPlayerId),
+                      outerW: outerW,
+                      outerH: outerH,
+                      margin: kCourtMargin,
+                    ),
+                  if (state.popup is FaultPopup)
+                    const Positioned.fill(child: FaultOverlay()),
+                  if (state.popup is PickServerPopup)
+                    const Positioned.fill(child: PickServerOverlay()),
+                  if (state.popup is PickPlayerPopup)
+                    const Positioned.fill(child: PlayerPickerOverlay()),
+                ]),
+              ),
+            ),
+            const SizedBox(height: 4),
+            // Player labels below court: J2 for each team
+            SizedBox(
+              height: 20,
+              child: Row(
+                children: [
+                  const SizedBox(width: kCourtMargin),
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        leftPlayers.length > 1 ? leftPlayers[1].name : '',
+                        style: MH.sans(
+                          size: 13,
+                          weight: FontWeight.w700,
+                          color: leftColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        rightPlayers.length > 1 ? rightPlayers[1].name : '',
+                        style: MH.sans(
+                          size: 13,
+                          weight: FontWeight.w700,
+                          color: rightColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: kCourtMargin),
+                ],
+              ),
+            ),
+          ],
+        );
+      }),
+    );
   }
 }
 

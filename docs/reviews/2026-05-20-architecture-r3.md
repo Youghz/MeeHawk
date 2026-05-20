@@ -35,7 +35,7 @@ Aucun cycle A → B + B → A détecté.
 
 ### High Impact
 
-- [ ] **R15 — Extraire les gesture handlers de `_CourtState` dans un mixin `_CourtGestures`**
+- [x] **R15 — Extraire les gesture handlers de `_CourtState` dans un mixin `_CourtGestures`**
 
   `court.dart` fait 734 lignes. `_CourtState` contient à la fois `build()` (~80 lignes) et ~10 handlers de gestes (`_onInnerTapDown`, `_handleSingleTap`, `_handleBlock`, `_onInsideSwipe`, `_onInsideLongPress`, `_onOutsideTap`, `_onOutsideLongPress`, `_handleOutBall`, `_handleTouch`, `_isServerZone`, `_impactIndex`, `_visitIndex`, `_maybeDismissReplay`) soit ~330 lignes de logique.
 
