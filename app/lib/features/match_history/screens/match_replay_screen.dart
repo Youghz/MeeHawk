@@ -9,6 +9,7 @@ import 'package:app/features/match_history/domain/match_archive.dart';
 import 'package:app/features/match_history/providers/replay_notifier.dart';
 import 'package:app/features/match_history/screens/analytics_screen.dart';
 import 'package:app/features/match_history/widgets/match_notes.dart';
+import 'package:app/features/match_history/widgets/video_player_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -129,7 +130,7 @@ class _ReplayContentState extends ConsumerState<_ReplayContent> {
             }
           },
           behavior: HitTestBehavior.translucent,
-          child: const _ReplayLayout(),
+          child: _ReplayLayout(videoUrl: widget.archive.videoUrl),
         ),
       ),
     );
@@ -137,18 +138,21 @@ class _ReplayContentState extends ConsumerState<_ReplayContent> {
 }
 
 class _ReplayLayout extends StatelessWidget {
-  const _ReplayLayout();
+  const _ReplayLayout({this.videoUrl});
+
+  final String? videoUrl;
 
   @override
-  Widget build(BuildContext context) => const SingleChildScrollView(
+  Widget build(BuildContext context) => SingleChildScrollView(
         child: Column(
           children: [
-            TopScore(),
-            Court(),
-            Timeline(),
-            ReplayPanel(),
-            MatchNotes(),
-            SizedBox(height: 24),
+            if (videoUrl != null) VideoPlayerWidget(videoUrl: videoUrl!),
+            const TopScore(),
+            const Court(),
+            const Timeline(),
+            const ReplayPanel(),
+            const MatchNotes(),
+            const SizedBox(height: 24),
           ],
         ),
       );

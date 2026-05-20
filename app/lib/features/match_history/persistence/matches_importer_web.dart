@@ -15,11 +15,8 @@ Future<void> importMatchesFolder(ArchiveStorage storage) async {
     final body = req.responseText;
     if (body == null || body.isEmpty) return;
     final imported = ArchiveStorage.decodeAll(body);
-    final existingIds = storage.loadAll().map((a) => a.id).toSet();
     for (final archive in imported) {
-      if (!existingIds.contains(archive.id)) {
-        await storage.upsert(archive);
-      }
+      await storage.upsert(archive);
     }
   } on Object {
     // File absent or server not running — silently skip.

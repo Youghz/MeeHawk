@@ -1,5 +1,4 @@
 # Videos
-videos/
 data/uploads/
 data/results/
 
@@ -24,3 +23,7 @@ dist/
 # OS
 .DS_Store
 *.pth
+
+# Screenshots (Claude Code visual checks)
+.screenshots/
+app/web/videos/*.mp4

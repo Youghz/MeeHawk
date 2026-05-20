@@ -54,15 +54,22 @@ class ArchiveStorage {
 
   bool get isEmpty => loadAll().isEmpty;
 
+  static List<MatchArchive> decodeAll(String raw) {
+    final list = jsonDecode(raw) as List<dynamic>;
+    return list.map((e) => _fromJson(e as Map<String, dynamic>)).toList();
+  }
+
   static Map<String, dynamic> _toJson(MatchArchive a) => {
         'id': a.id,
         'startedAt': a.startedAt.toIso8601String(),
         'state': MatchCodec.toJson(a.state),
+        if (a.videoUrl != null) 'videoUrl': a.videoUrl,
       };
 
   static MatchArchive _fromJson(Map<String, dynamic> j) => MatchArchive(
         id: j['id'] as String,
         startedAt: DateTime.parse(j['startedAt'] as String),
         state: MatchCodec.fromJson(j['state'] as Map<String, dynamic>),
+        videoUrl: j['videoUrl'] as String?,
       );
 }

@@ -52,6 +52,7 @@ class BallImpact implements ImpactLike {
     this.playerId,
     this.isServerPosition = false,
     this.isBlock = false,
+    this.videoTimeSec,
   });
 
   final double x;
@@ -65,6 +66,7 @@ class BallImpact implements ImpactLike {
   final bool isServerPosition;
   @override
   final bool isBlock;
+  final double? videoTimeSec;
 }
 
 /// A labelled action attached to a rally or a point (service, attaque,

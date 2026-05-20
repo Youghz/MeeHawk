@@ -184,6 +184,7 @@ class MatchCodec {
         'playerId': i.playerId,
         if (i.isServerPosition) 'isServerPosition': true,
         if (i.isBlock) 'isBlock': true,
+        if (i.videoTimeSec != null) 'videoTimeSec': i.videoTimeSec,
       };
 
   static BallImpact _impactFromJson(Map<String, dynamic> j) => BallImpact(
@@ -194,6 +195,7 @@ class MatchCodec {
         playerId: j['playerId'] as String?,
         isServerPosition: j['isServerPosition'] as bool? ?? false,
         isBlock: j['isBlock'] as bool? ?? false,
+        videoTimeSec: (j['videoTimeSec'] as num?)?.toDouble(),
       );
 
   static Map<String, dynamic> _setToJson(SetRecord r) => {
