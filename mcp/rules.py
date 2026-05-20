@@ -1,9 +1,10 @@
 # Port of:
-#   app/lib/core/rules/set_rules.dart          → SetRules
-#   app/lib/core/rules/service_rotation.dart   → ServiceRotation
-#   app/lib/core/rules/attack_inference.dart   → AttackInference
-#   app/lib/core/rules/rally_analyzer.dart     → RallyAnalyzer
-#   app/lib/core/rules/analytics_rules.dart    → AnalyticsRules
+#   app/lib/core/rules/set_rules.dart           → SetRules
+#   app/lib/core/rules/service_rotation.dart    → ServiceRotation
+#   app/lib/core/rules/attack_inference.dart    → AttackInference
+#   app/lib/core/rules/rally_analyzer.dart      → RallyAnalyzer
+#   app/lib/core/rules/analytics_rules.dart     → AnalyticsRules
+#   app/lib/core/rules/touch_attribution.dart   → TouchAttribution
 # Keep in sync with those files.
 from __future__ import annotations
 
@@ -124,6 +125,49 @@ class AnalyticsRules:
         if x >= 0.5:
             return min(max((x - 0.5) * 2, 0.0), 1.0)
         return min(max((0.5 - x) * 2, 0.0), 1.0)
+
+
+class TouchAttribution:
+    @staticmethod
+    def last_player_on_side(impacts: list[BallImpact], side: TeamSide) -> str | None:
+        for i in range(len(impacts) - 1, -1, -1):
+            imp = impacts[i]
+            if not imp.is_server_position and imp.team_side == side:
+                return imp.player_id
+        return None
+
+    @staticmethod
+    def last_player_who_touched(impacts: list[BallImpact]) -> str | None:
+        for i in range(len(impacts) - 1, -1, -1):
+            imp = impacts[i]
+            if not imp.is_server_position:
+                return imp.player_id
+        return None
+
+    @staticmethod
+    def infer_next_player(
+        impacts: list[BallImpact],
+        side: TeamSide,
+        player_ids: list[str],
+    ) -> str | None:
+        last_on_side: BallImpact | None = None
+        for i in range(len(impacts) - 1, -1, -1):
+            imp = impacts[i]
+            if imp.is_server_position:
+                continue
+            if imp.team_side != side:
+                break
+            last_on_side = imp
+            break
+        if last_on_side is None:
+            return None
+        if last_on_side.is_block:
+            return last_on_side.player_id
+        last_id = last_on_side.player_id
+        if last_id is None:
+            return None
+        others = [pid for pid in player_ids if pid != last_id]
+        return others[0] if others else last_id
 
 
 def consecutive_same_side_touches(impacts: list[BallImpact], side: TeamSide) -> int:

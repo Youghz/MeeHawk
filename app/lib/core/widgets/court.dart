@@ -35,26 +35,6 @@ bool _shouldShowPlayerPicker(MatchState state, TeamSide touchSide) {
   return true;
 }
 
-/// Returns the playerId of the last non-server impact on [side], or null.
-String? _lastPlayerOnSide(MatchState state, TeamSide side) {
-  for (var i = state.rallyImpacts.length - 1; i >= 0; i--) {
-    final impact = state.rallyImpacts[i];
-    if (!impact.isServerPosition && impact.teamSide == side) {
-      return impact.playerId;
-    }
-  }
-  return null;
-}
-
-/// Returns the playerId of whoever last touched the ball (any side), or null.
-String? _lastPlayerWhoTouched(MatchState state) {
-  for (var i = state.rallyImpacts.length - 1; i >= 0; i--) {
-    final imp = state.rallyImpacts[i];
-    if (!imp.isServerPosition) return imp.playerId;
-  }
-  return null;
-}
-
 // ---------------------------------------------------------------------------
 // Gesture handler mixin
 // ---------------------------------------------------------------------------
@@ -193,7 +173,7 @@ mixin _CourtGestures on ConsumerState<Court> {
     final nx = (p.dx + kCourtMargin) / outerW;
     final ny = (p.dy + kCourtMargin) / outerH;
     final teamSide = nx < 0.5 ? state.leftTeam : state.rightTeam;
-    final playerId = _lastPlayerOnSide(state, teamSide);
+    final playerId = TouchAttribution.lastPlayerOnSide(state.rallyImpacts, teamSide);
     ref.read(matchProvider.notifier).addBallImpact(
           BallImpact(
             x: nx,
@@ -258,7 +238,7 @@ mixin _CourtGestures on ConsumerState<Court> {
     final landingSide = xNorm < 0.5 ? state.leftTeam : state.rightTeam;
     // Attribute the out impact to whoever last touched the ball (the faulter),
     // not to the last player on the landing side.
-    final playerId = _lastPlayerWhoTouched(state);
+    final playerId = TouchAttribution.lastPlayerWhoTouched(state.rallyImpacts);
     ref.read(matchProvider.notifier).addBallImpact(
           BallImpact(
             x: xNorm,
@@ -342,7 +322,7 @@ mixin _CourtGestures on ConsumerState<Court> {
             side: teamSide,
             playerIds: playerIds,
           ) ??
-          _lastPlayerOnSide(state, teamSide);
+          TouchAttribution.lastPlayerOnSide(state.rallyImpacts, teamSide);
       ref.read(matchProvider.notifier).addTouchWithPlayer(
             BallImpact(
               x: xNorm,

@@ -14,11 +14,26 @@ import 'package:app/core/rules/team_side.dart';
 class TouchAttribution {
   const TouchAttribution._();
 
-  /// Returns the player ID to attribute the next touch on [side] to, or null
-  /// if this is the first touch of the current visit (caller decides).
-  ///
-  /// [impacts] is the full list of impacts recorded so far in this rally.
-  /// [playerIds] must contain exactly the two player IDs of the team on [side].
+  /// Returns the playerId of the last non-server impact on [side], or null.
+  static String? lastPlayerOnSide(List<ImpactLike> impacts, TeamSide side) {
+    for (var i = impacts.length - 1; i >= 0; i--) {
+      final impact = impacts[i];
+      if (!impact.isServerPosition && impact.teamSide == side) {
+        return impact.playerId;
+      }
+    }
+    return null;
+  }
+
+  /// Returns the playerId of whoever last touched the ball (any side), or null.
+  static String? lastPlayerWhoTouched(List<ImpactLike> impacts) {
+    for (var i = impacts.length - 1; i >= 0; i--) {
+      final imp = impacts[i];
+      if (!imp.isServerPosition) return imp.playerId;
+    }
+    return null;
+  }
+
   static String? inferNextPlayer({
     required List<ImpactLike> impacts,
     required TeamSide side,

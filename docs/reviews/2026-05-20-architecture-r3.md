@@ -43,7 +43,7 @@ Aucun cycle A → B + B → A détecté.
 
   Fichier : `app/lib/core/widgets/court.dart`
 
-- [ ] **R16 — Promouvoir `_lastPlayerOnSide` + `_lastPlayerWhoTouched` dans `touch_attribution.dart`**
+- [x] **R16 — Promouvoir `_lastPlayerOnSide` + `_lastPlayerWhoTouched` dans `touch_attribution.dart`**
 
   Deux fonctions top-level privées dans `court.dart` (lignes 39–56) opèrent uniquement sur `List<BallImpact>` sans dépendance Flutter. Même famille que `TouchAttribution.inferNextPlayer`. Les déplacer comme méthodes statiques sur `TouchAttribution`.
 
