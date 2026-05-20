@@ -81,7 +81,7 @@ Aucun cycle A → B + B → A détecté.
 
   Fichier : `app/lib/features/home/home_screen.dart`
 
-- [ ] **R13 — Fusionner `server_badge.dart` + `serve_banner.dart` (49 + 45 = 94 lignes)**
+- [x] **R13 — Fusionner `server_badge.dart` + `serve_banner.dart` (49 + 45 = 94 lignes)**
 
   `ServeBanner` n'utilise que `ServerBadge`, les deux forment une unité conceptuelle unique. Un fichier `serve_banner.dart` de ~90 lignes avec `ServerBadge` en classe privée est plus lisible qu'un import one-to-one.
 
