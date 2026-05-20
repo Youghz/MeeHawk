@@ -92,10 +92,10 @@ Aucun cycle A → B + B → A détecté.
 
   Fichier : `app/lib/features/match_setup/match_setup_screen.dart`
 
-- [ ] **R20 — Examiner `pdf_exporter.dart` (563 lignes)**
+- [x] **R20 — Examiner `pdf_exporter.dart` (563 lignes)**
 
   Seul fichier de service PDF, 563 lignes avec la génération de toutes les sections (sommaire, zones service/réception, attaques, notes). La logique de layout PDF et la logique de calcul analytique sont mélangées. Les fonctions de calcul ont déjà été extraites vers `AnalyticsRules` (R9), mais il reste des boucles de calcul inline.
 
-  Avant de découper, vérifier si les sections sont réellement indépendantes ou si elles partagent des helpers de layout PDF internes. Si indépendantes : extraire `_buildSummarySection`, `_buildServiceZones`, etc. dans `match_history/services/pdf_sections/`. Si couplées : documenter comme acceptable et ne pas découper.
+  **Décision après examen : ne pas découper.** Les 6 helpers PDF (`_pdfSectionTitle`, `_pdfBar`, `_pdfStatBox`, `_pdfKeyVal`, `_pdfPressCell`, `_pdfHalfCourt`) sont partagés entre toutes les sections. Le callback `build:` utilise une vingtaine de variables locales communes (`teamPdfColor`, `pts`, `pairs`, `input`…). Extraire les sections forcerait soit un contexte objet wrapper, soit la transmission de nombreux paramètres — complexité sans gain. Fichier monolithique acceptable pour un service PDF à responsabilité unique.
 
   Fichier : `app/lib/features/match_history/services/pdf_exporter.dart`
