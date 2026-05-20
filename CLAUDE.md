@@ -20,18 +20,20 @@ Structure par **feature** (tranche verticale), avec séparation stricte des resp
 ```
 lib/
 ├── main.dart
-├── app.dart                    # MaterialApp → HomeScreen
+├── app.dart                    # MaterialApp + ref.listen persistence (source unique d'archivage)
 ├── core/
 │   ├── theme.dart              # Dark theme, constantes visuelles
 │   ├── rules/                  # Logique domaine pure — ZERO import Flutter
-│   │   ├── annotation_rules.dart
 │   │   ├── attack_inference.dart
 │   │   ├── match_format.dart
 │   │   ├── rally_analyzer.dart
 │   │   ├── service_rotation.dart
-│   │   ├── set_rules.dart
+│   │   ├── set_rules.dart      # contient aussi maxTeamTouches
 │   │   └── team_side.dart
-│   └── widgets/                # Widgets cross-feature (ex: BallIcon)
+│   └── widgets/                # Widgets partagés entre ≥2 features
+│       ├── ball_icon.dart
+│       ├── court.dart          # Court widget (utilisé par match et match_history)
+│       └── court_constants.dart # kCourtMargin
 └── features/
     ├── home/
     │   └── home_screen.dart
@@ -39,16 +41,16 @@ lib/
     │   └── match_setup_screen.dart
     ├── match/
     │   ├── match_screen.dart
-    │   ├── domain/             # entities, match_state, popup types
-    │   ├── providers/          # match_provider, drag_preview_provider
+    │   ├── domain/             # entities, match_state, popup types (sealed classes)
+    │   ├── providers/          # match_provider (MatchNotifierBase + MatchNotifier)
     │   ├── persistence/        # match_codec, match_storage
-    │   └── widgets/            # court, timeline, top_score, bottom_actions…
+    │   └── widgets/            # timeline, top_score, bottom_actions…
     └── match_history/
-        ├── screens/            # history_screen, match_replay_screen, analytics_screen
+        ├── screens/            # history_screen, match_replay_screen, analytics/
         ├── domain/             # match_archive
         ├── providers/          # replay_notifier
         ├── persistence/        # archive_storage
-        └── data/               # seed_matches
+        └── services/           # pdf_exporter
 ```
 
 **Règles d'architecture :**
@@ -56,8 +58,11 @@ lib/
 - Direction des dépendances : `UI → providers → domain → rules`. Jamais l'inverse.
 - `core/rules/` ne doit jamais `import 'package:flutter/...'`.
 - Une feature A n'importe jamais `features/B/widgets/` — seulement l'écran d'entrée ou les types domain publics de B.
+- Si un widget est utilisé par ≥ 2 features, il appartient à `core/widgets/`. Extraire les constantes de layout partagées dans un fichier séparé pour éviter les imports circulaires.
 - Imports absolus uniquement : `package:<app>/...` (jamais relatifs). `very_good_analysis` l'enforce via `always_use_package_imports`.
 - Les méthodes de règles métier vivent en `core/rules/` (méthodes statiques pures, testables sans Flutter), pas dans les notifiers.
+- `app.dart` est la **source unique** de persistence/archivage via `ref.listen`. Ne pas dupliquer de logique de sauvegarde dans les écrans (lifecycle callbacks redondants).
+- Avant tout commit cross-feature : vérifier l'absence de cycle A → B et B → A. Un cycle signale qu'une dépendance doit transiter par `core/`.
 
 ## Navigation
 
@@ -165,6 +170,12 @@ Row(children: [Badge(), Flexible(child: Text('...', overflow: TextOverflow.ellip
 - Riverpod pour tout état partagé entre widgets ou écrans.
 - `setState` uniquement pour état purement local et éphémère (ex : focus d'un champ).
 - `ListView.builder` pour les listes variables.
+
+**Modélisation de domaine :**
+- `sealed class` + sous-classes `final` pour tout type discriminé (plusieurs variantes avec des champs différents). Ne jamais modéliser ça avec `enum + champs optionnels` : les champs non-nullables sur les sous-classes et l'exhaustivité des `switch`/`is` sont supérieurs.
+- Quand une sous-classe redéfinit N méthodes en no-ops pour bloquer le comportement parent, extraire une classe de base abstraite avec les no-ops comme défaut. Toute nouvelle méthode oubliée sera safe par défaut.
+- Un fichier `< 15 lignes` contenant une seule déclaration (constante, provider trivial) → fusionner dans le fichier conceptuellement lié.
+- Un fichier `> 500 lignes` avec des classes privées multiples mélange les responsabilités — signal de découpage.
 
 **Lint :**
 - Linter : `very_good_analysis` — inclure dans `analysis_options.yaml`.
