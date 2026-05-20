@@ -69,7 +69,7 @@ Aucun cycle A → B + B → A détecté.
   - `app/lib/features/match_history/screens/history_screen.dart`
   - `app/lib/features/match_history/screens/match_replay_screen.dart`
 
-- [ ] **R18 — Découper `history_screen.dart` (377 lignes, 4 classes privées)**
+- [x] **R18 — Découper `history_screen.dart` (377 lignes, 4 classes privées)**
 
   `_SearchBar`, `_EmptyState`, `_MatchCard`, `_TeamBlock` sont autosuffisantes. Pattern identique à R12. Les déplacer dans `match_history/widgets/`. `HistoryScreen` devient coordinateur de ~80 lignes.
 
