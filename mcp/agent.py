@@ -10,8 +10,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import os
+import statistics
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -26,7 +27,140 @@ from google.genai import types
 from mcp import StdioServerParameters
 
 MCP_DIR = Path(__file__).parent
+COST_LOG = MCP_DIR / "cost_log.jsonl"
 MODEL = "gemini-2.5-flash"
+
+# Gemini 2.5 Flash pricing on Vertex AI (USD per 1M tokens) — update if rates change.
+_PRICE = {
+    "input": 0.075,
+    "output": 0.30,
+    "thinking": 3.50,  # thinking tokens (output side)
+}
+
+
+def _cost_usd(input_tok: int, output_tok: int, thinking_tok: int) -> float:
+    return (
+        input_tok * _PRICE["input"]
+        + output_tok * _PRICE["output"]
+        + thinking_tok * _PRICE["thinking"]
+    ) / 1_000_000
+
+
+class _PassUsage:
+    """Accumulates usage_metadata across all events of one pass."""
+
+    def __init__(self) -> None:
+        self.input_tokens = 0
+        self.output_tokens = 0
+        self.thinking_tokens = 0
+        self.cached_tokens = 0
+
+    def add(self, meta: types.GenerateContentResponseUsageMetadata) -> None:
+        self.input_tokens += meta.prompt_token_count or 0
+        self.output_tokens += meta.candidates_token_count or 0
+        self.thinking_tokens += meta.thoughts_token_count or 0
+        self.cached_tokens += meta.cached_content_token_count or 0
+
+    def to_dict(self) -> dict:
+        return {
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "thinking_tokens": self.thinking_tokens,
+            "cached_tokens": self.cached_tokens,
+        }
+
+
+def _quality_metrics(state_path: Path) -> dict:
+    """Compute annotation quality indicators from the saved match state."""
+    try:
+        state = json.loads(state_path.read_text())
+        history = state.get("history", [])
+        if not history:
+            return {}
+
+        impacts_per_rally = []
+        xs, ys = [], []
+        video_time_set = 0
+        total_impacts = 0
+
+        for point in history:
+            ball_impacts = [i for i in point.get("impacts", []) if i.get("type") == "ball"]
+            # Fallback: impacts without explicit type (older codec)
+            if not ball_impacts:
+                ball_impacts = [i for i in point.get("impacts", []) if "x" in i and "y" in i]
+            impacts_per_rally.append(len(ball_impacts))
+            for imp in ball_impacts:
+                xs.append(imp["x"])
+                ys.append(imp["y"])
+                if imp.get("videoTimeSec") is not None:
+                    video_time_set += 1
+                total_impacts += 1
+
+        return {
+            "rallies": len(history),
+            "impacts_per_rally": impacts_per_rally,
+            "x_stddev": round(statistics.stdev(xs), 3) if len(xs) > 1 else 0,
+            "y_stddev": round(statistics.stdev(ys), 3) if len(ys) > 1 else 0,
+            "video_time_pct": round(100 * video_time_set / total_impacts) if total_impacts else 0,
+        }
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def _write_cost_log(
+    video: str,
+    model: str,
+    duration_s: float,
+    pass1: _PassUsage,
+    pass2: _PassUsage,
+    quality: dict,
+) -> dict:
+    total_input = pass1.input_tokens + pass2.input_tokens
+    total_output = pass1.output_tokens + pass2.output_tokens
+    total_thinking = pass1.thinking_tokens + pass2.thinking_tokens
+    cost = _cost_usd(total_input, total_output, total_thinking)
+
+    record = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "video": video,
+        "model": model,
+        "duration_s": round(duration_s, 1),
+        "pass1": pass1.to_dict(),
+        "pass2": pass2.to_dict(),
+        "total": {
+            "input_tokens": total_input,
+            "output_tokens": total_output,
+            "thinking_tokens": total_thinking,
+            "cost_usd": round(cost, 6),
+        },
+        "quality": quality,
+    }
+
+    with COST_LOG.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+    return record
+
+
+def _print_cost_summary(record: dict) -> None:
+    t = record["total"]
+    q = record.get("quality", {})
+    print("\n── Cost summary ─────────────────────────────", file=sys.stderr)
+    print(f"  Model    : {record['model']}", file=sys.stderr)
+    print(f"  Duration : {record['duration_s']}s", file=sys.stderr)
+    print(f"  Tokens   : {t['input_tokens']:,} in  /  {t['output_tokens']:,} out", file=sys.stderr)
+    if t["thinking_tokens"]:
+        print(f"  Thinking : {t['thinking_tokens']:,} tokens", file=sys.stderr)
+    print(f"  Cost     : ${t['cost_usd']:.4f}", file=sys.stderr)
+    if q:
+        print(
+            f"  Quality  : {q.get('rallies')} rallies · "
+            f"x_std={q.get('x_stddev')} · y_std={q.get('y_stddev')} · "
+            f"video_time={q.get('video_time_pct')}%",
+            file=sys.stderr,
+        )
+    print(f"  Log      : {COST_LOG}", file=sys.stderr)
+    print("─────────────────────────────────────────────\n", file=sys.stderr)
 
 # ─── Prompts ──────────────────────────────────────────────────────────────────
 
@@ -155,6 +289,7 @@ async def run_agent(video_uri: str, output: str, trace_path: Path | None = None)
     load_dotenv(MCP_DIR / ".env")
 
     state_path = Path(output).resolve()
+    run_start = time.monotonic()
 
     trace_write = None
     trace_file = None
@@ -208,12 +343,15 @@ async def run_agent(video_uri: str, output: str, trace_path: Path | None = None)
         ],
     )
 
+    pass1_usage = _PassUsage()
     rally_breakdown = ""
     async for event in analysis_runner.run_async(
         user_id="user",
         session_id=analysis_session.id,
         new_message=analysis_message,
     ):
+        if event.usage_metadata:
+            pass1_usage.add(event.usage_metadata)
         if event.is_final_response() and event.content:
             for part in event.content.parts:
                 if hasattr(part, "text") and part.text:
@@ -244,11 +382,14 @@ async def run_agent(video_uri: str, output: str, trace_path: Path | None = None)
         ],
     )
 
+    pass2_usage = _PassUsage()
     async for event in annotation_runner.run_async(
         user_id="user",
         session_id=annotation_session.id,
         new_message=annotation_message,
     ):
+        if event.usage_metadata:
+            pass2_usage.add(event.usage_metadata)
         _log_event(event, trace_write)
 
     await toolset.close()
@@ -264,6 +405,18 @@ async def run_agent(video_uri: str, output: str, trace_path: Path | None = None)
     from import_to_app import import_match  # noqa: PLC0415
     match_id = import_match(state_path)
     print(f"Imported as {match_id} — open http://localhost:8080 to view", file=sys.stderr)
+
+    # Cost tracking.
+    quality = _quality_metrics(state_path)
+    record = _write_cost_log(
+        video=video_uri,
+        model=MODEL,
+        duration_s=time.monotonic() - run_start,
+        pass1=pass1_usage,
+        pass2=pass2_usage,
+        quality=quality,
+    )
+    _print_cost_summary(record)
 
 
 def main() -> None:
