@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import argparse
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -10,7 +10,11 @@ from mcp.server.fastmcp import FastMCP
 from annotation import MatchAnnotator
 from match_state import MatchCodec
 
-STATE_FILE = Path(os.environ.get("MEEHAWK_STATE_FILE", "match_state.json"))
+_parser = argparse.ArgumentParser(add_help=False)
+_parser.add_argument("--state-file", default="match_state.json")
+_args, _ = _parser.parse_known_args()
+STATE_FILE = Path(_args.state_file)
+
 mcp = FastMCP("meehawk-annotation")
 annotator = MatchAnnotator()
 

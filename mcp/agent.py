@@ -155,7 +155,6 @@ async def run_agent(video_uri: str, output: str, trace_path: Path | None = None)
     load_dotenv(MCP_DIR / ".env")
 
     state_path = Path(output).resolve()
-    os.environ["MEEHAWK_STATE_FILE"] = str(state_path)
 
     trace_write = None
     trace_file = None
@@ -167,7 +166,11 @@ async def run_agent(video_uri: str, output: str, trace_path: Path | None = None)
         connection_params=StdioConnectionParams(
             server_params=StdioServerParameters(
                 command="uv",
-                args=["--project", str(MCP_DIR), "run", "python", str(MCP_DIR / "server.py")],
+                args=[
+                    "--project", str(MCP_DIR),
+                    "run", "python", str(MCP_DIR / "server.py"),
+                    "--state-file", str(state_path),
+                ],
             )
         )
     )
