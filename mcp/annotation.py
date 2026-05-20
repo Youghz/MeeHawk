@@ -40,6 +40,15 @@ class MatchAnnotator:
         initial_server_id: str,
         fmt: MatchFormat = BEACH_FIVB,
     ) -> dict:
+        if self._state is not None and self._state.started:
+            return {
+                "error": "already_started",
+                "message": (
+                    "Match already started — do NOT call start_match again. "
+                    "Continue with add_ball_impact and add_point."
+                ),
+                **self._match_summary(),
+            }
         if initial_server_id not in ("p1", "p2", "p3", "p4"):
             raise ValueError(f"invalid initial_server_id: {initial_server_id!r}")
         self._state = initial_match_state(
@@ -76,6 +85,11 @@ class MatchAnnotator:
             player_id=player_id, is_server_position=is_server_position,
             is_block=is_block, video_time_sec=video_time_sec,
         )
+
+        if is_server_position and s.history:
+            warning = self._check_serve_consistency(team_side, s)
+            if warning:
+                return warning  # impact NOT recorded — agent must fix history first
 
         if not is_server_position:
             touches = consecutive_same_side_touches(s.rally_impacts, team_side)
@@ -205,6 +219,47 @@ class MatchAnnotator:
         return self._rally_state()
 
     # ──────────────────────── private ────────────────────────────────────────
+
+    def _check_serve_consistency(self, observed_server_team: TeamSide, s: MatchState) -> dict | None:
+        """Return a warning dict if the observed server team contradicts the expected next server.
+
+        In beach volleyball the winner of a point always serves next.
+        After add_point(), s.serving_player_id is already updated to the next server.
+        So: expected_server_team = team of s.serving_player_id.
+        If that differs from observed_server_team, the previous point's winner was wrong.
+        """
+        expected_team = self._team_of_player(s.serving_player_id)
+        if expected_team == observed_server_team:
+            return None
+
+        prev = s.history[-1]
+        point_num = len(s.history)
+        e1_name = s.teams["e1"].name
+        e2_name = s.teams["e2"].name
+        observed_name = e1_name if observed_server_team == "e1" else e2_name
+        expected_name = e1_name if expected_team == "e1" else e2_name
+        prev_winner_name = e1_name if prev.winner == "e1" else e2_name
+        correct_winner = observed_server_team  # server wins the previous point
+
+        return {
+            "warning": "serve_inconsistency",
+            "message": (
+                f"⚠️ SERVE INCONSISTENCY detected before rally {point_num + 1}: "
+                f"the video shows {observed_name} serving, "
+                f"but point {point_num} was recorded as won by {prev_winner_name} "
+                f"(expected server: {expected_name}). "
+                f"In beach volleyball the winner always serves next — "
+                f"point {point_num} winner should be {observed_name} (team {correct_winner}). "
+                f"ACTION REQUIRED: call undo_point() to cancel point {point_num}, "
+                f"then call add_point(winner='{correct_winner}') with the correct winner, "
+                f"then retry this add_ball_impact call."
+            ),
+            "point_index": point_num - 1,
+            "recorded_winner": prev.winner,
+            "correct_winner": correct_winner,
+            "expected_server_team": expected_team,
+            "observed_server_team": observed_server_team,
+        }
 
     def _require_state(self) -> None:
         if self._state is None:

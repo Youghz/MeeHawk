@@ -43,8 +43,9 @@ def start_match(
     p4: str,
     initial_server_id: str,
 ) -> dict:
-    """Start a new beach volleyball match.
+    """Start a new beach volleyball match. Call ONCE at the beginning — never again.
 
+    Returns an error if the match is already started; in that case keep annotating.
     initial_server_id must be one of: 'p1', 'p2' (team e1) or 'p3', 'p4' (team e2).
     """
     result = annotator.start_match(team_e1_name, team_e2_name, p1, p2, p3, p4, initial_server_id)
@@ -75,6 +76,11 @@ def add_ball_impact(
     is_server_position: True for the server's starting-position marker (not a ball contact).
     player_id: 'p1' (e1 front), 'p2' (e1 back), 'p3' (e2 front), 'p4' (e2 back).
     video_time_sec: timestamp in seconds when this touch occurs in the video.
+
+    When is_server_position=True, the server checks serve consistency: if the serving team
+    does not match the expected next server (winner of previous point), it returns a
+    'serve_inconsistency' warning with exact instructions to correct the previous point.
+    The impact is NOT recorded in that case — follow the instructions before retrying.
     """
     result = annotator.add_ball_impact(
         x, y, team_side, is_outside, is_block, is_server_position, player_id, video_time_sec
