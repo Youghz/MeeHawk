@@ -4,6 +4,7 @@ import 'package:app/core/widgets/replay_panel.dart';
 import 'package:app/core/widgets/timeline.dart';
 import 'package:app/core/widgets/top_score.dart';
 import 'package:app/features/match/providers/match_provider.dart';
+import 'package:app/features/match_history/domain/date_format.dart';
 import 'package:app/features/match_history/domain/match_archive.dart';
 import 'package:app/features/match_history/providers/replay_notifier.dart';
 import 'package:app/features/match_history/screens/analytics_screen.dart';
@@ -75,7 +76,7 @@ class _ReplayContentState extends ConsumerState<_ReplayContent> {
               style: MH.sans(size: 16, weight: FontWeight.w700),
             ),
             Text(
-              _formatDate(widget.archive.startedAt),
+              formatMatchDate(widget.archive.startedAt),
               style: MH.mono(),
             ),
           ],
@@ -151,17 +152,4 @@ class _ReplayLayout extends StatelessWidget {
           ],
         ),
       );
-}
-
-String _formatDate(DateTime dt) {
-  const months = [
-    'jan.', 'fév.', 'mars', 'avr.', 'mai', 'juin',
-    'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
-  ];
-  const days = ['lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.'];
-  final weekday = days[dt.weekday - 1];
-  final month = months[dt.month - 1];
-  final h = dt.hour.toString().padLeft(2, '0');
-  final m = dt.minute.toString().padLeft(2, '0');
-  return '$weekday ${dt.day} $month · ${h}h$m';
 }

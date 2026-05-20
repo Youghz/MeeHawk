@@ -58,7 +58,7 @@ Aucun cycle A → B + B → A détecté.
 
 ### Medium Impact
 
-- [ ] **R17 — Dédupliquer `_formatDate`**
+- [x] **R17 — Dédupliquer `_formatDate`**
 
   `_formatDate(DateTime dt)` est définie identiquement dans `history_screen.dart:366` et `match_replay_screen.dart:156`. Déplacer dans `app/lib/features/match_history/domain/date_format.dart` comme fonction top-level `formatMatchDate(DateTime dt)`. Les deux écrans importent ce fichier.
 

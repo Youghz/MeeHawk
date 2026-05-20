@@ -1,5 +1,6 @@
 import 'package:app/core/theme.dart';
 import 'package:app/features/match/domain/match_state.dart';
+import 'package:app/features/match_history/domain/date_format.dart';
 import 'package:app/features/match_history/domain/match_archive.dart';
 import 'package:app/features/match_history/persistence/archive_storage_provider.dart';
 import 'package:app/features/match_history/screens/match_replay_screen.dart';
@@ -211,7 +212,7 @@ class _MatchCard extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      _formatDate(archive.startedAt),
+                      formatMatchDate(archive.startedAt),
                       style: MH.mono(),
                     ),
                     const Spacer(),
@@ -361,17 +362,4 @@ class _TeamBlock extends StatelessWidget {
             ],
     );
   }
-}
-
-String _formatDate(DateTime dt) {
-  const months = [
-    'jan.', 'fév.', 'mars', 'avr.', 'mai', 'juin',
-    'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
-  ];
-  const days = ['lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.'];
-  final weekday = days[dt.weekday - 1];
-  final month = months[dt.month - 1];
-  final h = dt.hour.toString().padLeft(2, '0');
-  final m = dt.minute.toString().padLeft(2, '0');
-  return '$weekday ${dt.day} $month · ${h}h$m';
 }
