@@ -28,7 +28,7 @@ L'architecture générale est solide : séparation par feature, règles métier 
 
 - [x] **R3 — Migrer `MatchPopup` vers des classes scellées** : `MatchPopup` utilise des champs optionnels (`playerId?`, `tapPos?`, `pendingImpact?`) qui ne sont pertinents que selon le `PopupKind`. Un `switch` sur `kind` ne garantit aucune exhaustivité. Dart 3 permet des classes scellées : `sealed class MatchPopup {}` + `FaultPopup`, `PickServerPopup`, `PickPlayerPopup(tapPos, pendingImpact)`, `SetEndPopup`, `MatchEndPopup`. Le compilateur vérifie l'exhaustivité dans les `switch`. Fichier : `app/lib/features/match/domain/match_popup.dart`
 
-- [ ] **R4 — Casser la dépendance circulaire `match ↔ match_history`** : `match_screen.dart` importe `match_history/persistence/` (pour archiver) et `match_history/` importe `match/widgets/court.dart` (pour le replay). Déplacer `Court` dans `core/widgets/` ou un sous-dossier `match/widgets/shared/` accessible des deux features. Pour l'archivage, passer par un callback ou un provider dans `core/` plutôt qu'un import direct. Fichiers : `app/lib/features/match/match_screen.dart`, `app/lib/features/match_history/screens/match_replay_screen.dart`
+- [x] **R4 — Casser la dépendance circulaire `match ↔ match_history`** : `match_screen.dart` importe `match_history/persistence/` (pour archiver) et `match_history/` importe `match/widgets/court.dart` (pour le replay). Déplacer `Court` dans `core/widgets/` ou un sous-dossier `match/widgets/shared/` accessible des deux features. Pour l'archivage, passer par un callback ou un provider dans `core/` plutôt qu'un import direct. Fichiers : `app/lib/features/match/match_screen.dart`, `app/lib/features/match_history/screens/match_replay_screen.dart`
 
 ### Low Impact
 

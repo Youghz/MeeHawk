@@ -1,6 +1,6 @@
 import 'package:app/core/theme.dart';
+import 'package:app/core/widgets/court.dart';
 import 'package:app/features/match/providers/match_provider.dart';
-import 'package:app/features/match/widgets/court.dart';
 import 'package:app/features/match/widgets/match_notes.dart';
 import 'package:app/features/match/widgets/replay_panel.dart';
 import 'package:app/features/match/widgets/timeline.dart';

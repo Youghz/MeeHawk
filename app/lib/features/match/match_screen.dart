@@ -1,10 +1,8 @@
-import 'dart:async';
-
 import 'package:app/core/theme.dart';
+import 'package:app/core/widgets/court.dart';
 import 'package:app/features/match/providers/match_provider.dart';
 import 'package:app/features/match/widgets/bottom_actions.dart';
 import 'package:app/features/match/widgets/change_side_prompt.dart';
-import 'package:app/features/match/widgets/court.dart';
 import 'package:app/features/match/widgets/help_hint.dart';
 import 'package:app/features/match/widgets/replay_panel.dart';
 import 'package:app/features/match/widgets/serve_banner.dart';
@@ -12,61 +10,19 @@ import 'package:app/features/match/widgets/set_end_prompt.dart';
 import 'package:app/features/match/widgets/swap_sides_button.dart';
 import 'package:app/features/match/widgets/timeline.dart';
 import 'package:app/features/match/widgets/top_score.dart';
-import 'package:app/features/match_history/domain/match_archive.dart';
-import 'package:app/features/match_history/persistence/archive_storage_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class MatchScreen extends ConsumerStatefulWidget {
+class MatchScreen extends ConsumerWidget {
   const MatchScreen({super.key});
 
   @override
-  ConsumerState<MatchScreen> createState() => _MatchScreenState();
-}
-
-class _MatchScreenState extends ConsumerState<MatchScreen>
-    with WidgetsBindingObserver {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState lifecycle) {
-    if (lifecycle == AppLifecycleState.paused ||
-        lifecycle == AppLifecycleState.inactive) {
-      unawaited(_autoSave());
-    }
-  }
-
-  Future<void> _autoSave() async {
-    final matchState = ref.read(matchProvider);
-    if (!matchState.started) return;
-    final archive = MatchArchive(
-      id: 'match_${matchState.startedAt.millisecondsSinceEpoch}',
-      startedAt: matchState.startedAt,
-      state: matchState,
-    );
-    await ref.read(archiveListProvider.notifier).upsert(archive);
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isReplay = ref.watch(
       matchProvider.select((s) => s.selectedPointIndex != null),
     );
     return PopScope(
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) unawaited(_autoSave());
-      },
       child: Focus(
         autofocus: true,
         onKeyEvent: (_, event) {
