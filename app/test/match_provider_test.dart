@@ -4,11 +4,12 @@
 // the MatchNotifier directly (no UI) so they are fast and deterministic.
 
 import 'package:app/features/match/domain/match_state.dart';
+import 'package:app/features/match/providers/match_notifier_base.dart';
 import 'package:app/features/match/providers/match_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-MatchNotifier notifier(ProviderContainer c) => c.read(matchProvider.notifier);
+MatchNotifierBase notifier(ProviderContainer c) => c.read(matchProvider.notifier);
 MatchState state(ProviderContainer c) => c.read(matchProvider);
 
 ProviderContainer newMatch({String firstServer = 'p3'}) {
@@ -33,7 +34,7 @@ BallImpact impact(double x, double y,
 void awardPoints(ProviderContainer c, TeamSide winner, int count) {
   for (var i = 0; i < count; i++) {
     notifier(c).addPoint(winner: winner);
-    if (state(c).popup?.kind == PopupKind.pickServer) {
+    if (state(c).popup is PickServerPopup) {
       final team = state(c).teams[winner]!;
       notifier(c).pickFirstServer(team.players.first.id);
     }
@@ -54,7 +55,7 @@ void main() {
     test('first side-out triggers pickServer popup, not a committed point', () {
       final c = newMatch();
       notifier(c).addPoint(winner: TeamSide.e1);
-      expect(state(c).popup?.kind, PopupKind.pickServer);
+      expect(state(c).popup, isA<PickServerPopup>());
       expect(state(c).popup?.winner, TeamSide.e1);
       expect(state(c).history, isEmpty);
       expect(state(c).scoreE1, 0);
@@ -144,14 +145,14 @@ void main() {
       awardPoints(c, TeamSide.e2, 20);
       awardPoints(c, TeamSide.e1, 1);
       // e1 must pick first server before committing the point.
-      if (state(c).popup?.kind == PopupKind.pickServer) {
+      if (state(c).popup is PickServerPopup) {
         notifier(c).pickFirstServer('p1');
       }
       expect(state(c).scoreE1, 1);
       expect(state(c).scoreE2, 20);
       // Two more for e2 → 21, set over.
       awardPoints(c, TeamSide.e2, 1);
-      expect(state(c).popup?.kind, PopupKind.setEnd);
+      expect(state(c).popup, isA<SetEndPopup>());
       notifier(c).undoPoint();
       expect(state(c).popup, isNull);
       expect(state(c).scoreE2, 20);
@@ -243,7 +244,7 @@ void main() {
       final c = newMatch();
       // Win set 1 for e2 (21-0).
       awardPoints(c, TeamSide.e2, 21);
-      expect(state(c).popup?.kind, PopupKind.setEnd);
+      expect(state(c).popup, isA<SetEndPopup>());
       notifier(c).startNextSet();
       // Win set 2 for e1 (21-0).
       awardPoints(c, TeamSide.e1, 21);
@@ -275,7 +276,7 @@ void main() {
       final c = newMatch();
       awardPoints(c, TeamSide.e2, 20);
       awardPoints(c, TeamSide.e1, 20);
-      if (state(c).popup?.kind == PopupKind.pickServer) {
+      if (state(c).popup is PickServerPopup) {
         notifier(c).pickFirstServer('p1');
       }
       expect(state(c).scoreE1, 20);
@@ -290,7 +291,7 @@ void main() {
       notifier(c).addPoint(winner: TeamSide.e1);
       notifier(c).addPoint(winner: TeamSide.e1);
       // 23-21 → set over.
-      expect(state(c).popup?.kind, PopupKind.setEnd);
+      expect(state(c).popup, isA<SetEndPopup>());
       expect(state(c).sets.length, 1);
       expect(state(c).sets.first.winner, TeamSide.e1);
     });
@@ -312,7 +313,7 @@ void main() {
       awardPoints(c, TeamSide.e2, 21);
       notifier(c).startNextSet();
       awardPoints(c, TeamSide.e2, 21);
-      expect(state(c).popup?.kind, PopupKind.matchEnd);
+      expect(state(c).popup, isA<MatchEndPopup>());
       expect(state(c).matchOver, isTrue);
       // Further addPoint is a no-op.
       notifier(c).addPoint(winner: TeamSide.e1);
@@ -329,7 +330,7 @@ void main() {
       awardPoints(c, TeamSide.e2, 14);
       expect(state(c).popup, isNull);
       awardPoints(c, TeamSide.e2, 1);
-      expect(state(c).popup?.kind, PopupKind.matchEnd);
+      expect(state(c).popup, isA<MatchEndPopup>());
       expect(state(c).sets.last.scoreE2, 15);
     });
   });
@@ -371,7 +372,7 @@ void main() {
       // 4th e2 touch auto-faults; e1 gains serve for the first time →
       // pickServer popup defers the commit (rally not yet cleared).
       notifier(c).addBallImpact(impact(0.75, 0.6, side: TeamSide.e2));
-      expect(state(c).popup?.kind, PopupKind.pickServer);
+      expect(state(c).popup, isA<PickServerPopup>());
       expect(state(c).popup?.winner, TeamSide.e1);
     });
 
@@ -390,7 +391,7 @@ void main() {
       // 4th real e2 touch auto-faults; e1 gains serve for first time →
       // pickServer popup defers the commit.
       notifier(c).addBallImpact(impact(0.75, 0.55, side: TeamSide.e2));
-      expect(state(c).popup?.kind, PopupKind.pickServer);
+      expect(state(c).popup, isA<PickServerPopup>());
       expect(state(c).popup?.winner, TeamSide.e1);
     });
   });
@@ -658,7 +659,7 @@ void main() {
             format: const MatchFormat(setsToWin: 1),
           );
       awardPoints(c, TeamSide.e2, 21);
-      expect(state(c).popup?.kind, PopupKind.matchEnd);
+      expect(state(c).popup, isA<MatchEndPopup>());
       expect(state(c).matchOver, isTrue);
     });
 
@@ -672,7 +673,7 @@ void main() {
       notifier(c).addBallImpact(impact(0.25, 0.5, side: TeamSide.e1));
       notifier(c).addBallImpact(impact(0.25, 0.7, side: TeamSide.e1));
       notifier(c).addBallImpact(impact(0.25, 0.6, side: TeamSide.e1));
-      expect(state(c).popup?.kind, PopupKind.setEnd);
+      expect(state(c).popup, isA<SetEndPopup>());
       expect(state(c).sets.last.scoreE2, 21);
       expect(state(c).sets.last.winner, TeamSide.e2);
     });

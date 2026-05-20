@@ -1,14 +1,14 @@
-import 'package:app/core/rules/annotation_rules.dart';
 import 'package:app/core/rules/attack_inference.dart';
 import 'package:app/core/rules/service_rotation.dart';
 import 'package:app/core/rules/set_rules.dart';
 import 'package:app/features/match/domain/match_state.dart';
+import 'package:app/features/match/providers/match_notifier_base.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final matchProvider =
-    NotifierProvider<MatchNotifier, MatchState>(MatchNotifier.new);
+    NotifierProvider<MatchNotifierBase, MatchState>(MatchNotifier.new);
 
-class MatchNotifier extends Notifier<MatchState> {
+class MatchNotifier extends MatchNotifierBase {
   /// One-shot bootstrap state set by main() when rehydrating from storage.
   /// Consumed on first build().
   static MatchState? bootstrapState;
@@ -20,6 +20,7 @@ class MatchNotifier extends Notifier<MatchState> {
     return b ?? initialMatchState();
   }
 
+  @override
   void startMatch({
     required String teamE1Name,
     required String teamE2Name,
@@ -43,6 +44,7 @@ class MatchNotifier extends Notifier<MatchState> {
   // Scoring
   // ---------------------------------------------------------------------
 
+  @override
   void addPoint({
     required TeamSide winner,
     List<Annotation> annotations = const [],
@@ -52,8 +54,7 @@ class MatchNotifier extends Notifier<MatchState> {
     final gainsServe = winner != servingTeam;
     if (gainsServe && state.firstServerIndex[winner] == null) {
       state = state.copyWith(
-        popup: MatchPopup(
-          kind: PopupKind.pickServer,
+        popup: PickServerPopup(
           winner: winner,
           pendingAnnotations: annotations,
         ),
@@ -63,9 +64,10 @@ class MatchNotifier extends Notifier<MatchState> {
     _commitPoint(winner: winner, annotations: annotations);
   }
 
+  @override
   void pickFirstServer(String playerId) {
     final popup = state.popup;
-    if (popup == null || popup.kind != PopupKind.pickServer) return;
+    if (popup == null || popup is! PickServerPopup) return;
     final winner = popup.winner;
     final team = state.teams[winner]!;
     final idx = team.players.indexWhere((p) => p.id == playerId);
@@ -176,18 +178,18 @@ class MatchNotifier extends Notifier<MatchState> {
       scoreE2: scoreE2,
       rallyAnnotations: const [],
       rallyImpacts: const [],
-      popup: MatchPopup(
-        kind: matchOver ? PopupKind.matchEnd : PopupKind.setEnd,
-        winner: setWinner,
-      ),
+      popup: matchOver
+          ? MatchEndPopup(winner: setWinner)
+          : SetEndPopup(winner: setWinner),
       matchOver: matchOver,
       changeSidePromptOpen: false,
     );
   }
 
   /// Start a new set after a setEnd popup.
+  @override
   void startNextSet() {
-    if (state.popup?.kind != PopupKind.setEnd) return;
+    if (state.popup is! SetEndPopup) return;
     // Alternate initial server team between sets. Starting team of set N
     // is the OTHER of the starting team of set N-1.
     final prevStart = state.teamOfPlayer(state.initialServerId)!;
@@ -221,6 +223,7 @@ class MatchNotifier extends Notifier<MatchState> {
   // Rally
   // ---------------------------------------------------------------------
 
+  @override
   void addRallyAnnotation(Annotation a) {
     state = state.copyWith(
       rallyAnnotations: [...state.rallyAnnotations, a],
@@ -230,6 +233,7 @@ class MatchNotifier extends Notifier<MatchState> {
 
   /// Record a touch with a known player. Delegates crossing annotation to
   /// addBallImpact, then appends a block annotation when isBlock is true.
+  @override
   void addTouchWithPlayer(BallImpact impact) {
     addBallImpact(impact);
     if (!impact.isBlock) return;
@@ -248,10 +252,11 @@ class MatchNotifier extends Notifier<MatchState> {
 
   /// Called when the player-picker bubble is confirmed. Fills in the player
   /// on the pending impact and records the touch.
+  @override
   void confirmPlayerPick(String playerId) {
     final popup = state.popup;
-    if (popup == null || popup.kind != PopupKind.pickPlayer) return;
-    final pending = popup.pendingImpact!;
+    if (popup == null || popup is! PickPlayerPopup) return;
+    final pending = popup.pendingImpact;
     state = state.copyWith(popup: null);
     addTouchWithPlayer(
       BallImpact(
@@ -271,10 +276,11 @@ class MatchNotifier extends Notifier<MatchState> {
   /// attack (or the serve, for the first crossing) with an inferred type.
   /// Server-position markers are exempt; all other impacts enforce the
   /// volleyball 3-touch rule per team.
+  @override
   void addBallImpact(BallImpact impact) {
     if (!impact.isServerPosition &&
         _consecutiveSameSideTouches(state.rallyImpacts, impact.teamSide) >=
-            AnnotationRules.maxTeamTouches) {
+            SetRules.maxTeamTouches) {
       // 4th touch: record the impact position then auto-fault.
       final player = impact.playerId != null
           ? state.playerById(impact.playerId!)
@@ -332,6 +338,7 @@ class MatchNotifier extends Notifier<MatchState> {
   /// Remove the last recorded ball impact from the current rally. Removes
   /// the block annotation (if any) and the crossing annotation (if any) that
   /// were generated when this impact was recorded.
+  @override
   void undoLastImpact() {
     if (state.rallyImpacts.isEmpty) return;
     final impacts = state.rallyImpacts;
@@ -360,6 +367,7 @@ class MatchNotifier extends Notifier<MatchState> {
     );
   }
 
+  @override
   void undoPoint() {
     if (state.history.isEmpty) return;
     if (state.matchOver) {
@@ -452,24 +460,24 @@ class MatchNotifier extends Notifier<MatchState> {
   // Selection / notes / layout
   // ---------------------------------------------------------------------
 
+  @override
   void selectPoint(int index) =>
       state = state.copyWith(selectedPointIndex: index);
 
+  @override
   void clearSelection() => state = state.copyWith(selectedPointIndex: null);
 
-  /// Show the final score of [setNumber] without selecting a specific point.
-  /// No-op in live match; overridden in ReplayNotifier.
-  void viewSet(int setNumber) {}
-
-  // ignore: use_setters_to_change_properties -- loads a full match state, semantically more than a property write
+  @override
   void resumeMatch(MatchState savedState) {
     state = savedState;
   }
 
+  @override
   void resetMatch() {
     state = initialMatchState();
   }
 
+  @override
   void swapTeammates(String playerId) {
     final teamKey = state.teamOfPlayer(playerId);
     if (teamKey == null) return;
@@ -484,8 +492,10 @@ class MatchNotifier extends Notifier<MatchState> {
     state = state.copyWith(positions: newPos);
   }
 
+  @override
   void setNotes(String notes) => state = state.copyWith(notes: notes);
 
+  @override
   void swapSides() {
     final mirrored = <String, CourtPos>{};
     state.positions.forEach((id, p) {
@@ -498,14 +508,17 @@ class MatchNotifier extends Notifier<MatchState> {
     );
   }
 
+  @override
   void dismissChangeSideForever() => state = state.copyWith(
         changeSidePromptOpen: false,
         changeSidePromptDismissed: true,
       );
 
+  @override
   void closeChangeSidePrompt() =>
       state = state.copyWith(changeSidePromptOpen: false);
 
+  @override
   void renamePlayer(String playerId, String name) {
     final teams = <TeamSide, Team>{};
     state.teams.forEach((tk, team) {
@@ -518,6 +531,7 @@ class MatchNotifier extends Notifier<MatchState> {
     state = state.copyWith(teams: teams);
   }
 
+  @override
   void renameTeam(TeamSide teamKey, String name) {
     final teams = Map<TeamSide, Team>.of(state.teams);
     teams[teamKey] = teams[teamKey]!.copyWith(name: name);
@@ -526,12 +540,12 @@ class MatchNotifier extends Notifier<MatchState> {
 
   /// Discard all in-progress rally impacts, annotations and dismissible popups
   /// without awarding a point. Called when the user taps outside the court band.
+  @override
   void clearRally() {
     // Selecting a point on the timeline is not a "clear rally" intent.
     if (state.selectedPointIndex != null) return;
     final popup = state.popup;
-    final hasDismissiblePopup = popup != null &&
-        (popup.kind == PopupKind.fault || popup.kind == PopupKind.pickPlayer);
+    final hasDismissiblePopup = popup is FaultPopup || popup is PickPlayerPopup;
     if (!hasDismissiblePopup &&
         state.rallyImpacts.isEmpty &&
         state.rallyAnnotations.isEmpty) {
@@ -544,6 +558,7 @@ class MatchNotifier extends Notifier<MatchState> {
     );
   }
 
+  @override
   void toggleTeamTracking(TeamSide teamSide) {
     final current = state.trackedTeams;
     final updated = current.contains(teamSide)
@@ -552,8 +567,10 @@ class MatchNotifier extends Notifier<MatchState> {
     state = state.copyWith(trackedTeams: updated);
   }
 
+  @override
   void showPopup(MatchPopup popup) => state = state.copyWith(popup: popup);
 
+  @override
   void dismissPopup() => state = state.copyWith(popup: null);
 }
 

@@ -13,13 +13,11 @@ class SetEndPrompt extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final popup = ref.watch(matchProvider.select((s) => s.popup));
-    if (popup == null ||
-        (popup.kind != PopupKind.setEnd &&
-            popup.kind != PopupKind.matchEnd)) {
+    if (popup == null || (popup is! SetEndPopup && popup is! MatchEndPopup)) {
       return const SizedBox.shrink();
     }
     final state = ref.read(matchProvider);
-    final isMatch = popup.kind == PopupKind.matchEnd;
+    final isMatch = popup is MatchEndPopup;
     final winnerTeam = state.teams[popup.winner]!;
     final color = popup.winner == TeamSide.e1 ? MH.them : MH.us;
     final setsE1 = state.setsWonOf(TeamSide.e1);

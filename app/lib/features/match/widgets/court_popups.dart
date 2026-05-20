@@ -116,13 +116,13 @@ class _DropdownRow extends StatelessWidget {
       );
 }
 
-class PickServerPopup extends ConsumerWidget {
-  const PickServerPopup({super.key});
+class PickServerOverlay extends ConsumerWidget {
+  const PickServerOverlay({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(matchProvider);
-    final popup = state.popup!;
+    final popup = state.popup! as PickServerPopup;
     final team = state.teams[popup.winner]!;
     final color = popup.winner == TeamSide.e1 ? MH.them : MH.us;
 
@@ -172,21 +172,21 @@ class PickServerPopup extends ConsumerWidget {
 
 /// Micro-bubble anchored to the tap position asking which player made the
 /// touch (or block). Shows on the first contact of each side visit.
-class PlayerPickerPopup extends ConsumerWidget {
-  const PlayerPickerPopup({super.key});
+class PlayerPickerOverlay extends ConsumerWidget {
+  const PlayerPickerOverlay({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(matchProvider);
-    final popup = state.popup!;
+    final popup = state.popup! as PickPlayerPopup;
     final teamSide = popup.winner;
     final team = state.teams[teamSide]!;
     final color = teamSide == TeamSide.e1 ? MH.them : MH.us;
     final notifier = ref.read(matchProvider.notifier);
-    final isBlock = popup.pendingImpact?.isBlock ?? false;
+    final isBlock = popup.pendingImpact.isBlock;
 
     return _AnchoredPlayerPicker(
-      anchor: popup.tapPos ?? Offset.zero,
+      anchor: popup.tapPos,
       color: color,
       label: isBlock ? 'Bloc — qui ?' : 'Touche — qui ?',
       players: team.players,
@@ -325,20 +325,20 @@ class _AnchoredPlayerPicker extends StatelessWidget {
 }
 
 
-class FaultPopup extends ConsumerWidget {
-  const FaultPopup({super.key});
+class FaultOverlay extends ConsumerWidget {
+  const FaultOverlay({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(matchProvider);
-    final popup = state.popup!;
+    final popup = state.popup! as FaultPopup;
     final loserTeam = popup.winner.other;
-    final loserPlayer = state.playerById(popup.playerId!);
+    final loserPlayer = state.playerById(popup.playerId);
     const color = MH.bad;
     final notifier = ref.read(matchProvider.notifier);
 
     return _AnchoredDropdown(
-      anchor: popup.tapPos ?? Offset.zero,
+      anchor: popup.tapPos,
       color: color,
       items: _faultTypes,
       onPick: (t) => notifier.addPoint(

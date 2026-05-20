@@ -278,12 +278,12 @@ class _CourtState extends ConsumerState<Court>
                       outerH: outerH,
                       margin: kCourtMargin,
                     ),
-                  if (state.popup?.kind == PopupKind.fault)
-                    const Positioned.fill(child: FaultPopup()),
-                  if (state.popup?.kind == PopupKind.pickServer)
-                    const Positioned.fill(child: PickServerPopup()),
-                  if (state.popup?.kind == PopupKind.pickPlayer)
-                    const Positioned.fill(child: PlayerPickerPopup()),
+                  if (state.popup is FaultPopup)
+                    const Positioned.fill(child: FaultOverlay()),
+                  if (state.popup is PickServerPopup)
+                    const Positioned.fill(child: PickServerOverlay()),
+                  if (state.popup is PickPlayerPopup)
+                    const Positioned.fill(child: PlayerPickerOverlay()),
                 ]),
               ),
             ),
@@ -356,7 +356,7 @@ class _CourtState extends ConsumerState<Court>
       // Cancel first tap's impact, register block instead.
       if (_tapHandled) {
         final s = ref.read(matchProvider);
-        if (s.popup?.kind == PopupKind.pickPlayer) {
+        if (s.popup is PickPlayerPopup) {
           ref.read(matchProvider.notifier).dismissPopup();
         } else {
           ref.read(matchProvider.notifier).undoLastImpact();
@@ -378,7 +378,7 @@ class _CourtState extends ConsumerState<Court>
   void _onInnerTapCancel() {
     if (_tapHandled) {
       final s = ref.read(matchProvider);
-      if (s.popup?.kind == PopupKind.pickPlayer) {
+      if (s.popup is PickPlayerPopup) {
         ref.read(matchProvider.notifier).dismissPopup();
       } else {
         ref.read(matchProvider.notifier).undoLastImpact();
@@ -596,8 +596,7 @@ class _CourtState extends ConsumerState<Court>
     final isTracked = state.trackedTeams.contains(teamSide);
     if (isTracked && _shouldShowPlayerPicker(state, teamSide)) {
       ref.read(matchProvider.notifier).showPopup(
-            MatchPopup(
-              kind: PopupKind.pickPlayer,
+            PickPlayerPopup(
               winner: teamSide,
               tapPos: screenPos,
               pendingImpact: BallImpact(

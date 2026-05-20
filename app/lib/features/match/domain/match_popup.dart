@@ -3,28 +3,49 @@ import 'dart:ui';
 import 'package:app/core/rules/team_side.dart';
 import 'package:app/features/match/domain/entities.dart';
 
-/// Kinds of modal prompts the match screen can display.
-enum PopupKind { fault, pickServer, pickPlayer, setEnd, matchEnd }
-
 /// A modal popup request held in the match state. UI-adjacent but lives
 /// in the domain layer because the scoring flow (e.g. first-server pick)
 /// defers point commits on popup state.
-class MatchPopup {
-  const MatchPopup({
-    required this.kind,
-    required this.winner,
-    this.playerId,
-    this.tapPos,
-    this.pendingAnnotations = const [],
-    this.pendingImpact,
-  });
-
-  final PopupKind kind;
+///
+/// Sealed so that switch expressions in callers are exhaustively checked by
+/// the compiler — new popup kinds are impossible to forget.
+sealed class MatchPopup {
+  const MatchPopup({required this.winner});
   final TeamSide winner;
-  final String? playerId;
-  final Offset? tapPos;
-  final List<Annotation> pendingAnnotations;
+}
 
-  /// Pending ball impact waiting for player attribution (pickPlayer popup).
-  final BallImpact? pendingImpact;
+final class FaultPopup extends MatchPopup {
+  const FaultPopup({
+    required super.winner,
+    required this.playerId,
+    required this.tapPos,
+  });
+  final String playerId;
+  final Offset tapPos;
+}
+
+final class PickServerPopup extends MatchPopup {
+  const PickServerPopup({
+    required super.winner,
+    this.pendingAnnotations = const [],
+  });
+  final List<Annotation> pendingAnnotations;
+}
+
+final class PickPlayerPopup extends MatchPopup {
+  const PickPlayerPopup({
+    required super.winner,
+    required this.tapPos,
+    required this.pendingImpact,
+  });
+  final Offset tapPos;
+  final BallImpact pendingImpact;
+}
+
+final class SetEndPopup extends MatchPopup {
+  const SetEndPopup({required super.winner});
+}
+
+final class MatchEndPopup extends MatchPopup {
+  const MatchEndPopup({required super.winner});
 }

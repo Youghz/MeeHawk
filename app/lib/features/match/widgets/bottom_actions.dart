@@ -22,10 +22,7 @@ class BottomActions extends ConsumerWidget {
     );
     final hasPopup = ref.watch(
       matchProvider.select(
-        (s) =>
-            s.popup != null &&
-            (s.popup!.kind == PopupKind.fault ||
-                s.popup!.kind == PopupKind.pickPlayer),
+        (s) => s.popup is FaultPopup || s.popup is PickPlayerPopup,
       ),
     );
     final matchOver =

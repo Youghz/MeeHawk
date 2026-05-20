@@ -71,8 +71,7 @@ class PlayerDot extends ConsumerWidget {
       kCourtMargin + pos.y * courtHeight,
     );
     ref.read(matchProvider.notifier).showPopup(
-          MatchPopup(
-            kind: PopupKind.fault,
+          FaultPopup(
             winner: opposing,
             playerId: playerId,
             tapPos: anchor,
