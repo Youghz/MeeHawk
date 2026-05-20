@@ -1,13 +1,14 @@
 import 'package:app/app.dart';
 import 'package:app/features/match/persistence/match_storage.dart';
-import 'package:app/features/match/persistence/match_storage_provider.dart';
 import 'package:app/features/match/providers/match_provider.dart';
-import 'package:app/features/match_history/data/seed_matches.dart';
 import 'package:app/features/match_history/domain/match_archive.dart';
 import 'package:app/features/match_history/persistence/archive_storage.dart';
 import 'package:app/features/match_history/persistence/archive_storage_provider.dart';
+import 'package:app/features/match_history/persistence/matches_importer.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,8 +38,12 @@ Future<void> main() async {
   final hasRealData = currentMatch != null &&
       (currentMatch.history.isNotEmpty || currentMatch.sets.isNotEmpty);
   if (archiveStorage.isEmpty && !hasRealData) {
-    await archiveStorage.saveAll(buildSeedMatches());
+    final raw = await rootBundle.loadString('assets/seed_matches.json');
+    await archiveStorage.saveAll(ArchiveStorage.decodeAll(raw));
   }
+
+  // On web: import any matches written by the annotation agent to /matches/archives.json.
+  await MatchesImporter.importInto(archiveStorage);
 
   MatchNotifier.bootstrapState = currentMatch;
   runApp(
@@ -47,7 +52,7 @@ Future<void> main() async {
         matchStorageProvider.overrideWithValue(storage),
         archiveStorageProvider.overrideWithValue(archiveStorage),
       ],
-      child: const MeeHawkApp(),
+      child: const CrabCoachApp(),
     ),
   );
 }
