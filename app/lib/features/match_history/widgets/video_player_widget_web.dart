@@ -70,6 +70,7 @@ class _VideoPlayerWidgetState extends ConsumerState<VideoPlayerWidget> {
     for (final impact in history[index].impacts) {
       if (impact.isServerPosition && impact.videoTimeSec != null) {
         _video.currentTime = impact.videoTimeSec!;
+        unawaited(_video.play());
         return;
       }
     }
@@ -91,17 +92,22 @@ class _VideoPlayerWidgetState extends ConsumerState<VideoPlayerWidget> {
       }
     });
 
-    return ColoredBox(
-      color: Colors.black,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AspectRatio(
-            aspectRatio: 16 / 9,
-            child: HtmlElementView(viewType: _viewId),
-          ),
-          _buildControls(),
-        ],
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 300),
+      child: ColoredBox(
+        color: Colors.black,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: HtmlElementView(viewType: _viewId),
+              ),
+            ),
+            _buildControls(),
+          ],
+        ),
       ),
     );
   }
