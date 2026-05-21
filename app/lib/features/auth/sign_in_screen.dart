@@ -24,17 +24,16 @@ class _SignInScreenState extends State<SignInScreen> {
       if (kIsWeb) {
         await FirebaseAuth.instance.signInWithPopup(GoogleAuthProvider());
       } else {
-        final googleUser = await GoogleSignIn().signIn();
-        if (googleUser == null) {
-          setState(() => _loading = false);
-          return;
-        }
-        final googleAuth = await googleUser.authentication;
+        final googleUser = await GoogleSignIn.instance.authenticate();
+        final googleAuth = googleUser.authentication;
         final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
           idToken: googleAuth.idToken,
         );
         await FirebaseAuth.instance.signInWithCredential(credential);
+      }
+    } on GoogleSignInException catch (e) {
+      if (e.code != GoogleSignInExceptionCode.canceled) {
+        setState(() => _error = e.toString());
       }
     } on Exception catch (e) {
       setState(() => _error = e.toString());
