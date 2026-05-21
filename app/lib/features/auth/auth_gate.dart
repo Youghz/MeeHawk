@@ -2,7 +2,6 @@ import 'package:app/core/theme.dart';
 import 'package:app/features/auth/auth_providers.dart';
 import 'package:app/features/auth/sign_in_screen.dart';
 import 'package:app/features/home/home_screen.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,8 +10,6 @@ class AuthGate extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (kDebugMode) return const HomeScreen();
-
     final authState = ref.watch(authStateProvider);
     return authState.when(
       loading: () => const _SplashScreen(),
