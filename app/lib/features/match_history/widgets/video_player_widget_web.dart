@@ -70,7 +70,11 @@ class _VideoPlayerWidgetState extends ConsumerState<VideoPlayerWidget> {
     for (final impact in history[index].impacts) {
       if (impact.isServerPosition && impact.videoTimeSec != null) {
         _video.currentTime = impact.videoTimeSec!;
-        unawaited(_video.play());
+        unawaited(
+          _video.onSeeked.first.then((_) {
+            if (mounted) unawaited(_video.play());
+          }),
+        );
         return;
       }
     }
