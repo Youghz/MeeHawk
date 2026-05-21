@@ -3,6 +3,7 @@ import 'package:app/features/home/widgets/home_header.dart';
 import 'package:app/features/home/widgets/nav_card.dart';
 import 'package:app/features/home/widgets/new_match_cta.dart';
 import 'package:app/features/home/widgets/ongoing_card.dart';
+import 'package:app/features/home/widgets/recent_match_card.dart';
 import 'package:app/features/home/widgets/section_label.dart';
 import 'package:app/features/match/providers/match_provider.dart';
 import 'package:app/features/match_history/persistence/archive_storage_provider.dart';
@@ -19,6 +20,12 @@ class HomeScreen extends ConsumerWidget {
     final ongoingMatches = ref.watch(archiveListProvider.select(
       (list) => list
           .where((a) => a.state.started && !a.state.matchOver)
+          .toList(),
+    ));
+    final recentMatches = ref.watch(archiveListProvider.select(
+      (list) => list
+          .where((a) => a.state.matchOver)
+          .take(3)
           .toList(),
     ));
     final currentMatchId = ref.watch(
@@ -51,6 +58,15 @@ class HomeScreen extends ConsumerWidget {
                   isCurrent: archive.id == currentMatchId,
                 ),
                 const SizedBox(height: 10),
+              ],
+            ],
+            if (recentMatches.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              const SectionLabel(label: 'RÉCENTS'),
+              const SizedBox(height: 10),
+              for (final archive in recentMatches) ...[
+                RecentMatchCard(archive: archive),
+                const SizedBox(height: 8),
               ],
             ],
             const SizedBox(height: 24),
