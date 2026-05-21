@@ -30,7 +30,8 @@ class HomeScreen extends ConsumerWidget {
     ));
     final currentMatchId = ref.watch(
       matchProvider.select(
-          (s) => 'match_${s.startedAt.millisecondsSinceEpoch}'),
+        (s) => 'match_${s.startedAt.toIso8601String().replaceAll(RegExp('[-:.]'), '').replaceAll('Z', '')}',
+      ),
     );
 
     return Scaffold(
