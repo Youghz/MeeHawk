@@ -21,6 +21,7 @@ class CrabCoachApp extends ConsumerWidget {
           id: 'match_${next.startedAt.toIso8601String().replaceAll(RegExp('[-:.]'), '').replaceAll('Z', '')}',
           startedAt: next.startedAt,
           state: next,
+          videoUrl: ref.read(matchVideoUrlProvider),
         );
         unawaited(ref.read(archiveListProvider.notifier).upsert(archive));
       }

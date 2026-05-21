@@ -8,6 +8,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 final matchProvider =
     NotifierProvider<MatchNotifierBase, MatchState>(MatchNotifier.new);
 
+class _VideoUrlNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+  String? get url => state;
+  set url(String? value) => state = value;
+}
+
+final matchVideoUrlProvider =
+    NotifierProvider<_VideoUrlNotifier, String?>(_VideoUrlNotifier.new);
+
 // Scoring state machine: commit, finish-set, replay. Kept separate from the
 // public API surface so MatchNotifier stays focused on lifecycle + delegation.
 mixin _MatchPointLogic on MatchNotifierBase {

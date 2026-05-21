@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:app/core/theme.dart';
 import 'package:app/core/widgets/court.dart';
 import 'package:app/core/widgets/replay_panel.dart';
@@ -6,6 +8,7 @@ import 'package:app/core/widgets/top_score.dart';
 import 'package:app/features/match/providers/match_provider.dart';
 import 'package:app/features/match_history/domain/date_format.dart';
 import 'package:app/features/match_history/domain/match_archive.dart';
+import 'package:app/features/match_history/persistence/archive_storage_provider.dart';
 import 'package:app/features/match_history/providers/replay_notifier.dart';
 import 'package:app/features/match_history/screens/analytics_screen.dart';
 import 'package:app/features/match_history/widgets/match_notes.dart';
@@ -40,11 +43,62 @@ class _ReplayContent extends ConsumerStatefulWidget {
 
 class _ReplayContentState extends ConsumerState<_ReplayContent> {
   final _focus = FocusNode();
+  late MatchArchive _archive;
+
+  @override
+  void initState() {
+    super.initState();
+    _archive = widget.archive;
+  }
 
   @override
   void dispose() {
     _focus.dispose();
     super.dispose();
+  }
+
+  Future<void> _editVideoUrl() async {
+    final ctrl = TextEditingController(text: _archive.videoUrl ?? '');
+    final result = await showDialog<String?>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: MH.sand,
+        title: Text('URL vidéo', style: MH.sans(weight: FontWeight.w700)),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          style: MH.mono(size: 13),
+          decoration: InputDecoration(
+            hintText: 'https://...',
+            hintStyle: MH.mono(size: 13, color: MH.inkSoft),
+            filled: true,
+            fillColor: MH.paper,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Annuler', style: MH.sans(color: MH.inkSoft)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(ctrl.text.trim()),
+            child: Text('Enregistrer', style: MH.sans(color: MH.ball)),
+          ),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (result == null) return;
+    final newUrl = result.isEmpty ? null : result;
+    final updated = _archive.copyWith(videoUrl: newUrl);
+    unawaited(
+      ref.read(archiveListProvider.notifier).upsert(updated),
+    );
+    setState(() => _archive = updated);
   }
 
   void _navigate(int delta) {
@@ -77,19 +131,24 @@ class _ReplayContentState extends ConsumerState<_ReplayContent> {
               style: MH.sans(size: 16, weight: FontWeight.w700),
             ),
             Text(
-              formatMatchDate(widget.archive.startedAt),
+              formatMatchDate(_archive.startedAt),
               style: MH.mono(),
             ),
           ],
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.videocam_outlined),
+            tooltip: _archive.videoUrl == null ? 'Attacher une vidéo' : 'Modifier la vidéo',
+            onPressed: _editVideoUrl,
+          ),
+          IconButton(
             icon: const Icon(Icons.bar_chart_rounded),
             tooltip: 'Analyse',
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) =>
-                    AnalyticsScreen(state: widget.archive.state),
+                    AnalyticsScreen(state: _archive.state),
               ),
             ),
           ),
@@ -130,7 +189,7 @@ class _ReplayContentState extends ConsumerState<_ReplayContent> {
             }
           },
           behavior: HitTestBehavior.translucent,
-          child: _ReplayLayout(videoUrl: widget.archive.videoUrl),
+          child: _ReplayLayout(videoUrl: _archive.videoUrl),
         ),
       ),
     );
@@ -146,7 +205,8 @@ class _ReplayLayout extends StatelessWidget {
   Widget build(BuildContext context) => SingleChildScrollView(
         child: Column(
           children: [
-            if (videoUrl != null) VideoPlayerWidget(videoUrl: videoUrl!),
+            if (videoUrl != null)
+              VideoPlayerWidget(key: ValueKey(videoUrl), videoUrl: videoUrl!),
             const TopScore(),
             const Court(),
             const Timeline(),

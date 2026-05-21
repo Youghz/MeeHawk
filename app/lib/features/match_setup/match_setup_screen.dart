@@ -24,6 +24,7 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
   final _p2 = TextEditingController(text: 'Joueur 2');
   final _p3 = TextEditingController(text: 'Joueur 3');
   final _p4 = TextEditingController(text: 'Joueur 4');
+  final _videoUrl = TextEditingController();
   String _initialServerId = 'p1';
   int _setsToWin = 2;
   int _setPoints = 21;
@@ -37,6 +38,7 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
     _p2.dispose();
     _p3.dispose();
     _p4.dispose();
+    _videoUrl.dispose();
     super.dispose();
   }
 
@@ -108,6 +110,30 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
                 onChangeSideIncrement: () =>
                     setState(() => _changeSideEvery++),
               ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: _videoUrl,
+                style: MH.mono(size: 13),
+                decoration: InputDecoration(
+                  labelText: 'URL vidéo (optionnel)',
+                  labelStyle: MH.mono(size: 12, color: MH.inkSoft),
+                  prefixIcon: const Icon(
+                    Icons.videocam_outlined,
+                    color: MH.inkSoft,
+                    size: 20,
+                  ),
+                  filled: true,
+                  fillColor: MH.sand,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                ),
+              ),
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
@@ -139,6 +165,8 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
       );
 
   void _start() {
+    final url = _videoUrl.text.trim();
+    ref.read(matchVideoUrlProvider.notifier).url = url.isEmpty ? null : url;
     ref.read(matchProvider.notifier).startMatch(
           teamE1Name: _label(_team1, 'Équipe 1'),
           teamE2Name: _label(_team2, 'Équipe 2'),
