@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:app/core/theme.dart';
 import 'package:app/core/widgets/court.dart';
 import 'package:app/core/widgets/replay_panel.dart';
@@ -10,6 +12,7 @@ import 'package:app/features/match/widgets/help_hint.dart';
 import 'package:app/features/match/widgets/serve_banner.dart';
 import 'package:app/features/match/widgets/set_end_prompt.dart';
 import 'package:app/features/match/widgets/swap_sides_button.dart';
+import 'package:app/features/match_history/screens/analytics_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -79,14 +82,14 @@ class MatchScreen extends ConsumerWidget {
   }
 }
 
-class _MatchLayout extends StatefulWidget {
+class _MatchLayout extends ConsumerStatefulWidget {
   const _MatchLayout();
 
   @override
-  State<_MatchLayout> createState() => _MatchLayoutState();
+  ConsumerState<_MatchLayout> createState() => _MatchLayoutState();
 }
 
-class _MatchLayoutState extends State<_MatchLayout> {
+class _MatchLayoutState extends ConsumerState<_MatchLayout> {
   bool _helpOpen = false;
 
   @override
@@ -110,6 +113,25 @@ class _MatchLayoutState extends State<_MatchLayout> {
                 ),
               ),
               const Spacer(),
+              Consumer(
+                builder: (context, ref, _) {
+                  final hasPoints = ref.watch(
+                    matchProvider.select((s) => s.history.isNotEmpty),
+                  );
+                  if (!hasPoints) return const SizedBox.shrink();
+                  return IconButton(
+                    icon: const Icon(Icons.bar_chart_rounded, color: MH.inkSoft, size: 22),
+                    onPressed: () {
+                      final state = ref.read(matchProvider);
+                      unawaited(Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => AnalyticsScreen(state: state),
+                        ),
+                      ));
+                    },
+                  );
+                },
+              ),
               GestureDetector(
                 onTap: () => setState(() => _helpOpen = !_helpOpen),
                 child: Container(
