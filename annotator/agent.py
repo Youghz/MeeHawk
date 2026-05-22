@@ -562,9 +562,15 @@ Player assignment:
   • e1 = left team; p1 and p2 are their players
   • e2 = right team; p3 and p4 are their players
 
+SHORT RALLIES — do NOT skip these:
+  • Service fault (ball hits net or goes out on serve): rally lasts ~1-3 seconds total.
+  • Service ace (ball lands untouched in opponent's court): rally lasts ~2-4 seconds.
+  These are valid points and must be logged. With the ±3s margin they will appear as
+  6-10 second clips, which is fine.
+
 RULES:
   • Only log rallies you actually observe — never invent one.
-  • Beach volleyball rallies last between 5 and 60 seconds. Any rally under 5 s is wrong.
+  • Normal rallies last 5–60 seconds. Short rallies (service fault/ace) can be 1–4 s.
   • Timestamps must be in SECONDS from the video start (e.g. 2 min 15 s → 135.0).
   • Rallies must be non-overlapping and in chronological order.
   • Include ALL rallies in the video within the given scope."""
@@ -633,17 +639,23 @@ def _annotate_clip(client, uploaded_file, rally_num: int, duration: float, model
         review_note: str | None = None
 
     prompt = f"""\
-This clip shows beach volleyball rally #{rally_num} (approx. {duration:.0f}s with a few seconds margin on each side).
+This clip shows beach volleyball rally #{rally_num} (approx. {duration:.0f}s including a few seconds of margin on each side).
 
 Your tasks:
-1. Determine the winner from visual cues only — observe which team scores:
+1. Determine the winner from visual cues only:
    - Ball lands in bounds on opponent's side → attacking team wins.
-   - Ball lands out / hits net → last-touching team loses, opponent wins.
+   - Ball hits the net or lands out → last-touching team loses, opponent wins.
    - If the winning action is not clearly visible, set needs_review=true and explain in review_note.
 
 2. Annotate every ball touch in chronological order:
    - Server starting position: is_server_position=True (player stationary before serve)
    - Every touch: serve, reception, set, attack, block, dig, fault
+
+SHORT RALLY CASES — handle correctly, never invent extra touches:
+   • Service fault (serve hits net or lands out):
+     → 2 touches only: is_server_position + serve(is_outside=True). Winner = receiving team.
+   • Service ace (serve lands untouched in opponent's court):
+     → 2 touches only: is_server_position + serve(is_outside=False). Winner = serving team.
 
 Coordinate system: (0,0)=top-left corner, (1,1)=bottom-right corner.
 Court sides: e1 = left half (x ≈ 0–0.5) · e2 = right half (x ≈ 0.5–1).
