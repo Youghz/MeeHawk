@@ -31,3 +31,6 @@ app/web/videos/*.mp4
 # Firebase service account key — NEVER commit
 mcp/service-account.json
 annotator/service-account.json
+
+# Downloaded videos for rally_segmented (can be large)
+annotator/downloads/
