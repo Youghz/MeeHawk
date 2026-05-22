@@ -351,23 +351,33 @@ def _structured_json(client, model, video_uri, annotator, context, job_ref) -> t
 
     _job_update(job_ref, "annotating", 0.1, "Annotation JSON structuré…")
 
+    contents = [types.Content(role="user", parts=[
+        types.Part.from_uri(file_uri=video_uri, mime_type="video/mp4"),
+        types.Part.from_text(text=prompt),
+    ])]
+    config = types.GenerateContentConfig(
+        response_mime_type="application/json",
+        response_schema=MatchSchema,
+    )
+
     with Progress(
         SpinnerColumn(),
         TextColumn("[bold cyan]structured_json[/bold cyan]  Analyse…"),
         TimeElapsedColumn(), console=_console, transient=False,
     ) as prog:
         prog.add_task("", total=None)
-        response = client.models.generate_content(
-            model=model,
-            contents=[types.Content(role="user", parts=[
-                types.Part.from_uri(file_uri=video_uri, mime_type="video/mp4"),
-                types.Part.from_text(text=prompt),
-            ])],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=MatchSchema,
-            ),
-        )
+        from google.genai.errors import ClientError
+        for attempt in range(6):
+            try:
+                response = client.models.generate_content(model=model, contents=contents, config=config)
+                break
+            except ClientError as e:
+                if e.status_code == 429 and attempt < 5:
+                    wait = 60 * (attempt + 1)
+                    _console.print(f"\n  ⏳ 429 quota — attente {wait}s…", style="yellow")
+                    time.sleep(wait)
+                else:
+                    raise
 
     usage = _Usage()
     usage.add(response.usage_metadata)
