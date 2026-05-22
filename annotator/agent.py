@@ -424,12 +424,22 @@ def _structured_json(client, model, video_uri, annotator, context, job_ref) -> t
 # ── Rally-segmented strategy helpers ──────────────────────────────────────────
 
 def _make_api_key_client():
-    """Return a Gemini Developer client using GEMINI_API_KEY (required for Files API)."""
+    """Return a Gemini Developer client using GEMINI_API_KEY (required for Files API).
+
+    Temporarily clears Vertex AI env vars so the SDK uses the API key path even
+    when GOOGLE_GENAI_USE_VERTEXAI / GOOGLE_CLOUD_PROJECT are set in the environment.
+    """
     from google import genai
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY must be set for rally_segmented (Files API not available on Vertex AI)")
-    return genai.Client(api_key=api_key)
+    _vertex_vars = ("GOOGLE_GENAI_USE_VERTEXAI", "GOOGLE_CLOUD_PROJECT", "GOOGLE_CLOUD_LOCATION")
+    saved = {k: os.environ.pop(k) for k in _vertex_vars if k in os.environ}
+    try:
+        client = genai.Client(api_key=api_key)
+    finally:
+        os.environ.update(saved)
+    return client
 
 
 def _download_video(video_url: str) -> Path:
@@ -463,31 +473,47 @@ def _download_video(video_url: str) -> Path:
     return out
 
 
-def _upload_video(client, video_path: Path):
-    """Upload a local video to Gemini Files API. Returns the File object when ACTIVE."""
+def _cut_clip(video_path: Path, start_s: float, end_s: float, clip_path: Path) -> None:
+    """Extract a rally clip from a local video using ffmpeg (fast stream copy)."""
+    import subprocess
+    duration = end_s - start_s
+    subprocess.run(
+        [
+            "ffmpeg", "-y",
+            "-ss", str(start_s),
+            "-i", str(video_path),
+            "-t", str(duration),
+            "-c", "copy",          # stream copy — near-instant, no re-encode
+            "-avoid_negative_ts", "make_zero",
+            str(clip_path),
+        ],
+        check=True,
+        capture_output=True,
+    )
+
+
+def _upload_clip(client, clip_path: Path):
+    """Upload a short clip to Gemini Files API. Returns the File object when ACTIVE."""
     import mimetypes
     from google.genai import types
 
-    size_mb = video_path.stat().st_size // 1_048_576
-    _console.print(f"  Uploading {video_path.name} ({size_mb} MB)…", style="dim")
-
-    mime = mimetypes.guess_type(str(video_path))[0] or "video/mp4"
-    uploaded = client.files.upload(file=video_path, config=types.UploadFileConfig(mime_type=mime))
+    mime = mimetypes.guess_type(str(clip_path))[0] or "video/mp4"
+    uploaded = client.files.upload(file=clip_path, config=types.UploadFileConfig(mime_type=mime))
 
     while uploaded.state.name == "PROCESSING":
-        time.sleep(5)
+        time.sleep(2)
         uploaded = client.files.get(name=uploaded.name)
 
     if uploaded.state.name != "ACTIVE":
-        raise RuntimeError(f"File upload failed — state: {uploaded.state}")
+        raise RuntimeError(f"Clip upload failed — state: {uploaded.state}")
 
-    _console.print(f"  File ready → {uploaded.name}", style="dim")
     return uploaded
 
 
 def _extract_rally_timestamps(client, video_url: str, model: str, context: str):
-    """Pass 1: send the full video and return match metadata + per-rally timestamps.
+    """Pass 1: detect rally boundaries from visual cues only (no scoreboard dependency).
 
+    Identifies dead-ball → live-ball → dead-ball transitions.
     Returns (TimestampResponse, usage_metadata).
     """
     from typing import Literal
@@ -496,42 +522,52 @@ def _extract_rally_timestamps(client, video_url: str, model: str, context: str):
 
     class RallyTimestamp(BaseModel):
         rally_num: int
-        start_seconds: float
-        end_seconds: float
-        winner: Literal["e1", "e2"]
-        score_e1_after: int
-        score_e2_after: int
+        # Timestamps include a few seconds of margin on each side.
+        start_seconds: float  # seconds from video start, with ~3s margin before serve
+        end_seconds: float    # seconds from video start, with ~3s margin after point ends
 
     class TimestampResponse(BaseModel):
         team_e1_name: str
         team_e2_name: str
-        p1: str
-        p2: str
-        p3: str
-        p4: str
+        p1: str  # first name or identifier of e1 player 1
+        p2: str  # first name or identifier of e1 player 2
+        p3: str  # first name or identifier of e2 player 1
+        p4: str  # first name or identifier of e2 player 2
         initial_server_id: Literal["p1", "p2", "p3", "p4"]
         rallies: list[RallyTimestamp]
 
     prompt = (
         (f"{context}\n\n" if context else "")
         + """\
-Watch this beach volleyball match and identify every rally.
+Watch this beach volleyball match and detect the time boundaries of every rally.
+
+VISUAL SIGNALS — use these to find rallies, do NOT rely on any scoreboard:
+
+Dead-ball period (between rallies):
+  • Both teams walking or standing calmly near their positions
+  • Server bouncing or holding the ball at the back line, not yet serving
+  • Referee gesturing or players talking after a point
+
+Rally starts when:
+  • The server steps to the service line and begins their toss/jump motion
+  → Record start_seconds = this moment MINUS 3 seconds (to capture approach)
+
+Rally ends when:
+  • The ball lands on the ground (in or out of bounds)
+  • The ball hits the net and falls dead
+  • A player makes a clear error (double touch, carry)
+  → Record end_seconds = this moment PLUS 3 seconds (to capture reaction)
 
 Player assignment:
-- e1 = left team at the start; p1 and p2 are their players
-- e2 = right team at the start; p3 and p4 are their players
+  • e1 = left team; p1 and p2 are their players
+  • e2 = right team; p3 and p4 are their players
 
-For EACH rally provide:
-- start_seconds: when the server begins serving (float, seconds from video start)
-- end_seconds: when the point is awarded (float, seconds from video start)
-- winner: which team won (e1 or e2) — read from the scoreboard overlay
-- score_e1_after / score_e2_after: scoreboard values AFTER this point
-
-Rules:
-- Use the scoreboard (top-right overlay) as the authoritative source.
-- A rally starts when the server's arm begins the service motion.
-- A rally ends when the referee signals the point or the ball clearly lands.
-- Capture ALL rallies within the given scope, in order."""
+RULES:
+  • Only log rallies you actually observe — never invent one.
+  • Beach volleyball rallies last between 5 and 60 seconds. Any rally under 5 s is wrong.
+  • Timestamps must be in SECONDS from the video start (e.g. 2 min 15 s → 135.0).
+  • Rallies must be non-overlapping and in chronological order.
+  • Include ALL rallies in the video within the given scope."""
     )
 
     contents = [types.Content(role="user", parts=[
@@ -547,14 +583,34 @@ Rules:
             response_schema=TimestampResponse,
         ),
     )
-    return TimestampResponse.model_validate_json(resp.text), resp.usage_metadata
+
+    data = TimestampResponse.model_validate_json(resp.text)
+
+    # Heuristic: if max timestamp < 200 s and ≥5 rallies, Gemini likely output minutes.
+    if data.rallies:
+        max_ts = max(max(r.start_seconds, r.end_seconds) for r in data.rallies)
+        if max_ts < 200 and len(data.rallies) >= 5:
+            _console.print(
+                f"  ⚠ Timestamps semblent être des minutes (max={max_ts:.1f}) — conversion ×60",
+                style="yellow",
+            )
+            for r in data.rallies:
+                r.start_seconds = round(r.start_seconds * 60, 1)
+                r.end_seconds   = round(r.end_seconds   * 60, 1)
+
+        # Clamp negatives and ensure end > start.
+        for r in data.rallies:
+            r.start_seconds = max(0.0, r.start_seconds)
+            if r.end_seconds <= r.start_seconds:
+                r.end_seconds = r.start_seconds + 15.0
+
+    return data, resp.usage_metadata
 
 
-def _annotate_segment(client, uploaded_file, rally_num: int, start_s: float, end_s: float,
-                      winner: str, score_e1: int, score_e2: int, model: str):
-    """Pass 2: annotate a single rally segment using a file offset window.
+def _annotate_clip(client, uploaded_file, rally_num: int, duration: float, model: str):
+    """Pass 2: annotate a single rally clip. Winner determined from visual cues only.
 
-    Returns (impacts list, needs_review, review_note, usage_metadata).
+    Returns (winner, impacts list, needs_review, review_note, usage_metadata).
     """
     from typing import Literal
     from pydantic import BaseModel
@@ -571,31 +627,31 @@ def _annotate_segment(client, uploaded_file, rally_num: int, start_s: float, end
         touch_type: Literal["serve", "reception", "set", "attack", "block", "dig", "fault"] | None = None
 
     class SegmentAnnotation(BaseModel):
+        winner: Literal["e1", "e2"]
         impacts: list[ImpactSchema]
         needs_review: bool = False
         review_note: str | None = None
 
-    duration = end_s - start_s
     prompt = f"""\
-This clip shows beach volleyball rally #{rally_num} ({duration:.1f}s).
-Winner: {winner} — score after: E1={score_e1} / E2={score_e2}.
+This clip shows beach volleyball rally #{rally_num} (approx. {duration:.0f}s with a few seconds margin on each side).
 
-Annotate every ball touch in order:
-1. Server starting position: is_server_position=True (before the serve)
-2. Every subsequent touch: serve, reception, set, attack, block, dig, fault
+Your tasks:
+1. Determine the winner from visual cues only — observe which team scores:
+   - Ball lands in bounds on opponent's side → attacking team wins.
+   - Ball lands out / hits net → last-touching team loses, opponent wins.
+   - If the winning action is not clearly visible, set needs_review=true and explain in review_note.
 
-Coordinate system: (0,0)=top-left, (1,1)=bottom-right.
-e1 plays on the left (x≈0–0.5), e2 on the right (x≈0.5–1).
-Players: p1 p2 for e1 · p3 p4 for e2.
+2. Annotate every ball touch in chronological order:
+   - Server starting position: is_server_position=True (player stationary before serve)
+   - Every touch: serve, reception, set, attack, block, dig, fault
 
-Set needs_review=true only when the winning action is not visible on camera."""
+Coordinate system: (0,0)=top-left corner, (1,1)=bottom-right corner.
+Court sides: e1 = left half (x ≈ 0–0.5) · e2 = right half (x ≈ 0.5–1).
+Players: p1 p2 for e1 · p3 p4 for e2."""
 
-    video_part = types.Part(
-        file_data=types.FileData(file_uri=uploaded_file.uri, mime_type=uploaded_file.mime_type or "video/mp4"),
-        video_metadata=types.VideoMetadata(
-            start_offset=f"{start_s:.3f}s",
-            end_offset=f"{end_s:.3f}s",
-        ),
+    video_part = types.Part.from_uri(
+        file_uri=uploaded_file.uri,
+        mime_type=uploaded_file.mime_type or "video/mp4",
     )
 
     resp = client.models.generate_content(
@@ -608,7 +664,7 @@ Set needs_review=true only when the winning action is not visible on camera."""
     )
 
     data = SegmentAnnotation.model_validate_json(resp.text)
-    return data.impacts, data.needs_review, data.review_note, resp.usage_metadata
+    return data.winner, data.impacts, data.needs_review, data.review_note, resp.usage_metadata
 
 
 def _rally_segmented(client, model, video_url, annotator, context, job_ref) -> tuple[_Usage, int, int]:
@@ -639,12 +695,11 @@ def _rally_segmented(client, model, video_url, annotator, context, job_ref) -> t
     _console.print(f"\n  {n} rallies identifiés — serveur initial: {ts_data.initial_server_id}")
     for r in ts_data.rallies:
         _console.print(
-            f"  Rally {r.rally_num:>2}  {r.start_seconds:>6.1f}s – {r.end_seconds:>6.1f}s  "
-            f"winner={r.winner}  score={r.score_e1_after}-{r.score_e2_after}",
+            f"  Rally {r.rally_num:>2}  {r.start_seconds:>6.1f}s – {r.end_seconds:>6.1f}s",
             style="dim",
         )
 
-    # ── Download + upload ─────────────────────────────────────────────────────
+    # ── Download ──────────────────────────────────────────────────────────────
     _job_update(job_ref, "analyzing", 0.2, "Téléchargement de la vidéo…")
 
     is_youtube = "youtube.com" in video_url or "youtu.be" in video_url
@@ -655,10 +710,6 @@ def _rally_segmented(client, model, video_url, annotator, context, job_ref) -> t
         if not video_path.exists():
             raise FileNotFoundError(f"Local video not found: {video_path}")
 
-    _job_update(job_ref, "analyzing", 0.35, "Upload vers Gemini Files API…")
-    file_client = _make_api_key_client()
-    uploaded = _upload_video(file_client, video_path)
-
     # ── Init match ────────────────────────────────────────────────────────────
     annotator.start_match(
         team_e1_name=ts_data.team_e1_name,
@@ -668,8 +719,12 @@ def _rally_segmented(client, model, video_url, annotator, context, job_ref) -> t
         initial_server_id=ts_data.initial_server_id,
     )
 
-    # ── Pass 2: per-rally annotation ──────────────────────────────────────────
+    # ── Pass 2: per-rally clip → upload → annotate → delete ──────────────────
     _job_update(job_ref, "annotating", 0.4, "Annotation par rally…")
+
+    file_client = _make_api_key_client()
+    clips_dir = DOWNLOADS_DIR / "clips"
+    clips_dir.mkdir(exist_ok=True)
 
     ambiguous = 0
     with Progress(
@@ -684,22 +739,46 @@ def _rally_segmented(client, model, video_url, annotator, context, job_ref) -> t
             if annotator._state and annotator._state.match_over:
                 break
 
+            clip_path = clips_dir / f"rally_{ts.rally_num:03d}.mp4"
+            duration = ts.end_seconds - ts.start_seconds
+
+            # Cut clip locally with ffmpeg (stream copy — fast).
+            _cut_clip(video_path, ts.start_seconds, ts.end_seconds, clip_path)
+
+            # Upload the short clip (~2-10 MB), annotate, then delete.
+            from google.genai.errors import ServerError
+            uploaded = None
             for attempt in range(6):
                 try:
-                    impacts, needs_review, review_note, meta = _annotate_segment(
+                    uploaded = _upload_clip(file_client, clip_path)
+                    winner, impacts, needs_review, review_note, meta = _annotate_clip(
                         file_client, uploaded,
-                        ts.rally_num, ts.start_seconds, ts.end_seconds,
-                        ts.winner, ts.score_e1_after, ts.score_e2_after,
+                        ts.rally_num, duration,
                         model,
                     )
                     break
-                except ClientError as e:
-                    if "429" in str(e) and attempt < 5:
-                        wait = 60 * (attempt + 1)
-                        _console.print(f"\n  ⏳ 429 quota — attente {wait}s…", style="yellow")
+                except (ClientError, ServerError) as e:
+                    # Clean up remote file if it was created before the error.
+                    if uploaded is not None:
+                        try:
+                            file_client.files.delete(name=uploaded.name)
+                        except Exception:
+                            pass
+                        uploaded = None
+                    if ("429" in str(e) or "503" in str(e)) and attempt < 5:
+                        wait = 30 * (attempt + 1)
+                        _console.print(f"\n  ⏳ {str(e)[:20]}… attente {wait}s (tentative {attempt+1}/5)", style="yellow")
                         time.sleep(wait)
                     else:
                         raise
+
+            # Clean up remote file and local clip after the retry loop.
+            if uploaded is not None:
+                try:
+                    file_client.files.delete(name=uploaded.name)
+                except Exception:
+                    pass
+            clip_path.unlink(missing_ok=True)
 
             usage.add(meta)
 
@@ -711,18 +790,12 @@ def _rally_segmented(client, model, video_url, annotator, context, job_ref) -> t
                 )
 
             if needs_review:
-                annotator.add_ambiguous_point(winner=ts.winner, note=review_note or "")
+                annotator.add_ambiguous_point(winner=winner, note=review_note or "")
                 ambiguous += 1
             else:
-                annotator.add_point(winner=ts.winner)
+                annotator.add_point(winner=winner)
 
             prog.advance(task)
-
-    # Clean up uploaded file to avoid quota accumulation.
-    try:
-        file_client.files.delete(name=uploaded.name)
-    except Exception:
-        pass
 
     return usage, n, ambiguous
 
