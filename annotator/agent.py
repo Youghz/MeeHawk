@@ -769,6 +769,7 @@ def _rally_segmented(client, model, video_url, annotator, context, job_ref) -> t
 
             # Upload the short clip (~2-10 MB), annotate, then delete.
             from google.genai.errors import ServerError
+            import httpx
             uploaded = None
             for attempt in range(6):
                 try:
@@ -779,7 +780,8 @@ def _rally_segmented(client, model, video_url, annotator, context, job_ref) -> t
                         model,
                     )
                     break
-                except (ClientError, ServerError) as e:
+                except (ClientError, ServerError, httpx.RemoteProtocolError,
+                        httpx.ConnectError, httpx.ReadError, ConnectionError) as e:
                     # Clean up remote file if it was created before the error.
                     if uploaded is not None:
                         try:
@@ -787,9 +789,13 @@ def _rally_segmented(client, model, video_url, annotator, context, job_ref) -> t
                         except Exception:
                             pass
                         uploaded = None
-                    if ("429" in str(e) or "503" in str(e)) and attempt < 5:
+                    is_transient = "429" in str(e) or "503" in str(e) or isinstance(
+                        e, (httpx.RemoteProtocolError, httpx.ConnectError,
+                            httpx.ReadError, ConnectionError)
+                    )
+                    if is_transient and attempt < 5:
                         wait = 30 * (attempt + 1)
-                        _console.print(f"\n  ⏳ {str(e)[:20]}… attente {wait}s (tentative {attempt+1}/5)", style="yellow")
+                        _console.print(f"\n  ⏳ {type(e).__name__}: {str(e)[:30]}… attente {wait}s ({attempt+1}/5)", style="yellow")
                         time.sleep(wait)
                     else:
                         raise
