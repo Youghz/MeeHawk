@@ -53,6 +53,7 @@ class BallImpact implements ImpactLike {
     this.isServerPosition = false,
     this.isBlock = false,
     this.videoTimeSec,
+    this.touchType,
   });
 
   final double x;
@@ -67,6 +68,8 @@ class BallImpact implements ImpactLike {
   @override
   final bool isBlock;
   final double? videoTimeSec;
+  /// Touch classification: 'serve' | 'reception' | 'set' | 'attack' | 'block' | 'dig' | 'fault'
+  final String? touchType;
 }
 
 /// A labelled action attached to a rally or a point (service, attaque,

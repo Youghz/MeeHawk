@@ -70,6 +70,7 @@ class MatchAnnotator:
         is_server_position: bool = False,
         player_id: str | None = None,
         video_time_sec: float | None = None,
+        touch_type: str | None = None,
     ) -> dict:
         self._require_state()
         s = self._state
@@ -84,6 +85,7 @@ class MatchAnnotator:
             x=x, y=y, is_outside=is_outside, team_side=team_side,
             player_id=player_id, is_server_position=is_server_position,
             is_block=is_block, video_time_sec=video_time_sec,
+            touch_type=touch_type,
         )
 
         if is_server_position and s.history:

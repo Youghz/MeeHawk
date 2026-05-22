@@ -60,6 +60,7 @@ class BallImpact:
     is_server_position: bool = False
     is_block: bool = False
     video_time_sec: Optional[float] = None
+    touch_type: Optional[str] = None
 
 
 @dataclass
@@ -179,6 +180,8 @@ def _impact_to_json(i: BallImpact) -> dict:
         d["isBlock"] = True
     if i.video_time_sec is not None:
         d["videoTimeSec"] = round(i.video_time_sec, 2)
+    if i.touch_type is not None:
+        d["touchType"] = i.touch_type
     return d
 
 
@@ -192,6 +195,7 @@ def _impact_from_json(j: dict) -> BallImpact:
         is_server_position=bool(j.get("isServerPosition", False)),
         is_block=bool(j.get("isBlock", False)),
         video_time_sec=float(j["videoTimeSec"]) if j.get("videoTimeSec") is not None else None,
+        touch_type=j.get("touchType"),
     )
 
 

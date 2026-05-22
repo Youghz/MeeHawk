@@ -63,6 +63,7 @@ def add_ball_impact(
     is_server_position: bool = False,
     player_id: str | None = None,
     video_time_sec: float | None = None,
+    touch_type: str | None = None,
 ) -> dict:
     """Record a ball impact during the current rally.
 
@@ -76,6 +77,7 @@ def add_ball_impact(
     is_server_position: True for the server's starting-position marker (not a ball contact).
     player_id: 'p1' (e1 front), 'p2' (e1 back), 'p3' (e2 front), 'p4' (e2 back).
     video_time_sec: timestamp in seconds when this touch occurs in the video.
+    touch_type: one of 'serve' | 'reception' | 'set' | 'attack' | 'block' | 'dig' | 'fault'.
 
     When is_server_position=True, the server checks serve consistency: if the serving team
     does not match the expected next server (winner of previous point), it returns a
@@ -83,7 +85,8 @@ def add_ball_impact(
     The impact is NOT recorded in that case — follow the instructions before retrying.
     """
     result = annotator.add_ball_impact(
-        x, y, team_side, is_outside, is_block, is_server_position, player_id, video_time_sec
+        x, y, team_side, is_outside, is_block, is_server_position, player_id, video_time_sec,
+        touch_type,
     )
     _save()
     return result
