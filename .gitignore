@@ -27,3 +27,7 @@ dist/
 # Screenshots (Claude Code visual checks)
 .screenshots/
 app/web/videos/*.mp4
+
+# Firebase service account key — NEVER commit
+mcp/service-account.json
+annotator/service-account.json

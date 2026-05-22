@@ -72,23 +72,23 @@ HomeScreen → HistoryScreen → MatchReplayScreen
                             → AnalyticsScreen
 ```
 
-## MCP Python server — synchronisation obligatoire
+## Python annotation package — synchronisation obligatoire
 
-Le dossier `mcp/` contient un port Python exact de la logique métier Flutter.
+Le dossier `annotator/` contient un port Python exact de la logique métier Flutter.
 **Toute modification d'un des fichiers Dart listés ci-dessous doit être répercutée immédiatement dans le fichier Python correspondant.**
 
 | Dart (source de vérité) | Python (port à maintenir) |
 |---|---|
-| `app/lib/features/match/providers/match_provider.dart` — `MatchNotifier` | `mcp/annotation.py` — `MatchAnnotator` |
-| `app/lib/features/match/persistence/match_codec.dart` — `MatchCodec` | `mcp/match_state.py` — `MatchCodec` + helpers |
-| `app/lib/features/match/domain/match_state.dart` — `MatchState`, `initialMatchState` | `mcp/match_state.py` — `MatchState`, `initial_match_state` |
-| `app/lib/core/rules/service_rotation.dart` — `ServiceRotation` | `mcp/rules.py` — `ServiceRotation` |
-| `app/lib/core/rules/set_rules.dart` — `SetRules` | `mcp/rules.py` — `SetRules` |
-| `app/lib/core/rules/attack_inference.dart` — `AttackInference` | `mcp/rules.py` — `AttackInference` |
-| `app/lib/core/rules/rally_analyzer.dart` — `RallyAnalyzer` | `mcp/rules.py` — `RallyAnalyzer` |
-| `app/lib/core/rules/match_format.dart` — `MatchFormat` | `mcp/match_state.py` — `MatchFormat` |
+| `app/lib/features/match/providers/match_provider.dart` — `MatchNotifier` | `annotator/core.py` — `MatchAnnotator` |
+| `app/lib/features/match/persistence/match_codec.dart` — `MatchCodec` | `annotator/state.py` — `MatchCodec` + helpers |
+| `app/lib/features/match/domain/match_state.dart` — `MatchState`, `initialMatchState` | `annotator/state.py` — `MatchState`, `initial_match_state` |
+| `app/lib/core/rules/service_rotation.dart` — `ServiceRotation` | `annotator/rules.py` — `ServiceRotation` |
+| `app/lib/core/rules/set_rules.dart` — `SetRules` | `annotator/rules.py` — `SetRules` |
+| `app/lib/core/rules/attack_inference.dart` — `AttackInference` | `annotator/rules.py` — `AttackInference` |
+| `app/lib/core/rules/rally_analyzer.dart` — `RallyAnalyzer` | `annotator/rules.py` — `RallyAnalyzer` |
+| `app/lib/core/rules/match_format.dart` — `MatchFormat` | `annotator/state.py` — `MatchFormat` |
 
-**Règle opérationnelle :** Avant chaque commit touchant un de ces fichiers Dart, ouvrir le fichier Python miroir et appliquer le changement équivalent. Vérifier ensuite `uv run python -c "from annotation import MatchAnnotator; ..."` pour valider.
+**Règle opérationnelle :** Avant chaque commit touchant un de ces fichiers Dart, ouvrir le fichier Python miroir et appliquer le changement équivalent. Vérifier ensuite `uv run --project annotator python -c "from annotator import MatchAnnotator; ..."` pour valider.
 
 ## Development
 
