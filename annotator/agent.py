@@ -687,7 +687,7 @@ def _rally_segmented(client, model, video_url, annotator, context, job_ref) -> t
     Upload:               Gemini Files API → file_uri (one-time)
     Pass 2 (N API calls): Each rally → VideoMetadata(start_offset, end_offset) → impacts
     """
-    from google.genai.errors import ClientError
+    from google.genai.errors import ClientError, ServerError
 
     usage = _Usage()
 
@@ -700,7 +700,17 @@ def _rally_segmented(client, model, video_url, annotator, context, job_ref) -> t
         TimeElapsedColumn(), console=_console, transient=False,
     ) as prog:
         prog.add_task("", total=None)
-        ts_data, ts_meta = _extract_rally_timestamps(client, video_url, model, context)
+        for attempt in range(6):
+            try:
+                ts_data, ts_meta = _extract_rally_timestamps(client, video_url, model, context)
+                break
+            except (ClientError, ServerError) as e:
+                if ("429" in str(e) or "503" in str(e)) and attempt < 5:
+                    wait = 60 * (attempt + 1)
+                    _console.print(f"\n  ⏳ {str(e)[:20]}… attente {wait}s (tentative {attempt+1}/5)", style="yellow")
+                    time.sleep(wait)
+                else:
+                    raise
 
     usage.add(ts_meta)
     n = len(ts_data.rallies)
