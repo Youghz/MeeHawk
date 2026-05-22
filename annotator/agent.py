@@ -613,9 +613,10 @@ RULES:
     return data, resp.usage_metadata
 
 
-def _annotate_clip(client, uploaded_file, rally_num: int, duration: float, model: str):
+def _annotate_clip(client, clip_path: Path, rally_num: int, duration: float, model: str):
     """Pass 2: annotate a single rally clip. Winner determined from visual cues only.
 
+    Sends clip as inline bytes via Vertex AI client (no Files API, no daily quota).
     Returns (winner, impacts list, needs_review, review_note, usage_metadata).
     """
     from typing import Literal
@@ -661,10 +662,8 @@ Coordinate system: (0,0)=top-left corner, (1,1)=bottom-right corner.
 Court sides: e1 = left half (x ≈ 0–0.5) · e2 = right half (x ≈ 0.5–1).
 Players: p1 p2 for e1 · p3 p4 for e2."""
 
-    video_part = types.Part.from_uri(
-        file_uri=uploaded_file.uri,
-        mime_type=uploaded_file.mime_type or "video/mp4",
-    )
+    video_bytes = clip_path.read_bytes()
+    video_part = types.Part(inline_data=types.Blob(mime_type="video/mp4", data=video_bytes))
 
     resp = client.models.generate_content(
         model=model,
@@ -744,7 +743,6 @@ def _rally_segmented(client, model, video_url, annotator, context, job_ref) -> t
     # ── Pass 2: per-rally clip → upload → annotate → delete ──────────────────
     _job_update(job_ref, "annotating", 0.4, "Annotation par rally…")
 
-    file_client = _make_api_key_client()
     clips_dir = DOWNLOADS_DIR / "clips"
     clips_dir.mkdir(exist_ok=True)
 
@@ -767,28 +765,19 @@ def _rally_segmented(client, model, video_url, annotator, context, job_ref) -> t
             # Cut clip locally with ffmpeg (stream copy — fast).
             _cut_clip(video_path, ts.start_seconds, ts.end_seconds, clip_path)
 
-            # Upload the short clip (~2-10 MB), annotate, then delete.
+            # Send clip as inline bytes via Vertex AI client (no Files API, no daily quota).
             from google.genai.errors import ServerError
             import httpx
-            uploaded = None
             for attempt in range(6):
                 try:
-                    uploaded = _upload_clip(file_client, clip_path)
                     winner, impacts, needs_review, review_note, meta = _annotate_clip(
-                        file_client, uploaded,
+                        client, clip_path,
                         ts.rally_num, duration,
                         model,
                     )
                     break
                 except (ClientError, ServerError, httpx.RemoteProtocolError,
                         httpx.ConnectError, httpx.ReadError, ConnectionError) as e:
-                    # Clean up remote file if it was created before the error.
-                    if uploaded is not None:
-                        try:
-                            file_client.files.delete(name=uploaded.name)
-                        except Exception:
-                            pass
-                        uploaded = None
                     is_transient = "429" in str(e) or "503" in str(e) or isinstance(
                         e, (httpx.RemoteProtocolError, httpx.ConnectError,
                             httpx.ReadError, ConnectionError)
@@ -800,12 +789,6 @@ def _rally_segmented(client, model, video_url, annotator, context, job_ref) -> t
                     else:
                         raise
 
-            # Clean up remote file and local clip after the retry loop.
-            if uploaded is not None:
-                try:
-                    file_client.files.delete(name=uploaded.name)
-                except Exception:
-                    pass
             clip_path.unlink(missing_ok=True)
 
             usage.add(meta)
