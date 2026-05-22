@@ -147,6 +147,8 @@ class MatchCodec {
         'setNumber': p.setNumber,
         'serverId': p.serverId,
         'impacts': p.impacts.map(_impactToJson).toList(),
+        if (p.needsReview) 'needsReview': true,
+        if (p.reviewNote != null) 'reviewNote': p.reviewNote,
       };
 
   static PointRecord _pointFromJson(Map<String, dynamic> j) => PointRecord(
@@ -161,6 +163,8 @@ class MatchCodec {
         impacts: (j['impacts'] as List? ?? const [])
             .map((i) => _impactFromJson(i as Map<String, dynamic>))
             .toList(),
+        needsReview: j['needsReview'] as bool? ?? false,
+        reviewNote: j['reviewNote'] as String?,
       );
 
   static Map<String, dynamic> _annotationToJson(Annotation a) => {

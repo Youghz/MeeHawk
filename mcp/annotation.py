@@ -150,6 +150,14 @@ class MatchAnnotator:
         self._add_point(winner)
         return self._match_summary()
 
+    def add_ambiguous_point(self, winner: TeamSide, note: str) -> dict:
+        """Record a point where the cause is not visible on video. Human review required."""
+        self._require_state()
+        if winner not in ("e1", "e2"):
+            raise ValueError(f"invalid winner: {winner!r}")
+        self._add_point(winner, needs_review=True, review_note=note)
+        return self._match_summary()
+
     def undo_last_impact(self) -> dict:
         self._require_state()
         s = self._state
@@ -286,6 +294,8 @@ class MatchAnnotator:
         self,
         winner: TeamSide,
         extra_annotations: list[Annotation] | None = None,
+        needs_review: bool = False,
+        review_note: str | None = None,
     ) -> None:
         s = self._state
         if s.match_over:
@@ -322,6 +332,8 @@ class MatchAnnotator:
             set_number=s.set_number,
             server_id=server_id,
             impacts=list(s.rally_impacts),
+            needs_review=needs_review,
+            review_note=review_note,
         )
 
         set_won = SetRules.is_set_won(new_score_e1, new_score_e2, s.set_number, s.format)

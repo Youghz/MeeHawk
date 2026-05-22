@@ -92,6 +92,8 @@ class PointRecord {
     required this.setNumber,
     required this.serverId,
     this.impacts = const [],
+    this.needsReview = false,
+    this.reviewNote,
   });
 
   final TeamSide winner;
@@ -101,6 +103,8 @@ class PointRecord {
   final int setNumber;
   final String serverId;
   final List<BallImpact> impacts;
+  final bool needsReview;
+  final String? reviewNote;
 
   int scoreOf(TeamSide team) => team == TeamSide.e1 ? scoreE1 : scoreE2;
 

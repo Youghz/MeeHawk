@@ -79,6 +79,8 @@ class PointRecord:
     set_number: int
     server_id: str
     impacts: list[BallImpact]
+    needs_review: bool = False
+    review_note: str | None = None
 
 
 @dataclass
@@ -208,7 +210,7 @@ def _annotation_from_json(j: dict) -> Annotation:
 
 
 def _point_to_json(p: PointRecord) -> dict:
-    return {
+    d = {
         "winner": p.winner,
         "annotations": [_annotation_to_json(a) for a in p.annotations],
         "scoreE1": p.score_e1,
@@ -217,6 +219,11 @@ def _point_to_json(p: PointRecord) -> dict:
         "serverId": p.server_id,
         "impacts": [_impact_to_json(i) for i in p.impacts],
     }
+    if p.needs_review:
+        d["needsReview"] = True
+    if p.review_note:
+        d["reviewNote"] = p.review_note
+    return d
 
 
 def _point_from_json(j: dict) -> PointRecord:
@@ -228,6 +235,8 @@ def _point_from_json(j: dict) -> PointRecord:
         set_number=int(j.get("setNumber", 1)),
         server_id=j["serverId"],
         impacts=[_impact_from_json(i) for i in j.get("impacts", [])],
+        needs_review=bool(j.get("needsReview", False)),
+        review_note=j.get("reviewNote"),
     )
 
 

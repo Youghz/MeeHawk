@@ -1,22 +1,31 @@
-# Agent that annotates a beach volleyball video via the meehawk-annotation MCP server.
-# Uses Google ADK (LlmAgent + McpToolset) with ADC authentication (no API key needed).
-#
-# Usage:
-#   export GOOGLE_CLOUD_PROJECT=sandbox-hugo
-#   uv run python mcp/agent.py "https://www.youtube.com/watch?v=..." [--output match_state.json]
-#   uv run python mcp/agent.py "gs://bucket/clip.mp4" [--trace run_trace.jsonl]
+"""
+Beach volleyball annotation agent — raw google-genai client (no ADK).
+
+Strategies
+----------
+single_pass    : video + tools in one session (most precise — recommended)
+two_pass       : analysis breakdown → tool calls (legacy, for comparison)
+structured_json: video → structured JSON, no tools (fastest, cheapest)
+
+Usage
+-----
+  uv run --project mcp python mcp/agent.py VIDEO_URL \\
+      --label my_run \\
+      --strategy single_pass \\
+      --model gemini-2.5-flash \\
+      --context "First 20 minutes only."
+"""
 from __future__ import annotations
 
 import argparse
-import asyncio
 import json
+import os
 import re
-import statistics
 import sys
 import time
-from datetime import datetime, timezone
 from pathlib import Path
 
+from dotenv import load_dotenv
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -27,575 +36,621 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-_console = Console(stderr=True)
-
-from dotenv import load_dotenv
-
-from google.adk.agents import LlmAgent
-from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService
-from google.adk.tools.mcp_tool import McpToolset
-from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
-from google.genai import types
-from mcp import StdioServerParameters
-
 MCP_DIR = Path(__file__).parent
 COST_LOG = MCP_DIR / "cost_log.jsonl"
 MODEL = "gemini-2.5-flash"
 
-# Gemini 2.5 Flash pricing on Vertex AI (USD per 1M tokens) — update if rates change.
-_PRICE = {
-    "input": 0.075,
-    "output": 0.30,
-    "thinking": 3.50,  # thinking tokens (output side)
-}
+_console = Console(stderr=True)
+
+# ── Pricing (Vertex AI, USD / 1M tokens) ──────────────────────────────────────
+
+_PRICE = {"input": 0.075, "output": 0.30, "thinking": 3.50}
 
 
-def _cost_usd(input_tok: int, output_tok: int, thinking_tok: int) -> float:
-    return (
-        input_tok * _PRICE["input"]
-        + output_tok * _PRICE["output"]
-        + thinking_tok * _PRICE["thinking"]
-    ) / 1_000_000
+def _cost_usd(inp: int, out: int, think: int) -> float:
+    return (inp * _PRICE["input"] + out * _PRICE["output"] + think * _PRICE["thinking"]) / 1_000_000
 
 
-class _PassUsage:
-    """Accumulates usage_metadata across all events of one pass."""
+# ── Tool declarations ──────────────────────────────────────────────────────────
 
-    def __init__(self) -> None:
-        self.input_tokens = 0
-        self.output_tokens = 0
-        self.thinking_tokens = 0
-        self.cached_tokens = 0
+def _build_tools():
+    from google.genai import types
 
-    def add(self, meta: types.GenerateContentResponseUsageMetadata) -> None:
-        self.input_tokens += meta.prompt_token_count or 0
-        self.output_tokens += meta.candidates_token_count or 0
-        self.thinking_tokens += meta.thoughts_token_count or 0
-        self.cached_tokens += meta.cached_content_token_count or 0
-
-    def to_dict(self) -> dict:
-        return {
-            "input_tokens": self.input_tokens,
-            "output_tokens": self.output_tokens,
-            "thinking_tokens": self.thinking_tokens,
-            "cached_tokens": self.cached_tokens,
-        }
-
-
-def _quality_metrics(state_path: Path) -> dict:
-    """Compute annotation quality indicators from the saved match state."""
-    try:
-        state = json.loads(state_path.read_text())
-        history = state.get("history", [])
-        if not history:
-            return {}
-
-        impacts_per_rally = []
-        xs, ys = [], []
-        video_time_set = 0
-        total_impacts = 0
-
-        for point in history:
-            ball_impacts = [i for i in point.get("impacts", []) if i.get("type") == "ball"]
-            # Fallback: impacts without explicit type (older codec)
-            if not ball_impacts:
-                ball_impacts = [i for i in point.get("impacts", []) if "x" in i and "y" in i]
-            impacts_per_rally.append(len(ball_impacts))
-            for imp in ball_impacts:
-                xs.append(imp["x"])
-                ys.append(imp["y"])
-                if imp.get("videoTimeSec") is not None:
-                    video_time_set += 1
-                total_impacts += 1
-
-        return {
-            "rallies": len(history),
-            "impacts_per_rally": impacts_per_rally,
-            "x_stddev": round(statistics.stdev(xs), 3) if len(xs) > 1 else 0,
-            "y_stddev": round(statistics.stdev(ys), 3) if len(ys) > 1 else 0,
-            "video_time_pct": round(100 * video_time_set / total_impacts) if total_impacts else 0,
-        }
-    except Exception:  # noqa: BLE001
-        return {}
-
-
-def _write_cost_log(
-    video: str,
-    model: str,
-    duration_s: float,
-    pass1: _PassUsage,
-    pass2: _PassUsage,
-    quality: dict,
-) -> dict:
-    total_input = pass1.input_tokens + pass2.input_tokens
-    total_output = pass1.output_tokens + pass2.output_tokens
-    total_thinking = pass1.thinking_tokens + pass2.thinking_tokens
-    cost = _cost_usd(total_input, total_output, total_thinking)
-
-    record = {
-        "ts": datetime.now(timezone.utc).isoformat(),
-        "video": video,
-        "model": model,
-        "duration_s": round(duration_s, 1),
-        "pass1": pass1.to_dict(),
-        "pass2": pass2.to_dict(),
-        "total": {
-            "input_tokens": total_input,
-            "output_tokens": total_output,
-            "thinking_tokens": total_thinking,
-            "cost_usd": round(cost, 6),
-        },
-        "quality": quality,
-    }
-
-    with COST_LOG.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(record, ensure_ascii=False) + "\n")
-
-    return record
+    return types.Tool(function_declarations=[
+        types.FunctionDeclaration(
+            name="start_match",
+            description="Initialize the match. Call exactly once before any other tool.",
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "team_e1_name": types.Schema(type=types.Type.STRING),
+                    "team_e2_name": types.Schema(type=types.Type.STRING),
+                    "p1": types.Schema(type=types.Type.STRING, description="Player 1 of e1 (left team)"),
+                    "p2": types.Schema(type=types.Type.STRING, description="Player 2 of e1 (left team)"),
+                    "p3": types.Schema(type=types.Type.STRING, description="Player 1 of e2 (right team)"),
+                    "p4": types.Schema(type=types.Type.STRING, description="Player 2 of e2 (right team)"),
+                    "initial_server_id": types.Schema(type=types.Type.STRING, enum=["p1", "p2", "p3", "p4"]),
+                },
+                required=["team_e1_name", "team_e2_name", "p1", "p2", "p3", "p4", "initial_server_id"],
+            ),
+        ),
+        types.FunctionDeclaration(
+            name="add_ball_impact",
+            description="Record one ball touch during the current rally.",
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "x": types.Schema(type=types.Type.NUMBER, description="Normalized x [0,1], 0=left edge"),
+                    "y": types.Schema(type=types.Type.NUMBER, description="Normalized y [0,1], 0=top edge"),
+                    "team_side": types.Schema(type=types.Type.STRING, enum=["e1", "e2"]),
+                    "is_outside": types.Schema(type=types.Type.BOOLEAN, description="True if ball landed out of bounds"),
+                    "is_block": types.Schema(type=types.Type.BOOLEAN, description="True if this touch is a block"),
+                    "is_server_position": types.Schema(type=types.Type.BOOLEAN, description="True for the server's initial standing position"),
+                    "player_id": types.Schema(type=types.Type.STRING, enum=["p1", "p2", "p3", "p4"]),
+                    "touch_type": types.Schema(type=types.Type.STRING, enum=["serve", "reception", "set", "attack", "block", "dig", "fault"]),
+                },
+                required=["x", "y", "team_side", "is_outside"],
+            ),
+        ),
+        types.FunctionDeclaration(
+            name="add_point",
+            description="Close the current rally and award the point. Call after all ball impacts.",
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "winner": types.Schema(type=types.Type.STRING, enum=["e1", "e2"]),
+                },
+                required=["winner"],
+            ),
+        ),
+        types.FunctionDeclaration(
+            name="add_ambiguous_point",
+            description=(
+                "Close the rally when the winning cause is NOT visible on video but can be inferred "
+                "(e.g. server changes without visible fault, ball goes off-frame). "
+                "A human reviewer will complete the annotation later."
+            ),
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "winner": types.Schema(type=types.Type.STRING, enum=["e1", "e2"]),
+                    "note": types.Schema(type=types.Type.STRING, description="What you observed and why the cause is ambiguous"),
+                },
+                required=["winner", "note"],
+            ),
+        ),
+        types.FunctionDeclaration(
+            name="undo_last_impact",
+            description="Remove the last ball impact from the current rally.",
+            parameters=types.Schema(type=types.Type.OBJECT, properties={}),
+        ),
+        types.FunctionDeclaration(
+            name="undo_point",
+            description="Cancel the last recorded point (revert score by one).",
+            parameters=types.Schema(type=types.Type.OBJECT, properties={}),
+        ),
+        types.FunctionDeclaration(
+            name="get_match_state",
+            description="Return current score, server, and history summary.",
+            parameters=types.Schema(type=types.Type.OBJECT, properties={}),
+        ),
+        types.FunctionDeclaration(
+            name="clear_rally",
+            description="Discard all ball impacts of the current rally and start fresh.",
+            parameters=types.Schema(type=types.Type.OBJECT, properties={}),
+        ),
+    ])
 
 
-def _print_cost_summary(record: dict) -> None:
-    t = record["total"]
-    q = record.get("quality", {})
-    print("\n── Cost summary ─────────────────────────────", file=sys.stderr)
-    print(f"  Model    : {record['model']}", file=sys.stderr)
-    print(f"  Duration : {record['duration_s']}s", file=sys.stderr)
-    print(f"  Tokens   : {t['input_tokens']:,} in  /  {t['output_tokens']:,} out", file=sys.stderr)
-    if t["thinking_tokens"]:
-        print(f"  Thinking : {t['thinking_tokens']:,} tokens", file=sys.stderr)
-    print(f"  Cost     : ${t['cost_usd']:.4f}", file=sys.stderr)
-    if q:
-        print(
-            f"  Quality  : {q.get('rallies')} rallies · "
-            f"x_std={q.get('x_stddev')} · y_std={q.get('y_stddev')} · "
-            f"video_time={q.get('video_time_pct')}%",
-            file=sys.stderr,
-        )
-    print(f"  Log      : {COST_LOG}", file=sys.stderr)
-    print("─────────────────────────────────────────────\n", file=sys.stderr)
+# ── Prompt templates ───────────────────────────────────────────────────────────
 
-# ─── Prompts ──────────────────────────────────────────────────────────────────
+SINGLE_PASS_INSTRUCTION = """\
+You are a precise beach volleyball annotation agent. Watch the video and annotate every rally immediately by calling tools.
 
-# Pass 1: watch the video, produce a rally-by-rally textual breakdown.
-# No tool calls — pure analysis to ground pass 2.
-# Inject run-specific context (scope, score overlay location, etc.) via the
-# `context` parameter of run_agent — it is prepended before this template.
+For each rally:
+1. Call add_ball_impact(is_server_position=True) for the server's starting position before the serve.
+2. Call add_ball_impact for every subsequent touch: serve, reception, set, attack, block, dig, fault.
+3. Call add_point(winner) once the rally is over.
+   — OR — add_ambiguous_point(winner, note) when the winning cause is not visible on camera.
+
+Use add_ambiguous_point when:
+- You can infer who won (server rotated, scoreboard changed) but cannot see what happened.
+- The ball goes out of frame before landing.
+- A violation is implied by context (referee whistle, crowd reaction) but not captured on video.
+
+Coordinate system: (0,0) = top-left corner, (1,1) = bottom-right corner.
+e1 = left team (x roughly < 0.5), e2 = right team (x roughly > 0.5).
+Minimum 2 impacts per rally (server position + serve).
+Process ALL rallies in the video. Do not skip any.
+"""
+
 ANALYSIS_PROMPT = """\
-Watch this beach volleyball match video carefully.
+Watch this beach volleyball match and produce a structured breakdown of every rally.
 
-Produce a structured breakdown of every rally WITHOUT calling any annotation tools yet.
-For each rally, output:
-
+For each rally output exactly:
 Rally N  [MM:SS–MM:SS]
-  Server: <team side e1|e2> / <player position: front-left|back-left|front-right|back-right>
-  Server position on court: x≈<estimate>, y≈<estimate>
+  Server: <e1|e2> / <player name>
+  Server position: x≈<0-1>, y≈<0-1>
   Touches:
-    1. <team e1|e2> <touch-type: serve|reception|set|attack|block|dig|fault> at x≈<estimate>, y≈<estimate>  player=<p1|p2|p3|p4>
-    2. …
-  Winner: <team side e1|e2>
-  Score: E1 X – E2 Y   ← cumulative score after this point (compute from sequence or read overlay if visible)
-  Notes: <anything unusual — out ball, block, fault, ace, score mismatch>
+    1. <team> <serve|reception|set|attack|block|dig|fault> at x≈..., y≈...  player=<p1-p4>
+    2. ...
+  Winner: <e1|e2>
+  Score: E1 X – E2 Y
+  Notes: <ambiguous if cause not visible, else empty>
 
-Touch-type vocabulary:
-  serve      — the initial service contact
-  reception  — first touch receiving the serve
-  set        — second touch setting up the attack (passe haute)
-  attack     — offensive spike, tip or roll shot
-  block      — net block (jump at net to deflect)
-  dig        — defensive dig (not the first serve reception)
-  fault      — ball goes into the net or out of bounds
-
-Coordinate system (normalised 0–1):
-  x: 0.0 = left baseline · 0.5 = net · 1.0 = right baseline
-  y: 0.0 = top sideline · 1.0 = bottom sideline
-
-Be precise. Estimate real x, y values from what you see on court.
-Do NOT write x=0.25 or x=0.75 for every touch — those are placeholder values, not real positions.
-A serve from the left back zone starts at x≈0.08–0.18. An attack landing deep right: x≈0.82–0.96.
-Mid-court contacts happen around x≈0.25–0.38 (e1) or x≈0.62–0.75 (e2).
+Rules:
+- Minimum 2 touches per rally (server position + serve).
+- Mark rallies where the winning cause is unclear as ambiguous in Notes.
+- Read score from overlay after each point.\
 """
 
-# Pass 2: turn the analysis into tool calls.
-# Stable core — do not embed run-specific constraints here.
 ANNOTATION_INSTRUCTIONS = """\
-You are a beach volleyball match annotator with access to a set of tools.
+You are a beach volleyball annotation agent. Annotate the match from the rally breakdown provided.
 
-═══ COORDINATE SYSTEM ═══════════════════════════════════════════════════
-x axis: 0.0 = left baseline  ·  0.5 = net  ·  1.0 = right baseline
-y axis: 0.0 = top sideline   ·  1.0 = bottom sideline
+For each rally:
+1. add_ball_impact(is_server_position=True) for server position.
+2. add_ball_impact for every touch listed.
+3. add_point(winner) — or add_ambiguous_point(winner, note) for rallies marked ambiguous.
 
-Team e1 (LEFT side, x < 0.5):   p1 = front (near net), p2 = back
-Team e2 (RIGHT side, x > 0.5):  p3 = front (near net), p4 = back
-
-Typical zones — e1 side (mirror for e2: use 1.0 − x):
-  Back zone (serve / dig):   x ≈ 0.05–0.20
-  Mid zone:                  x ≈ 0.20–0.38
-  Attack zone (near net):    x ≈ 0.38–0.48
-  y varies: near top sideline ≈ 0.10–0.25, centre ≈ 0.45–0.55, near bottom ≈ 0.75–0.92
-
-═══ SETUP ═══════════════════════════════════════════════════════════════
-Call start_match once.
-  initial_server_id: p1=left-front, p2=left-back, p3=right-front, p4=right-back.
-
-═══ PER-RALLY ANNOTATION ════════════════════════════════════════════════
-Use the rally breakdown above as your reference for EACH rally:
-
-1. add_ball_impact (is_server_position=True, touch_type="serve"):
-   Server's actual back-zone position — NOT a generic 0.25 or 0.75.
-
-2. add_ball_impact for EVERY ball touch listed in the breakdown, in order:
-   • x, y: use the precise coordinates from the breakdown. Each touch must differ.
-   • team_side: 'e1' left of net, 'e2' right of net.
-   • player_id: p1–p4 based on the player's actual position.
-   • touch_type: one of serve | reception | set | attack | block | dig | fault
-   • is_block: True only when a player jumps at the net to deflect (also set touch_type="block").
-   • is_outside: True when the ball lands out of bounds.
-   • video_time_sec: timestamp in seconds for this touch.
-
-3. add_point once the rally ends.
-
-CRITICAL — minimum impacts per rally:
-  • Every rally MUST have at least 2 add_ball_impact calls: the server position (is_server_position=True)
-    PLUS at least 1 actual ball contact.
-  • A serve ace: server position + serve landing on opponent's side.
-  • A service fault: server position + the fault contact (is_outside=True).
-  • Short rallies have 2 impacts; average rallies 3–6; long rallies 7+.
-
-═══ QUALITY RULES ═══════════════════════════════════════════════════════
-• NEVER use x=0.25 or x=0.75 as a default — use real estimated positions.
-• NEVER default y=0.5 for all touches — vary y per touch.
-• Serving position is always in the back zone (x ≤ 0.20 for e1, x ≥ 0.80 for e2).
-• Annotate EVERY rally in the breakdown. Do not skip any.
-• Use undo_last_impact to correct a wrong touch before calling add_point.
+Process ALL rallies in order.\
 """
 
 
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+# ── Tool dispatch ──────────────────────────────────────────────────────────────
+
+def _dispatch(annotator, name: str, args: dict) -> dict:
+    match name:
+        case "start_match":           return annotator.start_match(**args)
+        case "add_ball_impact":       return annotator.add_ball_impact(**args)
+        case "add_point":             return annotator.add_point(**args)
+        case "add_ambiguous_point":   return annotator.add_ambiguous_point(**args)
+        case "undo_last_impact":      return annotator.undo_last_impact()
+        case "undo_point":            return annotator.undo_point()
+        case "get_match_state":       return annotator.get_match_state()
+        case "clear_rally":           return annotator.clear_rally()
+        case _: raise ValueError(f"unknown tool: {name}")
 
 
-def _job_ref(uid: str, job_id: str):
-    """Return a Firestore DocumentReference for the annotation job, or None."""
-    try:
-        import firebase_admin  # noqa: PLC0415
-        from firebase_admin import credentials, firestore as fs  # noqa: PLC0415
+# ── Gemini client ──────────────────────────────────────────────────────────────
 
-        sa = MCP_DIR / "service-account.json"
-        if not firebase_admin._apps:
-            firebase_admin.initialize_app(credentials.Certificate(str(sa)))
-        return fs.client().collection("users").document(uid).collection("jobs").document(job_id)
-    except Exception as exc:  # noqa: BLE001
-        print(f"  [job] Firestore init failed: {exc}", file=sys.stderr)
+def _make_client():
+    from google import genai
+    project = os.environ.get("GOOGLE_CLOUD_PROJECT")
+    if project:
+        return genai.Client(vertexai=True, project=project, location="us-central1")
+    return genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+
+
+# ── Token accumulator ──────────────────────────────────────────────────────────
+
+class _Usage:
+    def __init__(self) -> None:
+        self.inp = self.out = self.think = self.cached = 0
+
+    def add(self, meta) -> None:
+        if meta is None:
+            return
+        self.inp    += meta.prompt_token_count or 0
+        self.out    += meta.candidates_token_count or 0
+        self.think  += meta.thoughts_token_count or 0
+        self.cached += meta.cached_content_token_count or 0
+
+    def cost(self) -> float:
+        return _cost_usd(self.inp, self.out, self.think)
+
+
+# ── Tool-call loop helper ──────────────────────────────────────────────────────
+
+def _tool_loop(client, model, contents, config, annotator, usage, prog, task, point_names) -> int:
+    """Run the generate→dispatch loop until no more function calls. Returns point count."""
+    from google.genai import types
+    points = 0
+
+    while True:
+        response = client.models.generate_content(model=model, contents=contents, config=config)
+        usage.add(response.usage_metadata)
+
+        candidate = response.candidates[0]
+        content = candidate.content
+        contents.append(content)
+
+        fcs = [p.function_call for p in (content.parts or []) if p.function_call]
+        if not fcs:
+            break
+
+        tool_parts = []
+        for fc in fcs:
+            fc_args = dict(fc.args) if fc.args else {}
+            result = _dispatch(annotator, fc.name, fc_args)
+            _console.print(
+                f"  → {fc.name}({', '.join(f'{k}={v!r}' for k, v in fc_args.items())})",
+                style="dim",
+            )
+            if fc.name in point_names:
+                points += 1
+                prog.advance(task)
+            tool_parts.append(types.Part.from_function_response(
+                name=fc.name,
+                response={"result": result},
+            ))
+
+        contents.append(types.Content(role="user", parts=tool_parts))
+
+    return points
+
+
+# ── Strategies ─────────────────────────────────────────────────────────────────
+
+def _single_pass(client, model, video_uri, annotator, context, job_ref) -> tuple[_Usage, int, int]:
+    """Video + tools in one Gemini session. Returns (usage, points, ambiguous)."""
+    from google.genai import types
+    load_dotenv(MCP_DIR / ".env")
+
+    prompt = (f"{context}\n\n" if context else "") + "Annotate this beach volleyball match rally by rally using the provided tools."
+
+    contents = [types.Content(role="user", parts=[
+        types.Part.from_uri(file_uri=video_uri, mime_type="video/mp4"),
+        types.Part.from_text(text=prompt),
+    ])]
+
+    tools = _build_tools()
+    config = types.GenerateContentConfig(
+        system_instruction=SINGLE_PASS_INSTRUCTION,
+        tools=[tools],
+        tool_config=types.ToolConfig(
+            function_calling_config=types.FunctionCallingConfig(mode="AUTO"),
+        ),
+    )
+
+    _job_update(job_ref, "annotating", 0.1, "Annotation en cours…")
+
+    usage = _Usage()
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold cyan]single_pass[/bold cyan]  Annotation"),
+        BarColumn(), MofNCompleteColumn(), TimeElapsedColumn(),
+        console=_console, transient=False,
+    ) as prog:
+        task = prog.add_task("", total=None)
+        points = _tool_loop(client, model, contents, config, annotator, usage, prog, task, {"add_point", "add_ambiguous_point"})
+
+    ambiguous = sum(1 for p in annotator._state.history if p.needs_review) if annotator._state else 0
+    return usage, points, ambiguous
+
+
+def _two_pass(client, model, video_uri, annotator, context, job_ref) -> tuple[_Usage, int, int]:
+    """Analysis breakdown → tool annotation. Returns (usage, points, ambiguous)."""
+    from google.genai import types
+
+    usage = _Usage()
+
+    # ── Pass 1 ────────────────────────────────────────────────────────────────
+    prompt_p1 = (f"{context}\n\n" if context else "") + ANALYSIS_PROMPT
+    contents_p1 = [types.Content(role="user", parts=[
+        types.Part.from_uri(file_uri=video_uri, mime_type="video/mp4"),
+        types.Part.from_text(text=prompt_p1),
+    ])]
+
+    _job_update(job_ref, "analyzing", 0.0, "Analyse vidéo (1/2)…")
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold cyan]Pass 1[/bold cyan]  Analyse vidéo…"),
+        TimeElapsedColumn(), console=_console, transient=False,
+    ) as prog:
+        prog.add_task("", total=None)
+        resp1 = client.models.generate_content(
+            model=model, contents=contents_p1,
+            config=types.GenerateContentConfig(
+                system_instruction="You are a precise sports video analyst.",
+            ),
+        )
+        usage.add(resp1.usage_metadata)
+
+    rally_breakdown = resp1.text or ""
+    n_rallies = max(1, len(re.findall(r"(?m)^Rally \d+", rally_breakdown)))
+    _console.print(f"\n── Rally breakdown ({n_rallies} rallyes) ──", style="dim")
+    _console.print(rally_breakdown, style="dim")
+    _console.print("──────────────────────────────────────────\n", style="dim")
+
+    _job_update(job_ref, "annotating", 0.4, "Annotation (2/2)…")
+
+    # ── Pass 2 ────────────────────────────────────────────────────────────────
+    prompt_p2 = (
+        f"Here is a detailed breakdown of every rally:\n\n{rally_breakdown}\n\n"
+        "Annotate the match by calling the tools in the correct order for each rally."
+    )
+    contents_p2 = [types.Content(role="user", parts=[types.Part.from_text(text=prompt_p2)])]
+
+    tools = _build_tools()
+    config_p2 = types.GenerateContentConfig(
+        system_instruction=ANNOTATION_INSTRUCTIONS,
+        tools=[tools],
+        tool_config=types.ToolConfig(
+            function_calling_config=types.FunctionCallingConfig(mode="AUTO"),
+        ),
+    )
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold cyan]Pass 2[/bold cyan]  Annotation"),
+        BarColumn(), MofNCompleteColumn(), TimeElapsedColumn(),
+        console=_console, transient=False,
+    ) as prog:
+        task = prog.add_task("", total=n_rallies)
+        points = _tool_loop(client, model, contents_p2, config_p2, annotator, usage, prog, task, {"add_point", "add_ambiguous_point"})
+
+    ambiguous = sum(1 for p in annotator._state.history if p.needs_review) if annotator._state else 0
+    return usage, points, ambiguous
+
+
+def _structured_json(client, model, video_uri, annotator, context, job_ref) -> tuple[_Usage, int, int]:
+    """Single API call with structured JSON schema. No tool loop."""
+    from google.genai import types
+    from pydantic import BaseModel
+
+    class ImpactSchema(BaseModel):
+        x: float
+        y: float
+        team_side: str
+        is_outside: bool
+        is_server_position: bool = False
+        is_block: bool = False
+        player_id: str | None = None
+        touch_type: str | None = None
+
+    class RallySchema(BaseModel):
+        winner: str
+        impacts: list[ImpactSchema]
+        needs_review: bool = False
+        review_note: str | None = None
+
+    class MatchSchema(BaseModel):
+        team_e1_name: str
+        team_e2_name: str
+        p1: str
+        p2: str
+        p3: str
+        p4: str
+        initial_server_id: str
+        rallies: list[RallySchema]
+
+    prompt = (
+        (f"{context}\n\n" if context else "")
+        + "Annotate this beach volleyball match. Output every rally with ball impacts (x,y in [0,1]). "
+        "Set needs_review=true when the winning cause is not visible on camera. "
+        "e1 = left team, e2 = right team. (0,0) = top-left, (1,1) = bottom-right."
+    )
+
+    _job_update(job_ref, "annotating", 0.1, "Annotation JSON structuré…")
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold cyan]structured_json[/bold cyan]  Analyse…"),
+        TimeElapsedColumn(), console=_console, transient=False,
+    ) as prog:
+        prog.add_task("", total=None)
+        response = client.models.generate_content(
+            model=model,
+            contents=[types.Content(role="user", parts=[
+                types.Part.from_uri(file_uri=video_uri, mime_type="video/mp4"),
+                types.Part.from_text(text=prompt),
+            ])],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=MatchSchema,
+            ),
+        )
+
+    usage = _Usage()
+    usage.add(response.usage_metadata)
+
+    data = MatchSchema.model_validate_json(response.text)
+
+    # Import programmatically
+    annotator.start_match(
+        team_e1_name=data.team_e1_name, team_e2_name=data.team_e2_name,
+        p1=data.p1, p2=data.p2, p3=data.p3, p4=data.p4,
+        initial_server_id=data.initial_server_id,
+    )
+
+    ambiguous = 0
+    for rally in data.rallies:
+        for imp in rally.impacts:
+            annotator.add_ball_impact(
+                x=imp.x, y=imp.y, team_side=imp.team_side, is_outside=imp.is_outside,
+                is_server_position=imp.is_server_position, is_block=imp.is_block,
+                player_id=imp.player_id, touch_type=imp.touch_type,
+            )
+        if rally.needs_review:
+            annotator.add_ambiguous_point(winner=rally.winner, note=rally.review_note or "")
+            ambiguous += 1
+        else:
+            annotator.add_point(winner=rally.winner)
+
+    return usage, len(data.rallies), ambiguous
+
+
+# ── Firestore helpers ──────────────────────────────────────────────────────────
+
+def _init_firebase():
+    import firebase_admin
+    from firebase_admin import credentials
+    if not firebase_admin._apps:
+        cred = credentials.ApplicationDefault()
+        firebase_admin.initialize_app(cred)
+
+
+def _job_ref(uid: str | None, job_id: str):
+    if uid is None:
         return None
+    _init_firebase()
+    from firebase_admin import firestore
+    db = firestore.client()
+    return db.collection("users").document(uid).collection("jobs").document(job_id)
 
 
 def _job_update(ref, status: str, progress: float, message: str) -> None:
-    """Write job status to Firestore; silently no-ops if ref is None."""
     if ref is None:
         return
-    try:
-        from firebase_admin import firestore as fs  # noqa: PLC0415
-
-        ref.set(
-            {"status": status, "progress": progress, "message": message,
-             "updatedAt": fs.SERVER_TIMESTAMP},
-            merge=True,
-        )
-    except Exception as exc:  # noqa: BLE001
-        print(f"  [job] write failed: {exc}", file=sys.stderr)
+    from firebase_admin import firestore as fs
+    ref.update({"status": status, "progress": progress, "message": message, "updatedAt": fs.SERVER_TIMESTAMP})
 
 
-def _trace_writer(trace_path: Path | None):
-    """Returns a callable that appends a JSON line to trace_path, or a no-op."""
-    if trace_path is None:
-        return lambda entry: None
-    trace_path.parent.mkdir(parents=True, exist_ok=True)
-    f = trace_path.open("w", encoding="utf-8")
+# ── Score accuracy ─────────────────────────────────────────────────────────────
 
-    def write(entry: dict) -> None:
-        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-        f.flush()
-
-    return write, f
-
-
-def _log_event(event, trace_write) -> None:
-    """Log a runner event to trace and stderr."""
-    if not event.content:
-        return
-    for part in event.content.parts:
-        if hasattr(part, "function_call") and part.function_call:
-            fc = part.function_call
-            if trace_write:
-                trace_write({
-                    "type": "tool_call",
-                    "ts": _now(),
-                    "tool": fc.name,
-                    "args": dict(fc.args) if fc.args else {},
-                })
-            print(f"  → {fc.name}({', '.join(f'{k}={v!r}' for k, v in (fc.args or {}).items())})", file=sys.stderr)
-        elif hasattr(part, "function_response") and part.function_response:
-            fr = part.function_response
-            if trace_write:
-                trace_write({
-                    "type": "tool_result",
-                    "ts": _now(),
-                    "tool": fr.name,
-                    "result": fr.response if hasattr(fr, "response") else str(fr),
-                })
-        elif hasattr(part, "text") and part.text:
-            if trace_write:
-                trace_write({"type": "model_text", "ts": _now(), "text": part.text})
-            if event.is_final_response():
-                print(part.text)
+def _score_accuracy(state_path: Path) -> dict | None:
+    gt_path = MCP_DIR / "ground_truth.json"
+    if not gt_path.exists() or not state_path.exists():
+        return None
+    gt = json.loads(gt_path.read_text())["rally_sequence"]
+    history = json.loads(state_path.read_text()).get("history", [])
+    n = min(len(history), len(gt))
+    if n == 0:
+        return None
+    matched = sum(1 for i in range(n) if history[i]["winner"] == gt[i]["winner"])
+    last_h = history[n - 1]
+    last_gt = gt[n - 1]
+    return {
+        "compared_rallies": n,
+        "winner_accuracy": round(matched / n, 3),
+        "score_drift_e1": abs(last_h["scoreE1"] - last_gt["score_e1"]),
+        "score_drift_e2": abs(last_h["scoreE2"] - last_gt["score_e2"]),
+    }
 
 
-async def run_agent(
-    video_uri: str,
-    output: str,
-    trace_path: Path | None = None,
-    model: str = MODEL,
-    label: str | None = None,
-    uid: str | None = None,
-    context: str | None = None,
-) -> None:
+# ── Import to app ──────────────────────────────────────────────────────────────
+
+def _import(state_path: Path, uid: str | None, label: str | None) -> str:
+    if uid:
+        sys.path.insert(0, str(MCP_DIR))
+        from import_to_app import import_match
+        return import_match(state_path, uid=uid, match_id=label)
+    return label or "unknown"
+
+
+# ── Cost log ───────────────────────────────────────────────────────────────────
+
+def _log_cost(label, strategy, model, video_uri, duration, usage, points, ambiguous, accuracy):
+    entry = {
+        "ts": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+        "label": label,
+        "strategy": strategy,
+        "video": video_uri,
+        "model": model,
+        "duration_s": round(duration, 1),
+        "input_tokens": usage.inp,
+        "output_tokens": usage.out,
+        "thinking_tokens": usage.think,
+        "cached_tokens": usage.cached,
+        "cost_usd": round(usage.cost(), 6),
+        "rallies": points,
+        "ambiguous_count": ambiguous,
+    }
+    if accuracy:
+        entry["score_accuracy"] = accuracy
+    with open(COST_LOG, "a") as f:
+        f.write(json.dumps(entry) + "\n")
+    return entry
+
+
+# ── Main ───────────────────────────────────────────────────────────────────────
+
+def main() -> None:
     load_dotenv(MCP_DIR / ".env")
 
-    state_path = Path(output).resolve()
-    run_start = time.monotonic()
+    ap = argparse.ArgumentParser(description="Annotate a beach volleyball video.")
+    ap.add_argument("video_uri", help="YouTube URL or gs:// URI")
+    ap.add_argument("--output", help="Output JSON path (default: mcp/match_state_<label>.json)")
+    ap.add_argument("--label", help="Run label used for output filename and cost log")
+    ap.add_argument("--model", default=MODEL)
+    ap.add_argument("--strategy", default="single_pass",
+                    choices=["single_pass", "two_pass", "structured_json"])
+    ap.add_argument("--context", help="Prepended to the prompt (scope, constraints, etc.)")
+    ap.add_argument("--uid", help="Firebase user ID for Firestore job status")
+    args = ap.parse_args()
 
-    job_id = label or state_path.stem
-    job_ref = _job_ref(uid, job_id) if uid else None
-    if job_ref is not None:
-        from firebase_admin import firestore as fs  # noqa: PLC0415
+    label = args.label or f"run_{int(time.time())}"
+    state_path = Path(args.output or MCP_DIR / f"match_state_{label}.json").resolve()
+
+    _console.print(f"Strategy : [bold]{args.strategy}[/bold]", style="cyan")
+    _console.print(f"Video    : {args.video_uri}", style="dim")
+    _console.print(f"Model    : {args.model}", style="dim")
+    _console.print(f"Output   : {state_path}", style="dim")
+
+    job_ref = _job_ref(args.uid, label)
+    if job_ref:
+        from firebase_admin import firestore as fs
         job_ref.set({
             "status": "analyzing",
             "progress": 0.0,
-            "message": "Analyse vidéo (1/2)…",
-            "videoUrl": video_uri,
+            "message": f"Démarrage ({args.strategy})…",
+            "videoUrl": args.video_uri,
             "startedAt": fs.SERVER_TIMESTAMP,
             "updatedAt": fs.SERVER_TIMESTAMP,
         })
 
-    trace_write = None
-    trace_file = None
-    if trace_path is not None:
-        trace_write, trace_file = _trace_writer(trace_path)
-        trace_write({"type": "run_start", "ts": _now(), "video": video_uri, "model": model, "output": str(state_path)})
+    client = _make_client()
 
-    toolset = McpToolset(
-        connection_params=StdioConnectionParams(
-            server_params=StdioServerParameters(
-                command="uv",
-                args=[
-                    "--project", str(MCP_DIR),
-                    "run", "python", str(MCP_DIR / "server.py"),
-                    "--state-file", str(state_path),
-                ],
+    sys.path.insert(0, str(MCP_DIR))
+    from annotation import MatchAnnotator
+    from match_state import MatchCodec
+
+    annotator = MatchAnnotator()
+    t0 = time.monotonic()
+
+    match args.strategy:
+        case "single_pass":
+            usage, points, ambiguous = _single_pass(
+                client, args.model, args.video_uri, annotator, args.context, job_ref
             )
-        )
-    )
+        case "two_pass":
+            usage, points, ambiguous = _two_pass(
+                client, args.model, args.video_uri, annotator, args.context, job_ref
+            )
+        case "structured_json":
+            usage, points, ambiguous = _structured_json(
+                client, args.model, args.video_uri, annotator, args.context, job_ref
+            )
+        case _:
+            _console.print(f"Unknown strategy: {args.strategy}", style="red")
+            sys.exit(1)
 
-    # Analysis agent (no tools) — pass 1: produce structured rally breakdown.
-    analysis_agent = LlmAgent(
-        model=model,
-        name="rally_analyst",
-        instruction="You are a precise sports video analyst. Analyze the video and output a structured breakdown as requested.",
-    )
+    duration = time.monotonic() - t0
 
-    # Annotation agent (with tools) — pass 2: turn breakdown into tool calls.
-    annotation_agent = LlmAgent(
-        model=model,
-        name="beach_volleyball_annotator",
-        instruction=ANNOTATION_INSTRUCTIONS,
-        tools=[toolset],
-    )
+    if annotator._state is None:
+        _console.print("[red]No match state produced — annotation failed.[/red]")
+        sys.exit(1)
 
-    # ── Pass 1: rally analysis ─────────────────────────────────────────────────
-    if trace_path:
-        _console.print(f"Trace : {trace_path}", style="dim")
-
-    # Use separate session services so Pass 1's video context does NOT bleed
-    # into Pass 2's context window.
-    analysis_session_service = InMemorySessionService()
-    analysis_runner = Runner(agent=analysis_agent, app_name="meehawk_analysis", session_service=analysis_session_service)
-    analysis_session = await analysis_session_service.create_session(app_name="meehawk_analysis", user_id="user")
-
-    prompt_text = (f"{context}\n\n" if context else "") + ANALYSIS_PROMPT
-    analysis_message = types.Content(
-        role="user",
-        parts=[
-            types.Part.from_uri(file_uri=video_uri, mime_type="video/mp4"),
-            types.Part.from_text(text=prompt_text),
-        ],
-    )
-
-    pass1_usage = _PassUsage()
-    rally_breakdown = ""
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[bold cyan]Pass 1[/bold cyan]  Analyse vidéo…"),
-        TimeElapsedColumn(),
-        console=_console,
-        transient=False,
-    ) as prog:
-        _t1 = prog.add_task("", total=None)
-        async for event in analysis_runner.run_async(
-            user_id="user",
-            session_id=analysis_session.id,
-            new_message=analysis_message,
-        ):
-            if event.usage_metadata:
-                pass1_usage.add(event.usage_metadata)
-            if event.is_final_response() and event.content:
-                for part in event.content.parts:
-                    if hasattr(part, "text") and part.text:
-                        rally_breakdown = part.text
-                        if trace_write:
-                            trace_write({"type": "rally_breakdown", "ts": _now(), "text": rally_breakdown})
-        prog.update(_t1, description="[bold cyan]Pass 1[/bold cyan]  [green]✓[/green] Analyse terminée")
-
-    n_rallies = max(1, len(re.findall(r"(?m)^Rally \d+", rally_breakdown)))
-    _console.print(
-        f"\n── Rally breakdown ({n_rallies} rallyes) ──────────────────────",
-        style="dim",
-    )
-    _console.print(rally_breakdown, style="dim")
-    _console.print("─────────────────────────────────────────\n", style="dim")
-
-    _job_update(job_ref, "annotating", 0.4, "Annotation des rallyes (2/2)…")
-
-    # ── Pass 2: annotation using tools ────────────────────────────────────────
-    _console.print(f"Output : {state_path}", style="dim")
-
-    annotation_session_service = InMemorySessionService()
-    annotation_runner = Runner(agent=annotation_agent, app_name="meehawk", session_service=annotation_session_service)
-    annotation_session = await annotation_session_service.create_session(app_name="meehawk", user_id="user")
-
-    annotation_message = types.Content(
-        role="user",
-        parts=[
-            types.Part.from_text(
-                text=(
-                    f"Here is a detailed breakdown of every rally:\n\n"
-                    f"{rally_breakdown}\n\n"
-                    "Now annotate the match by calling the tools in the correct order for each rally."
-                )
-            ),
-        ],
-    )
-
-    pass2_usage = _PassUsage()
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[bold cyan]Pass 2[/bold cyan]  Annotation"),
-        BarColumn(),
-        MofNCompleteColumn(),
-        TimeElapsedColumn(),
-        console=_console,
-        transient=False,
-    ) as prog:
-        _t2 = prog.add_task("", total=n_rallies)
-        async for event in annotation_runner.run_async(
-            user_id="user",
-            session_id=annotation_session.id,
-            new_message=annotation_message,
-        ):
-            if event.usage_metadata:
-                pass2_usage.add(event.usage_metadata)
-            # Advance progress bar each time a point is awarded.
-            if event.content:
-                for part in event.content.parts:
-                    if (
-                        hasattr(part, "function_call")
-                        and part.function_call
-                        and part.function_call.name == "add_point"
-                    ):
-                        prog.advance(_t2)
-            _log_event(event, trace_write)
-
-    await toolset.close()
-
-    if trace_write:
-        trace_write({"type": "run_end", "ts": _now()})
-    if trace_file:
-        trace_file.close()
-
-    print(f"\nSaved to {state_path}", file=sys.stderr)
+    state_path.write_text(json.dumps(MatchCodec.to_json(annotator._state), ensure_ascii=False, indent=2))
+    _console.print(f"\nSaved → {state_path}", style="green")
 
     _job_update(job_ref, "importing", 0.9, "Importation dans l'app…")
 
-    # Auto-import into the Flutter web app's matches folder.
-    if uid:
-        from import_to_app import import_match  # noqa: PLC0415
-        match_id = import_match(state_path, uid=uid, match_id=label)
-    else:
-        match_id = label or "unknown"
-    print(f"Imported as {match_id} — open http://localhost:8080 to view", file=sys.stderr)
+    match_id = _import(state_path, args.uid, label)
+    if args.uid:
+        _console.print(f"Imported as {match_id}", style="green")
 
     _job_update(job_ref, "done", 1.0, "Annotation terminée.")
 
-    # Cost tracking.
-    quality = _quality_metrics(state_path)
-    record = _write_cost_log(
-        video=video_uri,
-        model=model,
-        duration_s=time.monotonic() - run_start,
-        pass1=pass1_usage,
-        pass2=pass2_usage,
-        quality=quality,
-    )
-    _print_cost_summary(record)
+    # Score accuracy vs ground truth
+    accuracy = _score_accuracy(state_path)
 
+    # Cost log
+    entry = _log_cost(label, args.strategy, args.model, args.video_uri, duration, usage, points, ambiguous, accuracy)
 
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Annotate a beach volleyball match with Gemini + ADK"
-    )
-    parser.add_argument("url", help="YouTube URL or GCS URI (gs://bucket/file.mp4)")
-    parser.add_argument(
-        "--output",
-        default=None,
-        help="Output path for match_state.json (defaults to mcp/match_state_{label}.json)",
-    )
-    parser.add_argument(
-        "--label",
-        default=None,
-        help="Human-readable run label used as match ID (e.g. 'gemini-2.5-pro', 'prompt-v2')",
-    )
-    parser.add_argument(
-        "--model",
-        default=MODEL,
-        help=f"Gemini model to use (default: {MODEL})",
-    )
-    parser.add_argument(
-        "--trace",
-        default=None,
-        help="Path for JSONL trace file (tool calls + responses). Omit to disable.",
-    )
-    parser.add_argument(
-        "--uid",
-        default=None,
-        help="Firebase user UID to import the match under (skips Firestore import if omitted)",
-    )
-    parser.add_argument(
-        "--context",
-        default=None,
-        help=(
-            "Run-specific context prepended to the analysis prompt. "
-            "Use to restrict scope (e.g. 'First set only, stop at 20:00') "
-            "or describe score overlay location."
-        ),
-    )
-    args = parser.parse_args()
-    label = args.label
-    output = args.output or str(MCP_DIR / f"match_state{'_' + label if label else ''}.json")
-    trace_path = Path(args.trace) if args.trace else None
-    asyncio.run(run_agent(
-        args.url, output, trace_path,
-        model=args.model, label=label, uid=args.uid, context=args.context,
-    ))
+    _console.print("\n── Cost summary ─────────────────────────────")
+    _console.print(f"  Strategy  : {args.strategy}")
+    _console.print(f"  Model     : {args.model}")
+    _console.print(f"  Duration  : {duration:.1f}s")
+    _console.print(f"  Tokens    : {usage.inp:,} in / {usage.out:,} out")
+    _console.print(f"  Thinking  : {usage.think:,}")
+    _console.print(f"  Cost      : ${entry['cost_usd']:.4f}")
+    _console.print(f"  Rallies   : {points}  (ambiguous: {ambiguous})")
+    if accuracy:
+        _console.print(f"  Accuracy  : {accuracy['winner_accuracy']*100:.1f}%  ({accuracy['compared_rallies']} rallies compared)")
+        _console.print(f"  Score drift: E1±{accuracy['score_drift_e1']}  E2±{accuracy['score_drift_e2']}")
+    _console.print("─────────────────────────────────────────────")
 
 
 if __name__ == "__main__":
