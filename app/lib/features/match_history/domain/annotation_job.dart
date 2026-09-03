@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class AnnotationJob {
   const AnnotationJob({
     required this.id,
@@ -17,7 +15,6 @@ class AnnotationJob {
         progress: (j['progress'] as num?)?.toDouble() ?? 0.0,
         message: j['message'] as String? ?? '',
         startedAt: switch (j['startedAt']) {
-          final Timestamp t => t.toDate(),
           final String s => DateTime.parse(s),
           _ => DateTime.now(),
         },

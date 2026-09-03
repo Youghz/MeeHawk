@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:app/core/theme.dart';
-import 'package:app/features/auth/auth_gate.dart';
+import 'package:app/features/home/home_screen.dart';
 import 'package:app/features/match/persistence/match_storage_provider.dart';
 import 'package:app/features/match/providers/match_provider.dart';
 import 'package:app/features/match_history/domain/match_archive.dart';
@@ -30,7 +30,7 @@ class CrabCoachApp extends ConsumerWidget {
       title: 'CrabCoach',
       theme: appTheme,
       debugShowCheckedModeBanner: false,
-      home: const AuthGate(),
+      home: const HomeScreen(),
     );
   }
 }

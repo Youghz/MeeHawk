@@ -1,13 +1,13 @@
 import 'dart:async';
 
-import 'package:app/features/auth/auth_providers.dart';
 import 'package:app/features/match_history/domain/match_archive.dart';
 import 'package:app/features/match_history/persistence/archive_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+/// The ArchiveStorage instance for the app. Must be overridden at startup
+/// after SharedPreferences is opened.
 final archiveStorageProvider = Provider<ArchiveStorage>((ref) {
-  final uid = ref.watch(currentUserProvider)?.uid ?? '';
-  return ArchiveStorage(uid: uid);
+  throw StateError('archiveStorageProvider must be overridden in main()');
 });
 
 final archiveListProvider =
@@ -21,7 +21,6 @@ class ArchiveListNotifier extends Notifier<List<MatchArchive>> {
   @override
   List<MatchArchive> build() {
     final storage = ref.watch(archiveStorageProvider);
-    if (storage.uid.isEmpty) return [];
     unawaited(_sub?.cancel());
     _sub = storage.watchAll().listen((archives) => state = archives);
     ref.onDispose(() => unawaited(_sub?.cancel()));

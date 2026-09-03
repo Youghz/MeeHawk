@@ -1,33 +1,62 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:app/features/match/persistence/match_codec.dart';
 import 'package:app/features/match_history/domain/match_archive.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+/// Persists the list of archived matches to device storage. Local-only —
+/// no auth, no network.
 class ArchiveStorage {
-  ArchiveStorage({required this.uid})
-      : _db = FirebaseFirestore.instance;
+  ArchiveStorage(this._prefs);
 
-  static const _collection = 'matches';
-  final String uid;
-  final FirebaseFirestore _db;
+  static const _key = 'match_archives_v1';
 
-  CollectionReference<Map<String, dynamic>> get _ref =>
-      _db.collection('users').doc(uid).collection(_collection);
+  final SharedPreferences _prefs;
+  final _controller = StreamController<List<MatchArchive>>.broadcast();
 
-  Stream<List<MatchArchive>> watchAll() => _ref
-      .orderBy('startedAt', descending: true)
-      .snapshots()
-      .map(
-        (snap) => snap.docs.map((d) => _fromJson(d.data())).toList(),
-      );
-
-  Future<void> upsert(MatchArchive archive) {
-    if (uid.isEmpty) return Future.value();
-    return _ref.doc(archive.id).set(_toJson(archive));
+  static Future<ArchiveStorage> open() async {
+    final prefs = await SharedPreferences.getInstance();
+    return ArchiveStorage(prefs);
   }
 
-  Future<void> remove(String id) {
-    if (uid.isEmpty) return Future.value();
-    return _ref.doc(id).delete();
+  /// Emits the current list immediately, then again after every write.
+  Stream<List<MatchArchive>> watchAll() {
+    scheduleMicrotask(() => _controller.add(_loadAll()));
+    return _controller.stream;
+  }
+
+  Future<void> upsert(MatchArchive archive) async {
+    final all = _loadAll();
+    final index = all.indexWhere((a) => a.id == archive.id);
+    if (index >= 0) {
+      all[index] = archive;
+    } else {
+      all.add(archive);
+    }
+    await _save(all);
+  }
+
+  Future<void> remove(String id) async {
+    final all = _loadAll()..removeWhere((a) => a.id == id);
+    await _save(all);
+  }
+
+  List<MatchArchive> _loadAll() {
+    final raw = _prefs.getString(_key);
+    if (raw == null) return [];
+    try {
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list.map((j) => _fromJson(j as Map<String, dynamic>)).toList();
+    } on Object {
+      return [];
+    }
+  }
+
+  Future<void> _save(List<MatchArchive> all) async {
+    final json = jsonEncode(all.map(_toJson).toList());
+    await _prefs.setString(_key, json);
+    _controller.add(all);
   }
 
   static Map<String, dynamic> _toJson(MatchArchive a) => {
