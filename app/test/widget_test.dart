@@ -1,6 +1,7 @@
 import 'package:app/app.dart';
 import 'package:app/features/auth/auth_providers.dart';
 import 'package:app/features/match/persistence/match_storage.dart';
+import 'package:app/features/match/persistence/match_storage_provider.dart';
 import 'package:app/features/match_history/domain/match_archive.dart';
 import 'package:app/features/match_history/persistence/archive_storage_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';

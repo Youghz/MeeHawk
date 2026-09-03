@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:app/core/theme.dart';
 import 'package:app/features/auth/auth_gate.dart';
-import 'package:app/features/match/persistence/match_storage.dart';
+import 'package:app/features/match/persistence/match_storage_provider.dart';
 import 'package:app/features/match/providers/match_provider.dart';
 import 'package:app/features/match_history/domain/match_archive.dart';
 import 'package:app/features/match_history/persistence/archive_storage_provider.dart';

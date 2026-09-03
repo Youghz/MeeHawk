@@ -1,5 +1,6 @@
 import 'package:app/app.dart';
 import 'package:app/features/match/persistence/match_storage.dart';
+import 'package:app/features/match/persistence/match_storage_provider.dart';
 import 'package:app/features/match/providers/match_provider.dart';
 import 'package:app/firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
