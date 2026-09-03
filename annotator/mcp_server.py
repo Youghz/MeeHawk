@@ -8,7 +8,6 @@ from pathlib import Path
 from mcp.server.fastmcp import FastMCP
 
 from .core import MatchAnnotator
-from .state import MatchCodec
 
 _parser = argparse.ArgumentParser(add_help=False)
 _parser.add_argument("--state-file", default="match_state.json")
@@ -20,16 +19,16 @@ annotator = MatchAnnotator()
 
 if STATE_FILE.exists():
     try:
-        annotator._state = MatchCodec.from_json(json.loads(STATE_FILE.read_text()))
+        annotator.load_json(json.loads(STATE_FILE.read_text()))
         print(f"Loaded state from {STATE_FILE}", file=sys.stderr)
     except Exception as exc:
         print(f"Warning: could not load {STATE_FILE}: {exc}", file=sys.stderr)
 
 
 def _save() -> None:
-    if annotator._state is not None:
+    if annotator.started:
         STATE_FILE.write_text(
-            json.dumps(MatchCodec.to_json(annotator._state), indent=2, ensure_ascii=False)
+            json.dumps(annotator.to_json(), indent=2, ensure_ascii=False)
         )
 
 

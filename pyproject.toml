@@ -1,0 +1,37 @@
+[project]
+name = "meehawk-annotator"
+version = "0.1.0"
+description = "Beach volleyball video annotation agent + MCP server"
+requires-python = ">=3.11"
+dependencies = [
+    "google-genai>=1.0",
+    "httpx>=0.27",
+    "mcp>=1.0",
+    "pydantic>=2.0",
+    "python-dotenv>=1.0",
+    "rich>=13.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.scripts]
+meehawk-mcp = "annotator.mcp_server:main"
+meehawk-annotate = "annotator.agent:main"
+meehawk-import = "annotator.importer:main"
+meehawk-report = "annotator.report:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["annotator"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"annotator/prompts" = "annotator/prompts"
+
+[tool.pytest.ini_options]
+testpaths = ["annotator/tests"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

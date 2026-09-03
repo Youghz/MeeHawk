@@ -28,26 +28,18 @@ dist/
 .screenshots/
 app/web/videos/*.mp4
 
-# Firebase service account key — NEVER commit
-mcp/service-account.json
-annotator/service-account.json
-
 # Downloaded videos for rally_segmented (can be large)
 annotator/downloads/
 
 # Dev tooling artifacts (regenerable, not source of truth)
 .codegraph/
 .playwright-mcp/
-mcp/test_videos/
 
 # Run logs / traces
 **/cost_log.jsonl
-mcp/trace*.jsonl
 
-# Ad-hoc annotation test outputs
+# Ad-hoc annotation outputs (one per run, regenerable)
 /match_state.json
-/match_state_*.json
-mcp/match_state_*.json
 annotator/match_state_*.json
 
 # Match history shared with the Python agent (runtime data, one file per

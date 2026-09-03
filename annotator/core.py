@@ -12,6 +12,7 @@ from typing import Any
 from .state import (
     Annotation,
     BallImpact,
+    MatchCodec,
     MatchFormat,
     MatchState,
     PointRecord,
@@ -38,6 +39,39 @@ class MatchAnnotator:
 
     def __init__(self) -> None:
         self._state: MatchState | None = None
+
+    # ──────────────────────── public state access ────────────────────────────
+
+    @property
+    def state(self) -> MatchState | None:
+        """The current match state, or None before start_match."""
+        return self._state
+
+    @property
+    def started(self) -> bool:
+        """True once start_match has run."""
+        return self._state is not None
+
+    @property
+    def is_over(self) -> bool:
+        """True when the match has been won. False before start_match."""
+        return self._state is not None and self._state.match_over
+
+    @property
+    def ambiguous_count(self) -> int:
+        """Number of recorded points flagged for human review."""
+        if self._state is None:
+            return 0
+        return sum(1 for p in self._state.history if p.needs_review)
+
+    def to_json(self) -> dict[str, Any]:
+        """Serialize the match, MatchCodec-compatible. Raises if not started."""
+        self._require_state()
+        return MatchCodec.to_json(self._state)
+
+    def load_json(self, data: dict[str, Any]) -> None:
+        """Restore a previously serialized match, replacing any current state."""
+        self._state = MatchCodec.from_json(data)
 
     # ──────────────────────── public API ─────────────────────────────────────
 
@@ -234,9 +268,7 @@ class MatchAnnotator:
 
     def get_match_state(self) -> dict[str, Any]:
         """Return the full match state as a MatchCodec-compatible dict."""
-        self._require_state()
-        from .state import MatchCodec
-        return MatchCodec.to_json(self._state)
+        return self.to_json()
 
     def clear_rally(self) -> dict[str, Any]:
         """Discard all impacts for the current rally."""

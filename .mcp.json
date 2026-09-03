@@ -15,10 +15,11 @@
       "command": "uv",
       "args": [
         "--project",
-        "${CLAUDE_PROJECT_DIR}/mcp",
+        "${CLAUDE_PROJECT_DIR}/annotator",
         "run",
         "python",
-        "${CLAUDE_PROJECT_DIR}/mcp/server.py"
+        "-m",
+        "annotator.mcp_server"
       ]
     }
   }
