@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:app/features/match/persistence/match_codec.dart';
 import 'package:app/features/match_history/domain/match_archive.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Persists the list of archived matches to device storage. Local-only —
@@ -15,9 +16,28 @@ class ArchiveStorage {
   final SharedPreferences _prefs;
   final _controller = StreamController<List<MatchArchive>>.broadcast();
 
+  /// First launch after the Firestore removal: seed local storage with the
+  /// matches recovered from the old per-user Firestore archive, so history
+  /// isn't empty for existing users. No-op once [_key] already has data.
   static Future<ArchiveStorage> open() async {
     final prefs = await SharedPreferences.getInstance();
-    return ArchiveStorage(prefs);
+    final storage = ArchiveStorage(prefs);
+    if (!prefs.containsKey(_key)) {
+      await storage._seedFromRecovered();
+    }
+    return storage;
+  }
+
+  Future<void> _seedFromRecovered() async {
+    try {
+      final raw = await rootBundle.loadString('assets/recovered_matches.json');
+      final list = jsonDecode(raw) as List<dynamic>;
+      final archives =
+          list.map((j) => _fromJson(j as Map<String, dynamic>)).toList();
+      await _save(archives);
+    } on Object {
+      // No recovered-matches asset, or it's malformed — start empty.
+    }
   }
 
   /// Emits the current list immediately, then again after every write.
