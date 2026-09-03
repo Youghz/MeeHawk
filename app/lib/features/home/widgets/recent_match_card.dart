@@ -1,7 +1,7 @@
 import 'package:app/core/theme.dart';
-import 'package:app/features/match/domain/match_state.dart';
-import 'package:app/features/match_history/domain/date_format.dart';
-import 'package:app/features/match_history/domain/match_archive.dart';
+import 'package:app/domain/date_format.dart';
+import 'package:app/domain/match_archive.dart';
+import 'package:app/domain/match_state.dart';
 import 'package:app/features/match_history/screens/match_replay_screen.dart';
 import 'package:flutter/material.dart';
 

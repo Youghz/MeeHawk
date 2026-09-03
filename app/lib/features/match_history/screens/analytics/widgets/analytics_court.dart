@@ -44,9 +44,9 @@ class AnalyticsCourt extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: switch (d.kind) {
-                        AnalyticsDotKind.ace => const Color(0xFF86EFAC),
+                        AnalyticsDotKind.ace => MH.aceDot,
                         AnalyticsDotKind.won => MH.good,
-                        AnalyticsDotKind.fault => const Color(0xFFFCA5A5),
+                        AnalyticsDotKind.fault => MH.faultDot,
                         AnalyticsDotKind.lost => MH.bad,
                       },
                     ),
@@ -114,9 +114,9 @@ class ServiceDotLegend extends StatelessWidget {
         spacing: 16,
         runSpacing: 4,
         children: [
-          _LegendItem(color: Color(0xFF86EFAC), label: 'Ace'),
+          _LegendItem(color: MH.aceDot, label: 'Ace'),
           _LegendItem(color: MH.good, label: 'Gagné'),
-          _LegendItem(color: Color(0xFFFCA5A5), label: 'Faute'),
+          _LegendItem(color: MH.faultDot, label: 'Faute'),
           _LegendItem(color: MH.bad, label: 'Perdu'),
         ],
       );
@@ -132,7 +132,7 @@ class ReceptionDotLegend extends StatelessWidget {
         children: [
           _LegendItem(color: MH.good, label: 'Réception gagnée'),
           _LegendItem(color: MH.bad, label: 'Réception perdue'),
-          _LegendItem(color: Color(0xFFFCA5A5), label: 'Ace adverse'),
+          _LegendItem(color: MH.faultDot, label: 'Ace adverse'),
         ],
       );
 }

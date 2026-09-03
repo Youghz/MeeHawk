@@ -1,6 +1,6 @@
 import 'package:app/core/theme.dart';
-import 'package:app/features/match/domain/match_state.dart';
-import 'package:app/features/match/providers/match_provider.dart';
+import 'package:app/domain/match_state.dart';
+import 'package:app/state/match_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -26,7 +26,7 @@ class SetEndPrompt extends ConsumerWidget {
 
     return Positioned.fill(
       child: Container(
-        color: const Color(0xC6141210),
+        color: MH.scrimStrong,
         alignment: Alignment.center,
         padding: const EdgeInsets.all(22),
         child: Container(

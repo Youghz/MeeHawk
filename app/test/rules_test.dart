@@ -1,10 +1,10 @@
-import 'package:app/core/rules/attack_inference.dart';
-import 'package:app/core/rules/match_format.dart';
-import 'package:app/core/rules/rally_analyzer.dart';
-import 'package:app/core/rules/service_rotation.dart';
-import 'package:app/core/rules/set_rules.dart';
-import 'package:app/core/rules/team_side.dart';
-import 'package:app/core/rules/touch_attribution.dart';
+import 'package:app/domain/rules/attack_inference.dart';
+import 'package:app/domain/rules/match_format.dart';
+import 'package:app/domain/rules/rally_analyzer.dart';
+import 'package:app/domain/rules/service_rotation.dart';
+import 'package:app/domain/rules/set_rules.dart';
+import 'package:app/domain/rules/team_side.dart';
+import 'package:app/domain/rules/touch_attribution.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _Impact implements ImpactLike {

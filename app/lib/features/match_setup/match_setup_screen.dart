@@ -1,10 +1,10 @@
-import 'package:app/core/rules/match_format.dart';
 import 'package:app/core/theme.dart';
+import 'package:app/domain/rules/match_format.dart';
 import 'package:app/features/match/match_screen.dart';
-import 'package:app/features/match/providers/match_provider.dart';
 import 'package:app/features/match_setup/widgets/setup_format_section.dart';
 import 'package:app/features/match_setup/widgets/setup_server_picker.dart';
 import 'package:app/features/match_setup/widgets/setup_team_section.dart';
+import 'package:app/state/match_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

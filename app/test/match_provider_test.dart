@@ -3,9 +3,9 @@
 // These tests document expected behavior as an executable spec. They drive
 // the MatchNotifier directly (no UI) so they are fast and deterministic.
 
-import 'package:app/features/match/domain/match_state.dart';
-import 'package:app/features/match/providers/match_notifier_base.dart';
-import 'package:app/features/match/providers/match_provider.dart';
+import 'package:app/domain/match_state.dart';
+import 'package:app/state/match_notifier_base.dart';
+import 'package:app/state/match_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -468,7 +468,7 @@ void main() {
   group('Bloc (B)', () {
     test('B1: block + same player retouch = 2 touches, no fault', () {
       final c = newMatch();
-      notifier(c).addTouchWithPlayer(const BallImpact(
+      notifier(c).addBallImpact(const BallImpact(
         x: 0.25,
         y: 0.5,
         isOutside: false,
@@ -484,7 +484,7 @@ void main() {
 
     test('B2: block + 2 more touches = 3 total, still legal', () {
       final c = newMatch();
-      notifier(c).addTouchWithPlayer(const BallImpact(
+      notifier(c).addBallImpact(const BallImpact(
         x: 0.25,
         y: 0.5,
         isOutside: false,
@@ -502,7 +502,7 @@ void main() {
 
     test('B3: block + 3 more touches = 4 total → auto-fault, point to e2', () {
       final c = newMatch();
-      notifier(c).addTouchWithPlayer(const BallImpact(
+      notifier(c).addBallImpact(const BallImpact(
         x: 0.25,
         y: 0.5,
         isOutside: false,
@@ -524,9 +524,9 @@ void main() {
       );
     });
 
-    test('B4: addTouchWithPlayer(isBlock:true) creates a block annotation', () {
+    test('B4: addBallImpact(isBlock:true) creates a block annotation', () {
       final c = newMatch();
-      notifier(c).addTouchWithPlayer(const BallImpact(
+      notifier(c).addBallImpact(const BallImpact(
         x: 0.25,
         y: 0.5,
         isOutside: false,
@@ -543,7 +543,7 @@ void main() {
     test('B5: provider accepts block as first impact, no contextual validation',
         () {
       final c = newMatch();
-      notifier(c).addTouchWithPlayer(const BallImpact(
+      notifier(c).addBallImpact(const BallImpact(
         x: 0.25,
         y: 0.5,
         isOutside: false,
@@ -578,7 +578,7 @@ void main() {
 
     test('C3: undo block removes impact and block annotation', () {
       final c = newMatch();
-      notifier(c).addTouchWithPlayer(const BallImpact(
+      notifier(c).addBallImpact(const BallImpact(
         x: 0.25,
         y: 0.5,
         isOutside: false,
@@ -626,7 +626,7 @@ void main() {
       final c = newMatch();
       notifier(c)
           .addBallImpact(impact(0.75, 0.5, side: TeamSide.e2, playerId: 'p3'));
-      notifier(c).addTouchWithPlayer(const BallImpact(
+      notifier(c).addBallImpact(const BallImpact(
         x: 0.25,
         y: 0.5,
         isOutside: false,

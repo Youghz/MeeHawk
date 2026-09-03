@@ -1,7 +1,7 @@
 import 'dart:math';
 
-import 'package:app/core/rules/analytics_rules.dart';
 import 'package:app/core/theme.dart';
+import 'package:app/domain/rules/analytics_rules.dart';
 import 'package:app/features/match_history/screens/analytics/analytics_input.dart';
 import 'package:app/features/match_history/screens/analytics/widgets/analytics_primitives.dart';
 import 'package:flutter/material.dart';

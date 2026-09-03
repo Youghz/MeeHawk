@@ -1,6 +1,6 @@
 import 'package:app/core/theme.dart';
 import 'package:app/core/widgets/ball_icon.dart';
-import 'package:app/features/match/providers/match_provider.dart';
+import 'package:app/state/match_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -22,7 +22,7 @@ class ChangeSidePrompt extends ConsumerWidget {
         behavior: HitTestBehavior.opaque,
         onTap: notifier.closeChangeSidePrompt,
         child: Container(
-          color: const Color(0x8C141210),
+          color: MH.scrim,
           alignment: Alignment.center,
           padding: const EdgeInsets.all(22),
           child: GestureDetector(

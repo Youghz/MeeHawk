@@ -1,4 +1,4 @@
-import 'package:app/features/match/domain/match_state.dart';
+import 'package:app/domain/match_state.dart';
 import 'package:flutter/material.dart';
 
 /// Pre-computed analytics data built once per render pass.

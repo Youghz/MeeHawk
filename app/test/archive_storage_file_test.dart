@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:app/features/match/domain/match_state.dart';
-import 'package:app/features/match_history/domain/match_archive.dart';
-import 'package:app/features/match_history/persistence/archive_storage_file.dart';
+import 'package:app/data/archive_storage_file.dart';
+import 'package:app/domain/match_archive.dart';
+import 'package:app/domain/match_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

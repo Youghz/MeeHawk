@@ -1,9 +1,9 @@
 import 'package:app/core/theme.dart';
-import 'package:app/features/match/domain/match_state.dart';
+import 'package:app/domain/match_archive.dart';
+import 'package:app/domain/match_state.dart';
 import 'package:app/features/match/match_screen.dart';
-import 'package:app/features/match/providers/match_provider.dart';
-import 'package:app/features/match_history/domain/match_archive.dart';
-import 'package:app/features/match_history/persistence/archive_storage_provider.dart';
+import 'package:app/state/archive_provider.dart';
+import 'package:app/state/match_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

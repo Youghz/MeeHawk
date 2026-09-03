@@ -1,9 +1,8 @@
 import 'package:app/core/theme.dart';
-import 'package:app/core/widgets/court.dart';
+import 'package:app/core/widgets/court/court.dart';
 import 'package:app/core/widgets/replay_panel.dart';
 import 'package:app/core/widgets/timeline.dart';
 import 'package:app/core/widgets/top_score.dart';
-import 'package:app/features/match/providers/match_provider.dart';
 import 'package:app/features/match/widgets/bottom_actions.dart';
 import 'package:app/features/match/widgets/change_side_prompt.dart';
 import 'package:app/features/match/widgets/help_hint.dart';
@@ -11,6 +10,7 @@ import 'package:app/features/match/widgets/serve_banner.dart';
 import 'package:app/features/match/widgets/set_end_prompt.dart';
 import 'package:app/features/match/widgets/swap_sides_button.dart';
 import 'package:app/features/match_history/screens/analytics_screen.dart';
+import 'package:app/state/match_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

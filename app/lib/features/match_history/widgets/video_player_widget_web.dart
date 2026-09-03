@@ -1,16 +1,17 @@
-// Web-only: HtmlElementView + dart:html video/iframe element.
-// Never compiled on non-web targets (conditional import in video_player_widget.dart).
-// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
+// Web-only: an HtmlElementView wrapping a native <video> or a YouTube <iframe>.
+// Never compiled on non-web targets — see the conditional export in
+// video_player_widget.dart.
 import 'dart:async';
 import 'dart:convert';
-import 'dart:html' as html;
+import 'dart:js_interop';
 import 'dart:ui_web' as ui_web;
 
 import 'package:app/core/theme.dart';
-import 'package:app/features/match/domain/match_state.dart';
-import 'package:app/features/match/providers/match_provider.dart';
+import 'package:app/domain/match_state.dart';
+import 'package:app/state/match_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:web/web.dart' as web;
 
 // ── Data ───────────────────────────────────────────────────────────────────
 
@@ -82,7 +83,7 @@ class _TrackPainter extends CustomPainter {
       final isHovered = hoveredIndex == m.index;
 
       final tickPaint = Paint()
-        ..color = isHovered ? Colors.white : Colors.white.withOpacity(0.55)
+        ..color = isHovered ? Colors.white : Colors.white.withValues(alpha: 0.55)
         ..strokeWidth = isHovered ? 2 : 1.5
         ..strokeCap = StrokeCap.round;
       canvas.drawLine(
@@ -147,8 +148,8 @@ class VideoPlayerWidget extends ConsumerStatefulWidget {
 class _VideoPlayerWidgetState extends ConsumerState<VideoPlayerWidget> {
   late final String _viewId;
   late final bool _isYt;
-  html.VideoElement? _video;
-  html.IFrameElement? _iframe;
+  web.HTMLVideoElement? _video;
+  web.HTMLIFrameElement? _iframe;
   bool _playing = false;
   double _position = 0;
   double _duration = 0;
@@ -178,46 +179,58 @@ class _VideoPlayerWidgetState extends ConsumerState<VideoPlayerWidget> {
     _isYt = _isYouTube(widget.videoUrl);
 
     if (_isYt) {
-      _iframe = html.IFrameElement()
+      _iframe = web.HTMLIFrameElement()
         ..src = _toEmbedUrl(widget.videoUrl)
-        ..style.width = '100%'
-        ..style.height = '100%'
-        ..style.border = 'none'
         ..allow =
             'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture'
         ..allowFullscreen = true;
+      _iframe!.style
+        ..width = '100%'
+        ..height = '100%'
+        ..border = 'none';
       ui_web.platformViewRegistry.registerViewFactory(_viewId, (_) => _iframe!);
-      _subs.add(html.window.onMessage.listen(_onYouTubeMessage));
+      // The YouTube iframe reports playback state by postMessage — there is no
+      // direct API across the frame boundary.
+      _subs.add(
+        web.EventStreamProviders.messageEvent
+            .forTarget(web.window)
+            .listen(_onYouTubeMessage),
+      );
     } else {
-      _video = html.VideoElement()
-        ..src = widget.videoUrl
-        ..style.width = '100%'
-        ..style.height = '100%'
-        ..style.objectFit = 'contain'
-        ..style.backgroundColor = 'black';
-      ui_web.platformViewRegistry.registerViewFactory(_viewId, (_) => _video!);
-      final v = _video!;
+      final v = web.HTMLVideoElement()..src = widget.videoUrl;
+      v.style
+        ..width = '100%'
+        ..height = '100%'
+        ..objectFit = 'contain'
+        ..backgroundColor = 'black';
+      _video = v;
+      ui_web.platformViewRegistry.registerViewFactory(_viewId, (_) => v);
       _subs
-        ..add(v.onTimeUpdate.listen((_) {
+        ..add(web.EventStreamProviders.timeUpdateEvent.forTarget(v).listen((_) {
           if (!_isDragging && mounted) {
-            setState(() => _position = v.currentTime.toDouble());
+            setState(() => _position = v.currentTime);
           }
         }))
-        ..add(v.onDurationChange.listen((_) {
-          if (mounted) setState(() => _duration = v.duration.toDouble());
+        ..add(
+            web.EventStreamProviders.durationChangeEvent.forTarget(v).listen((_) {
+          if (mounted) setState(() => _duration = v.duration);
         }))
-        ..add(v.onPlay.listen((_) {
+        ..add(web.EventStreamProviders.playEvent.forTarget(v).listen((_) {
           if (mounted) setState(() => _playing = true);
         }))
-        ..add(v.onPause.listen((_) {
+        ..add(web.EventStreamProviders.pauseEvent.forTarget(v).listen((_) {
           if (mounted) setState(() => _playing = false);
         }));
     }
   }
 
-  void _onYouTubeMessage(html.MessageEvent event) {
+  void _onYouTubeMessage(web.MessageEvent event) {
     try {
-      final data = jsonDecode(event.data.toString()) as Map<String, dynamic>;
+      final raw = event.data;
+      // Other scripts on the page post messages too; ignore anything that is
+      // not the JSON payload the YouTube iframe API sends.
+      if (raw == null || !raw.isA<JSString>()) return;
+      final data = jsonDecode((raw as JSString).toDart) as Map<String, dynamic>;
       if (data['event'] == 'infoDelivery') {
         final info = data['info'] as Map<String, dynamic>?;
         if (info != null && mounted && !_isDragging) {
@@ -239,8 +252,8 @@ class _VideoPlayerWidgetState extends ConsumerState<VideoPlayerWidget> {
 
   void _ytCommand(String func, List<dynamic> args) {
     _iframe?.contentWindow?.postMessage(
-      jsonEncode({'event': 'command', 'func': func, 'args': args}),
-      '*',
+      jsonEncode({'event': 'command', 'func': func, 'args': args}).toJS,
+      '*'.toJS,
     );
   }
 
@@ -268,13 +281,14 @@ class _VideoPlayerWidgetState extends ConsumerState<VideoPlayerWidget> {
       _ytCommand('seekTo', [secs, true]);
       if (andPlay) _ytCommand('playVideo', []);
     } else {
-      final v = _video!
-        ..currentTime = secs;
+      final v = _video!..currentTime = secs;
       setState(() => _position = secs);
       if (andPlay) {
-        unawaited(v.onSeeked.first.then((_) {
-          if (mounted) unawaited(v.play());
-        }));
+        unawaited(
+          web.EventStreamProviders.seekedEvent.forTarget(v).first.then((_) {
+            if (mounted) unawaited(v.play().toDart);
+          }),
+        );
       }
     }
   }
@@ -287,7 +301,7 @@ class _VideoPlayerWidgetState extends ConsumerState<VideoPlayerWidget> {
       if (_playing) {
         v.pause();
       } else {
-        unawaited(v.play());
+        unawaited(v.play().toDart);
       }
     }
   }

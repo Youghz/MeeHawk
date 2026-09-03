@@ -31,6 +31,22 @@ class MH {
   static const bad = Color(0xFFEF4444);
   static const badSoft = Color(0x14EF4444);
 
+  // Analytics markers — pastel variants of good/bad, legible as small dots
+  // on the court background where the saturated status colours vibrate.
+  static const aceDot = Color(0xFF86EFAC);
+  static const faultDot = Color(0xFFFCA5A5);
+
+  // Sand court surface, seen through the canvas painter
+  static const courtSurface = Color(0xFFC4A872);
+  static const courtBorder = Color(0xFF7A5C30);
+  static const courtTexture = Color(0xFFA88848);
+  static const courtLine = Color(0xFF5C4020);
+
+  // Scrim behind full-court prompts. Two levels: light enough to keep the
+  // court readable, heavy enough to stop interaction reading as available.
+  static const scrim = Color(0x8C141210);
+  static const scrimStrong = Color(0xC6141210);
+
   // Spacing scale
   static const s1 = 4.0;
   static const s2 = 8.0;

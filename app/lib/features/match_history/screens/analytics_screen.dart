@@ -1,6 +1,6 @@
-import 'package:app/core/rules/rally_analyzer.dart';
 import 'package:app/core/theme.dart';
-import 'package:app/features/match/domain/match_state.dart';
+import 'package:app/domain/match_state.dart';
+import 'package:app/domain/rules/rally_analyzer.dart';
 import 'package:app/features/match_history/screens/analytics/analytics_input.dart';
 import 'package:app/features/match_history/screens/analytics/widgets/advice.dart';
 import 'package:app/features/match_history/screens/analytics/widgets/analytics_primitives.dart';

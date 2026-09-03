@@ -1,8 +1,8 @@
 import 'package:app/core/theme.dart';
 import 'package:app/core/widgets/ball_icon.dart';
-import 'package:app/core/widgets/court_constants.dart';
-import 'package:app/features/match/domain/match_state.dart';
-import 'package:app/features/match/providers/match_provider.dart';
+import 'package:app/core/widgets/court/court_constants.dart';
+import 'package:app/domain/match_state.dart';
+import 'package:app/state/match_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

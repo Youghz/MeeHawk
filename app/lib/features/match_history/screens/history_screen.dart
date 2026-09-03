@@ -1,12 +1,10 @@
 import 'package:app/core/theme.dart';
-import 'package:app/features/match/domain/match_state.dart';
-import 'package:app/features/match_history/domain/match_archive.dart';
-import 'package:app/features/match_history/persistence/annotation_job_provider.dart';
-import 'package:app/features/match_history/persistence/archive_storage_provider.dart';
-import 'package:app/features/match_history/widgets/annotation_job_banner.dart';
+import 'package:app/domain/match_archive.dart';
+import 'package:app/domain/match_state.dart';
 import 'package:app/features/match_history/widgets/history_empty_state.dart';
 import 'package:app/features/match_history/widgets/history_match_card.dart';
 import 'package:app/features/match_history/widgets/history_search_bar.dart';
+import 'package:app/state/archive_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -30,7 +28,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final archives = ref.watch(archiveListProvider);
-    final activeJobs = ref.watch(activeJobsProvider);
     final filtered = _query.isEmpty
         ? archives
         : archives.where((a) => _matches(a, _query)).toList();
@@ -54,23 +51,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           ),
         ),
       ),
-      body: filtered.isEmpty && activeJobs.isEmpty
+      body: filtered.isEmpty
           ? HistoryEmptyState(hasQuery: _query.isNotEmpty)
           : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(0, 0, 0, 32),
-              itemCount: filtered.length + 1,
-              itemBuilder: (ctx, i) {
-                if (i == 0) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: AnnotationJobBanner(jobs: activeJobs),
-                  );
-                }
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 0),
-                  child: HistoryMatchCard(archive: filtered[i - 1]),
-                );
-              },
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 32),
+              itemCount: filtered.length,
+              itemBuilder: (ctx, i) =>
+                  HistoryMatchCard(archive: filtered[i]),
             ),
     );
   }

@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:app/features/match/domain/match_state.dart';
-import 'package:app/features/match/persistence/match_codec.dart';
-import 'package:app/features/match/providers/match_provider.dart';
+import 'package:app/data/match_codec.dart';
+import 'package:app/domain/match_state.dart';
+import 'package:app/state/match_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 

@@ -5,10 +5,10 @@ import 'package:app/features/home/widgets/new_match_cta.dart';
 import 'package:app/features/home/widgets/ongoing_card.dart';
 import 'package:app/features/home/widgets/recent_match_card.dart';
 import 'package:app/features/home/widgets/section_label.dart';
-import 'package:app/features/match/providers/match_provider.dart';
-import 'package:app/features/match_history/persistence/archive_storage_provider.dart';
 import 'package:app/features/match_history/screens/history_screen.dart';
 import 'package:app/features/match_setup/match_setup_screen.dart';
+import 'package:app/state/archive_provider.dart';
+import 'package:app/state/match_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

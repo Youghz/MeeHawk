@@ -1,18 +1,18 @@
 import 'dart:async';
 
 import 'package:app/core/theme.dart';
-import 'package:app/core/widgets/court.dart';
+import 'package:app/core/widgets/court/court.dart';
 import 'package:app/core/widgets/replay_panel.dart';
 import 'package:app/core/widgets/timeline.dart';
 import 'package:app/core/widgets/top_score.dart';
-import 'package:app/features/match/providers/match_provider.dart';
-import 'package:app/features/match_history/domain/date_format.dart';
-import 'package:app/features/match_history/domain/match_archive.dart';
-import 'package:app/features/match_history/persistence/archive_storage_provider.dart';
-import 'package:app/features/match_history/providers/replay_notifier.dart';
+import 'package:app/domain/date_format.dart';
+import 'package:app/domain/match_archive.dart';
 import 'package:app/features/match_history/screens/analytics_screen.dart';
 import 'package:app/features/match_history/widgets/match_notes.dart';
 import 'package:app/features/match_history/widgets/video_player_widget.dart';
+import 'package:app/state/archive_provider.dart';
+import 'package:app/state/match_provider.dart';
+import 'package:app/state/replay_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
