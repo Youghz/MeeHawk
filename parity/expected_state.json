@@ -1,0 +1,567 @@
+{
+  "v": 1,
+  "format": {
+    "setsToWin": 2,
+    "regularSetPoints": 21,
+    "decidingSetPoints": 15,
+    "winBy": 2,
+    "regularChangeSideEvery": 7,
+    "decidingChangeSideEvery": 5
+  },
+  "teams": {
+    "e1": {
+      "name": "Les Crabes",
+      "players": [
+        {
+          "id": "p1",
+          "name": "Ana"
+        },
+        {
+          "id": "p2",
+          "name": "Bea"
+        }
+      ]
+    },
+    "e2": {
+      "name": "Les Oursins",
+      "players": [
+        {
+          "id": "p3",
+          "name": "Cid"
+        },
+        {
+          "id": "p4",
+          "name": "Dan"
+        }
+      ]
+    }
+  },
+  "positions": {
+    "p1": [
+      0.25,
+      0.35
+    ],
+    "p2": [
+      0.25,
+      0.7
+    ],
+    "p3": [
+      0.75,
+      0.35
+    ],
+    "p4": [
+      0.75,
+      0.7
+    ]
+  },
+  "servingPlayerId": "p1",
+  "initialServerId": "p1",
+  "nextServerIndex": {
+    "e1": 1,
+    "e2": 0
+  },
+  "firstServerIndex": {
+    "e1": 0,
+    "e2": null
+  },
+  "history": [
+    {
+      "winner": "e2",
+      "annotations": [
+        {
+          "type": "attack",
+          "text": "Attaque Diagonale · Cid",
+          "team": "e2"
+        }
+      ],
+      "scoreE1": 0,
+      "scoreE2": 1,
+      "setNumber": 1,
+      "serverId": "p3",
+      "impacts": [
+        {
+          "x": 0.95,
+          "y": 0.5,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "isServerPosition": true
+        },
+        {
+          "x": 0.78,
+          "y": 0.45,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3"
+        },
+        {
+          "x": 0.22,
+          "y": 0.6,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": null
+        }
+      ]
+    },
+    {
+      "winner": "e1",
+      "annotations": [
+        {
+          "type": "attack",
+          "text": "Attaque Ligne · Cid",
+          "team": "e2"
+        },
+        {
+          "type": "attack",
+          "text": "Attaque Diagonale · Bea",
+          "team": "e1"
+        }
+      ],
+      "scoreE1": 1,
+      "scoreE2": 1,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": [
+        {
+          "x": 0.95,
+          "y": 0.5,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "isServerPosition": true
+        },
+        {
+          "x": 0.8,
+          "y": 0.4,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3"
+        },
+        {
+          "x": 0.25,
+          "y": 0.35,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1"
+        },
+        {
+          "x": 0.3,
+          "y": 0.55,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p2"
+        },
+        {
+          "x": 0.7,
+          "y": 0.3,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p4"
+        }
+      ]
+    },
+    {
+      "winner": "e2",
+      "annotations": [
+        {
+          "type": "attack",
+          "text": "Attaque Amorti · Ana",
+          "team": "e1"
+        },
+        {
+          "type": "block",
+          "text": "Bloc · Cid",
+          "team": "e2"
+        },
+        {
+          "type": "attack",
+          "text": "Attaque Diagonale · Cid",
+          "team": "e2"
+        }
+      ],
+      "scoreE1": 1,
+      "scoreE2": 2,
+      "setNumber": 1,
+      "serverId": "p4",
+      "impacts": [
+        {
+          "x": 0.05,
+          "y": 0.5,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1",
+          "isServerPosition": true
+        },
+        {
+          "x": 0.2,
+          "y": 0.45,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1"
+        },
+        {
+          "x": 0.55,
+          "y": 0.4,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "isBlock": true
+        },
+        {
+          "x": 0.65,
+          "y": 0.5,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3"
+        },
+        {
+          "x": 0.35,
+          "y": 0.6,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": null
+        }
+      ]
+    },
+    {
+      "winner": "e1",
+      "annotations": [
+        {
+          "type": "attack",
+          "text": "Attaque Amorti · Cid",
+          "team": "e2"
+        },
+        {
+          "type": "attack",
+          "text": "Attaque Diagonale · Ana",
+          "team": "e1"
+        }
+      ],
+      "scoreE1": 2,
+      "scoreE2": 2,
+      "setNumber": 1,
+      "serverId": "p2",
+      "impacts": [
+        {
+          "x": 0.95,
+          "y": 0.5,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3",
+          "isServerPosition": true
+        },
+        {
+          "x": 0.75,
+          "y": 0.45,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p3"
+        },
+        {
+          "x": 0.3,
+          "y": 0.42,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1"
+        },
+        {
+          "x": 0.85,
+          "y": 0.55,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": null
+        }
+      ]
+    },
+    {
+      "winner": "e2",
+      "annotations": [
+        {
+          "type": "attack",
+          "text": "Attaque Amorti · Bea",
+          "team": "e1"
+        },
+        {
+          "type": "attack",
+          "text": "Attaque Amorti · Dan",
+          "team": "e2"
+        },
+        {
+          "type": "fault",
+          "text": "Faute 4e touche · Bea",
+          "team": "e1"
+        }
+      ],
+      "scoreE1": 2,
+      "scoreE2": 3,
+      "setNumber": 1,
+      "serverId": "p3",
+      "impacts": [
+        {
+          "x": 0.05,
+          "y": 0.5,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p2",
+          "isServerPosition": true
+        },
+        {
+          "x": 0.2,
+          "y": 0.45,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p2"
+        },
+        {
+          "x": 0.72,
+          "y": 0.4,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p4"
+        },
+        {
+          "x": 0.3,
+          "y": 0.35,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1"
+        },
+        {
+          "x": 0.25,
+          "y": 0.55,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p2"
+        },
+        {
+          "x": 0.35,
+          "y": 0.45,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p1"
+        },
+        {
+          "x": 0.4,
+          "y": 0.5,
+          "isOutside": false,
+          "teamSide": "e1",
+          "playerId": "p2"
+        }
+      ]
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 3,
+      "scoreE2": 3,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": [
+        {
+          "x": 0.95,
+          "y": 0.5,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p4",
+          "isServerPosition": true
+        },
+        {
+          "x": 0.8,
+          "y": 0.45,
+          "isOutside": false,
+          "teamSide": "e2",
+          "playerId": "p4"
+        },
+        {
+          "x": 0.98,
+          "y": 0.2,
+          "isOutside": true,
+          "teamSide": "e2",
+          "playerId": "p4"
+        }
+      ]
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 4,
+      "scoreE2": 3,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 5,
+      "scoreE2": 3,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 6,
+      "scoreE2": 3,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 7,
+      "scoreE2": 3,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 8,
+      "scoreE2": 3,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 9,
+      "scoreE2": 3,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 10,
+      "scoreE2": 3,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 11,
+      "scoreE2": 3,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 12,
+      "scoreE2": 3,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 13,
+      "scoreE2": 3,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 14,
+      "scoreE2": 3,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 15,
+      "scoreE2": 3,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 16,
+      "scoreE2": 3,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 17,
+      "scoreE2": 3,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 18,
+      "scoreE2": 3,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 19,
+      "scoreE2": 3,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 20,
+      "scoreE2": 3,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    },
+    {
+      "winner": "e1",
+      "annotations": [],
+      "scoreE1": 21,
+      "scoreE2": 3,
+      "setNumber": 1,
+      "serverId": "p1",
+      "impacts": []
+    }
+  ],
+  "sets": [
+    {
+      "setNumber": 1,
+      "scoreE1": 21,
+      "scoreE2": 3,
+      "winner": "e1"
+    }
+  ],
+  "setNumber": 2,
+  "scoreE1": 0,
+  "scoreE2": 0,
+  "sidesSwapped": true,
+  "notes": "",
+  "changeSidePromptDismissed": false,
+  "matchOver": false,
+  "started": true,
+  "trackedTeams": [
+    "e1",
+    "e2"
+  ]
+}

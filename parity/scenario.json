@@ -1,0 +1,73 @@
+{
+  "description": "Shared scoring scenario replayed by both the Dart MatchNotifier and the Python MatchAnnotator. See parity/README.md.",
+  "actions": [
+    {
+      "op": "start_match",
+      "teamE1Name": "Les Crabes",
+      "teamE2Name": "Les Oursins",
+      "p1": "Ana", "p2": "Bea", "p3": "Cid", "p4": "Dan",
+      "initialServerId": "p3"
+    },
+
+    {"_": "Rally 1 — ace de service: e2 sert, la balle tombe chez e1 sans être touchée"},
+    {"op": "impact", "x": 0.95, "y": 0.50, "teamSide": "e2", "isServerPosition": true, "playerId": "p3"},
+    {"op": "impact", "x": 0.78, "y": 0.45, "teamSide": "e2", "playerId": "p3"},
+    {"op": "impact", "x": 0.22, "y": 0.60, "teamSide": "e1"},
+    {"op": "point", "winner": "e2"},
+
+    {"_": "Rally 2 — échange normal, e1 gagne et prend le service pour la 1re fois"},
+    {"op": "impact", "x": 0.95, "y": 0.50, "teamSide": "e2", "isServerPosition": true, "playerId": "p3"},
+    {"op": "impact", "x": 0.80, "y": 0.40, "teamSide": "e2", "playerId": "p3"},
+    {"op": "impact", "x": 0.25, "y": 0.35, "teamSide": "e1", "playerId": "p1"},
+    {"op": "impact", "x": 0.30, "y": 0.55, "teamSide": "e1", "playerId": "p2"},
+    {"op": "impact", "x": 0.70, "y": 0.30, "teamSide": "e2", "playerId": "p4"},
+    {"op": "point", "winner": "e1"},
+
+    {"_": "Rally 3 — bloc de e2 puis reprise par le même bloqueur (règle beach)"},
+    {"op": "impact", "x": 0.05, "y": 0.50, "teamSide": "e1", "isServerPosition": true, "playerId": "p1"},
+    {"op": "impact", "x": 0.20, "y": 0.45, "teamSide": "e1", "playerId": "p1"},
+    {"op": "impact", "x": 0.55, "y": 0.40, "teamSide": "e2", "isBlock": true, "playerId": "p3"},
+    {"op": "impact", "x": 0.65, "y": 0.50, "teamSide": "e2", "playerId": "p3"},
+    {"op": "impact", "x": 0.35, "y": 0.60, "teamSide": "e1"},
+    {"op": "point", "winner": "e2"},
+
+    {"_": "Rally 4 — undo d'un impact avant de conclure"},
+    {"op": "impact", "x": 0.95, "y": 0.50, "teamSide": "e2", "isServerPosition": true, "playerId": "p3"},
+    {"op": "impact", "x": 0.75, "y": 0.45, "teamSide": "e2", "playerId": "p3"},
+    {"op": "impact", "x": 0.28, "y": 0.40, "teamSide": "e1", "playerId": "p2"},
+    {"op": "undo_impact"},
+    {"op": "impact", "x": 0.30, "y": 0.42, "teamSide": "e1", "playerId": "p1"},
+    {"op": "impact", "x": 0.85, "y": 0.55, "teamSide": "e2"},
+    {"op": "point", "winner": "e1"},
+
+    {"_": "Rally 5 — 4e touche de e1: faute automatique, aucun add_point explicite"},
+    {"op": "impact", "x": 0.05, "y": 0.50, "teamSide": "e1", "isServerPosition": true, "playerId": "p2"},
+    {"op": "impact", "x": 0.20, "y": 0.45, "teamSide": "e1", "playerId": "p2"},
+    {"op": "impact", "x": 0.72, "y": 0.40, "teamSide": "e2", "playerId": "p4"},
+    {"op": "impact", "x": 0.30, "y": 0.35, "teamSide": "e1", "playerId": "p1"},
+    {"op": "impact", "x": 0.25, "y": 0.55, "teamSide": "e1", "playerId": "p2"},
+    {"op": "impact", "x": 0.35, "y": 0.45, "teamSide": "e1", "playerId": "p1"},
+    {"op": "impact", "x": 0.40, "y": 0.50, "teamSide": "e1", "playerId": "p2"},
+
+    {"_": "Rally 6 — rally court puis undo du point: rejeu complet de l'historique"},
+    {"op": "impact", "x": 0.95, "y": 0.50, "teamSide": "e2", "isServerPosition": true, "playerId": "p4"},
+    {"op": "impact", "x": 0.80, "y": 0.45, "teamSide": "e2", "playerId": "p4"},
+    {"op": "impact", "x": 0.15, "y": 0.70, "teamSide": "e1", "isOutside": true},
+    {"op": "point", "winner": "e2"},
+    {"op": "undo_point"},
+
+    {"_": "Rally 6bis — même rally, vainqueur opposé"},
+    {"op": "impact", "x": 0.95, "y": 0.50, "teamSide": "e2", "isServerPosition": true, "playerId": "p4"},
+    {"op": "impact", "x": 0.80, "y": 0.45, "teamSide": "e2", "playerId": "p4"},
+    {"op": "impact", "x": 0.98, "y": 0.20, "teamSide": "e2", "isOutside": true, "playerId": "p4"},
+    {"op": "point", "winner": "e1"},
+
+    {"_": "Rally 7 — clear_rally: impacts abandonnés sans point"},
+    {"op": "impact", "x": 0.05, "y": 0.50, "teamSide": "e1", "isServerPosition": true, "playerId": "p1"},
+    {"op": "impact", "x": 0.22, "y": 0.44, "teamSide": "e1", "playerId": "p1"},
+    {"op": "clear_rally"},
+
+    {"_": "Rallies 8+ — e1 enchaîne jusqu'à emporter le set (21 points, écart de 2)"},
+    {"op": "repeat_points", "winner": "e1", "count": 18}
+  ]
+}

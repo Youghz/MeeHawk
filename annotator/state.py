@@ -322,7 +322,9 @@ class MatchCodec:
             "changeSidePromptDismissed": s.change_side_prompt_dismissed,
             "matchOver": s.match_over,
             "started": s.started,
-            "trackedTeams": list(s.tracked_teams),
+            # Sorted: tracked_teams is a set, and its iteration order would
+            # otherwise leak into the file and produce spurious diffs.
+            "trackedTeams": sorted(s.tracked_teams),
             "startedAt": s.started_at.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
         }
 
