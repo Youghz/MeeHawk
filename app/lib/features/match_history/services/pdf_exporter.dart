@@ -9,7 +9,7 @@ import 'package:app/features/match_history/screens/analytics/widgets/analytics_c
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-Future<Uint8List> generateAnalyticsPdf(AnalyticsInput input) async {
+Future<Uint8List> generateAnalyticsPdf(AnalyticsInput input) {
   final pdf =
       pw.Document(title: 'Analyse — ${input.team.name}', author: 'CrabCoach');
 
@@ -407,7 +407,7 @@ Future<Uint8List> generateAnalyticsPdf(AnalyticsInput input) async {
 
 pw.Widget _pdfSectionTitle(String title) => pw.Text(
       title,
-      style: pw.TextStyle(
+      style: const pw.TextStyle(
           fontSize: 7,
           letterSpacing: 1.5,
           color: PdfColors.grey500,
@@ -447,7 +447,8 @@ pw.Widget _pdfKeyVal(String label, String value) => pw.Row(children: [
       pw.Text('$label : ',
           style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
       pw.Text(value,
-          style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+          style:
+              const pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
     ]);
 
 pw.Widget _pdfPressCell(String label, int wins, int total) {
@@ -461,7 +462,8 @@ pw.Widget _pdfPressCell(String label, int wins, int total) {
     pw.Text('$label : ',
         style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
     pw.Text('$wins/$total',
-        style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+        style:
+            const pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
     pw.SizedBox(width: 4),
     pw.Container(
         width: 6,

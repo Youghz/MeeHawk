@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:app/core/theme.dart';
 import 'package:app/core/widgets/court.dart';
 import 'package:app/core/widgets/replay_panel.dart';
@@ -123,11 +121,11 @@ class _MatchLayoutState extends ConsumerState<_MatchLayout> {
                     icon: const Icon(Icons.bar_chart_rounded, color: MH.inkSoft, size: 22),
                     onPressed: () {
                       final state = ref.read(matchProvider);
-                      unawaited(Navigator.of(context).push(
+                      Navigator.of(context).push(
                         MaterialPageRoute<void>(
                           builder: (_) => AnalyticsScreen(state: state),
                         ),
-                      ));
+                      );
                     },
                   );
                 },

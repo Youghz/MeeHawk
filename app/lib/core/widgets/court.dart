@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:app/core/rules/touch_attribution.dart';
 import 'package:app/core/theme.dart';
 import 'package:app/core/widgets/court_constants.dart';
@@ -404,7 +402,7 @@ class _CourtState extends ConsumerState<Court>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
-    unawaited(_pulseCtrl.repeat(reverse: true));
+    _pulseCtrl.repeat(reverse: true);
     _pulseAnim = CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut);
   }
 

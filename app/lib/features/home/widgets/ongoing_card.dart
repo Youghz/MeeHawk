@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:app/core/theme.dart';
 import 'package:app/features/match/domain/match_state.dart';
 import 'package:app/features/match/match_screen.dart';
@@ -26,10 +24,8 @@ class OngoingCard extends ConsumerWidget {
 
   void _resume(BuildContext context, WidgetRef ref) {
     if (!isCurrent) ref.read(matchProvider.notifier).resumeMatch(archive.state);
-    unawaited(
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const MatchScreen()),
-      ),
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const MatchScreen()),
     );
   }
 

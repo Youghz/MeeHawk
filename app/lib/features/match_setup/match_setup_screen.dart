@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:app/core/rules/match_format.dart';
 import 'package:app/core/theme.dart';
 import 'package:app/features/match/match_screen.dart';
@@ -181,8 +179,8 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
             regularChangeSideEvery: _changeSideEvery,
           ),
         );
-    unawaited(Navigator.of(context).pushReplacement(
+    Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(builder: (_) => const MatchScreen()),
-    ));
+    );
   }
 }
