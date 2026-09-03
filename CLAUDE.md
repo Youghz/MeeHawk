@@ -6,6 +6,24 @@ MeeHawk est une application de scoring en temps réel pour le beach volley. L'ut
 
 Le traitement vidéo (détection, tracking, découpe) est sur la branche `feature/video-analysis`.
 
+## Structure du repo
+
+Rôle de chaque dossier racine — à lire en reprenant une session avant d'explorer le code.
+
+| Dossier | Rôle |
+|---|---|
+| `app/` | L'application Flutter (scoring live + historique). Voir `Architecture` plus bas pour `app/lib/`. Cible web + iOS + Android + macOS (desktop ajouté pour tester le stockage fichier local — build natif nécessite Xcode complet, pas seulement les Command Line Tools). |
+| `mcp/` (package `meehawk-mcp`) | Serveur MCP (`server.py`) exposant les actions de scoring (`add_point`, `add_ball_impact`, `start_match`, `undo_point`…) comme outils MCP — permet d'annoter un match en direct depuis une session Claude, en miroir de l'UI Flutter. Contient aussi `agent.py`, un pipeline d'annotation vidéo Gemini/Vertex AI. Déclaré dans `.mcp.json` sous `meehawk-annotation`. |
+| `annotator/` (package `meehawk-annotator`) | Refactor de `mcp/` (commit `acdf159`, "package Python propre") : même pipeline d'annotation vidéo (`agent.py`, `core.py`, `rules.py`, `state.py`). C'est la **source de vérité pour la synchro Dart↔Python**, voir table plus bas. ⚠️ `mcp/` et `annotator/` se chevauchent largement (fichiers quasi identiques, les deux reçoivent des fixes) — relation pas totalement clarifiée, à trancher (fusionner ou séparer explicitement les responsabilités) avant que la duplication ne diverge silencieusement. |
+| `match_history/` | **Données runtime, gitignored** (pas du code) — un fichier `.json` par match archivé, écrit par `FileArchiveStorage` (app en desktop/mobile) et lu par l'agent Python pour vérifier son résultat contre un match annoté par un humain. Aucune API entre les deux, juste ce dossier partagé. À ne pas confondre avec `app/lib/features/match_history/`, la feature Flutter. |
+| `landing/` | Page d'accueil statique du futur SaaS CrabCoach (`index.html` autonome, pas de build step). Aucun lien avec `app/`. |
+| `design-system/` | Référence visuelle (tokens, prototype React dans `reference/`). ⚠️ `README.md` y décrit une arborescence `app/lib/theme.dart` / `app/lib/screens/` obsolète (structure d'avant le passage à `features/` + `core/`) — fiable pour la palette/les tokens, pas pour la structure de code. |
+| `docs/` | `ARCHITECTURE.md` (même décalage que `design-system/` — obsolète, ne pas s'y fier pour la structure actuelle) + `reviews/` (rapports d'audit architecture datés, historiques, pas maintenus). |
+| `.claude/` | Config Claude Code du projet : ce `CLAUDE.md`, `settings.json` (hook pre-commit `flutter analyze`/`flutter test`, permissions MCP codegraph), `skills/` (review-arch, review-clean, security-review, mobile-ux-ui). |
+| `.mcp.json` | Serveurs MCP partagés du projet : `codegraph` (recherche sémantique du code), `playwright` (vérification visuelle de l'UI), `meehawk-annotation` (→ `mcp/server.py`). |
+
+**Branches :** `main` (cette branche — app locale, sans Firebase/auth), `dev-firestore` (variante Firebase/Firestore complète avec authentification, non pushée sur GitHub), `feature/video-analysis` (pipeline vidéo séparé, voir ci-dessus).
+
 ## Tech Stack
 
 - **Flutter** — App cross-platform (web + iOS + Android)
@@ -49,7 +67,10 @@ lib/
         ├── screens/            # history_screen, match_replay_screen, analytics/
         ├── domain/             # match_archive
         ├── providers/          # replay_notifier
-        ├── persistence/        # archive_storage
+        ├── persistence/        # archive_storage (interface) + archive_storage_prefs
+        │                       # (web, SharedPreferences) + archive_storage_file
+        │                       # (desktop/mobile, écrit dans /match_history/ à la
+        │                       # racine du repo) + archive_json (schéma partagé)
         └── services/           # pdf_exporter
 ```
 
