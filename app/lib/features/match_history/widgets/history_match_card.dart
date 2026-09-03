@@ -1,3 +1,4 @@
+import 'package:app/core/match_name.dart';
 import 'package:app/core/theme.dart';
 import 'package:app/features/match/domain/match_state.dart';
 import 'package:app/features/match_history/domain/date_format.dart';
@@ -40,11 +41,25 @@ class HistoryMatchCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(
-                      formatMatchDate(archive.startedAt),
-                      style: MH.mono(),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            matchCodeName(archive.id),
+                            style: MH.sans(
+                              size: 13,
+                              weight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            formatMatchDate(archive.startedAt),
+                            style: MH.mono(),
+                          ),
+                        ],
+                      ),
                     ),
-                    const Spacer(),
                     Text(
                       'REPLAY',
                       style: MH.sans(

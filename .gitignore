@@ -34,3 +34,18 @@ annotator/service-account.json
 
 # Downloaded videos for rally_segmented (can be large)
 annotator/downloads/
+
+# Dev tooling artifacts (regenerable, not source of truth)
+.codegraph/
+.playwright-mcp/
+mcp/test_videos/
+
+# Run logs / traces
+**/cost_log.jsonl
+mcp/trace*.jsonl
+
+# Ad-hoc annotation test outputs
+/match_state.json
+/match_state_*.json
+mcp/match_state_*.json
+annotator/match_state_*.json

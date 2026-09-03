@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "codegraph": {
+      "type": "stdio",
+      "command": "codegraph",
+      "args": ["serve", "--mcp"]
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
+    },
+    "meehawk-annotation": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "--project",
+        "${CLAUDE_PROJECT_DIR}/mcp",
+        "run",
+        "python",
+        "${CLAUDE_PROJECT_DIR}/mcp/server.py"
+      ]
+    }
+  }
+}

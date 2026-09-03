@@ -4,6 +4,9 @@ import 'package:app/core/rules/match_format.dart';
 class SetRules {
   const SetRules._();
 
+  /// Maximum touches a team may use per possession (§9.1 FIVB Rules 2021-2024).
+  static const int maxTeamTouches = 3;
+
   /// True when the current set is won by one team (target reached with
   /// required lead).
   static bool isSetWon(
