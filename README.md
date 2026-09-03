@@ -1,109 +1,117 @@
-# MeeHawk
+# CrabCoach
 
-App interne de scoring live pour le beach volley. Un coach ou un coéquipier sur la touche tape le téléphone pour enregistrer chaque échange — qui marque, comment, où, et pourquoi — et obtient un scoreboard en direct, une timeline des points et un replay des annotations.
+Application de scoring et d'analyse pour le beach volley. Sur le bord du terrain, on tape
+le téléphone pour enregistrer chaque échange — qui touche, où, qui marque — et on obtient
+un scoreboard en direct, une timeline, un replay des trajectoires et des statistiques de
+fin de match.
 
-Ce repo contient la branche `main` (app de scoring seule) et une branche `feature/video-analysis` (pipeline d'analyse vidéo, séparée).
+Un agent Python annexe fait la même chose depuis une vidéo, avec Gemini, en réutilisant
+exactement les mêmes règles de jeu.
 
-## Capacités actuelles
+100 % local : aucun compte, aucun backend, aucune donnée qui sort de l'appareil.
 
-### Scoring en temps réel
-- Saisie manuelle d'un point via deux gros boutons `+ POINT` (un par équipe)
-- Rotation de service conforme au beach (sideout) : même serveur tant que l'équipe sert, l'autre joueur prend le service quand son équipe le récupère
-- Annulation du dernier point avec re-calcul correct de l'état de service (replay de l'historique)
-- Noms d'équipes et de joueurs éditables en cours de match
-- Gestion multi-sets avec prompt automatique de fin de set
+## Ce que ça fait
 
-### Saisie détaillée depuis le terrain
-- **Tap** sur le terrain → pose un impact de balle (marker visuel)
-- **Long-press** sur le terrain → popup du type d'attaque (`Cut`, `Line`, `Shot`, `Power`, `Ace`, `Bloc`) → le point est attribué à l'équipe du côté opposé
-- **Long-press** sur un joueur → popup du type de faute (`Service`, `Filet`, `Double`, `Out`, `Pied`, `Autre`) → le point va à l'équipe adverse avec annotation nominative
-- **Long-press + glisse** sur un joueur → repositionne la pastille sur le terrain
-- Auto-inférence des types d'impact (Service / Attaque) selon les traversées de filet
+**Saisie sur le terrain** — le terrain est la surface de saisie. Un tap pose un impact de
+balle, un double-tap un bloc, un swipe vertical désigne le joueur, un appui long termine
+l'échange. Un tap hors des limites signifie « balle dehors » et attribue la faute au
+dernier contact réel. La bande extérieure du côté serveur sert à poser la position de
+service. Aucune pop-up de confirmation : tout est annulable.
 
-### Timeline et replay
-- Deux rangées horizontales (une par équipe) avec un cube coloré par point gagné et un cube vide pour les rallies perdus
-- Auto-scroll vers la droite à chaque nouveau point
-- Tap sur un cube → ouvre un panneau de replay avec le n° de l'échange, le score au moment et la trajectoire annotée
+**Règles beach appliquées automatiquement** — rotation de service en sideout, 4ᵉ touche
+faute automatique, bloc qui ne consomme pas la possession de la même façon, sets à 21 /
+tie-break à 15, changements de côté à la bonne cadence selon le set.
 
-### Règles beach spécifiques
-- Bouton `Changer de côté` sous le terrain (miroir des positions joueurs)
-- Modal automatique tous les 7 points pour rappeler le changement de côté
-- Option « Ne pas changer de côté » qui silence définitivement le rappel pour ce match
+**Historique et analyse** — chaque match est archivé, rejouable point par point, avec une
+page d'analyse (zones de service, de réception, issues d'attaque, longueur des échanges,
+conseils) et un export PDF.
 
-### Persistance
-- Sauvegarde automatique de l'état du match en local (SharedPreferences)
-- Reprise du match en cas de kill d'app ou de rechargement
+**Lecture vidéo synchronisée** — quand un match a une vidéo associée, la timeline du
+lecteur porte un repère par échange ; cliquer un point saute au bon instant.
 
-### Divers
-- Zone de notes libre (conditions, tactique, observations)
-- Overlay d'aide gestuelle (`?` en haut à droite)
+**Annotation vidéo automatique** — `annotator/` découpe une vidéo de match en échanges et
+les annote avec Gemini, puis écrit le résultat dans `match_history/` où l'app le relit.
+Voir [`annotator/README.md`](annotator/README.md).
 
-## Stack technique
+## Structure
 
-### Frontend
-- **Flutter 3.11+** — app cross-platform (web + iOS + Android)
-- **Riverpod 3** — state management ; `MatchNotifier` porte la logique de match (rotation serveur, undo, swap sides, impacts, persistence)
-- **google_fonts** — Roboto (UI), Rubik (labels mono uppercase), Caveat (callouts terrain)
-- **SharedPreferences** — persistance locale du match en cours
-- Aucune authentification, aucun backend
-
-### Architecture
 ```
-app/lib/
-├── main.dart
-├── app.dart                          MaterialApp → HomeScreen
-├── core/
-│   ├── theme.dart                    Tokens MH + ThemeData
-│   ├── widgets/ball_icon.dart
-│   └── rules/                        Logique pure, zéro import Flutter
-│       ├── set_rules.dart            Conditions de victoire d'un set
-│       ├── service_rotation.dart     Rotation de service beach
-│       ├── team_side.dart            Côté terrain par équipe
-│       ├── rally_analyzer.dart       Traversées de filet, inférence d'impacts
-│       ├── attack_inference.dart     Auto-annotation Service / Attaque
-│       └── match_format.dart        Nombre de sets, points par set
-└── features/
-    ├── home/home_screen.dart
-    ├── match_setup/match_setup_screen.dart
-    └── match/
-        ├── match_screen.dart
-        ├── domain/                   Entités, état, popups
-        ├── providers/                match_provider, drag_preview_provider
-        ├── persistence/              match_codec, match_storage
-        └── widgets/                  court, timeline, replay_panel, etc.
+app/          Application Flutter (web, iOS, Android, macOS)
+annotator/    Agent d'annotation vidéo Python + serveur MCP
+parity/       Scénario partagé qui verrouille la parité Dart ↔ Python
+landing/      Page d'accueil statique du SaaS (index.html autonome)
+design-system/ Archive du handoff de design d'origine — pas une source de vérité
+match_history/ Données runtime, gitignored : un .json par match archivé
 ```
 
-Navigation : `HomeScreen → MatchSetupScreen → MatchScreen`.
+### Architecture de `app/lib/`
 
-### Design system
-Documenté dans [`design-system/`](design-system/README.md). Contient les tokens, les composants Flutter et la référence originale (prototype React `reference/`).
+Cinq couches, dépendances strictement descendantes. Une flèche vers le haut est un bug.
 
-### Analyse vidéo (branche séparée)
-La branche `feature/video-analysis` contient une stack Python (FastAPI + RF-DETR + SAM 2 + Gemini) pour détecter, tracker et découper les rallies depuis une vidéo de match. Hors scope de l'app main — à merger / intégrer plus tard.
+```
+features/   Écrans. N'importent d'une autre feature que son écran d'entrée.
+    ↓
+core/       Thème + widgets partagés par ≥ 2 features (terrain, timeline, score).
+    ↓
+state/      Notifiers Riverpod. La machine à états du match vit ici.
+    ↓
+data/       Codecs JSON et stockage (SharedPreferences sur web, fichiers ailleurs).
+    ↓
+domain/     Entités et règles pures. Zéro import Flutter, zéro dépendance.
+```
+
+Cette direction est vérifiable en une commande :
+
+```bash
+cd app/lib
+grep -rn "package:flutter" domain/                     # doit être vide
+grep -rn "package:app/\(data\|state\|core\|features\)" domain/   # doit être vide
+grep -rn "package:app/features" core/                  # doit être vide
+```
+
+Navigation : `HomeScreen → MatchSetupScreen → MatchScreen`, et
+`HomeScreen → HistoryScreen → MatchReplayScreen | AnalyticsScreen`.
+
+## Stack
+
+- **Flutter 3.11+** / **Dart 3** — `flutter_riverpod` pour l'état partagé,
+  `very_good_analysis` comme linter, `pdf` + `printing` pour l'export, `package:web`
+  pour le lecteur vidéo web.
+- **Python 3.11+** — `google-genai` (Gemini), `pydantic` pour les sorties structurées,
+  `mcp` pour le serveur d'annotation, `yt-dlp` + `ffmpeg` pour le découpage vidéo.
+  Géré avec `uv`.
 
 ## Développement
 
 ```bash
+# App
 cd app
 flutter pub get
-flutter run -d chrome              # hot reload web
-# ou
-flutter build web && python3 -m http.server 8080 --directory build/web
+flutter run -d chrome          # hot reload
+flutter analyze                # doit être clean
+flutter test
+
+# Agent d'annotation
+uv sync --group dev
+uv run pytest
+uv run meehawk-annotate "https://youtube.com/watch?v=..." --label essai1
 ```
 
-Tests : `flutter test`  
-Linter : `flutter analyze` doit être clean avant commit.
+Un hook pre-commit (`.claude/hooks/pre-commit-check.sh`) bloque le commit si
+`flutter analyze`, `flutter test` ou `pytest` échouent.
 
-### Conventions
-- `const` sur tout widget immuable
-- Un widget = une responsabilité, max ~100 lignes
-- `StatelessWidget` par défaut, `StatefulWidget` seulement pour l'état local UI
-- Riverpod pour l'état partagé, `setState` pour le local
-- Règles métier dans `core/rules/` — aucun import Flutter
-- Pas de hex values inline — toujours passer par les tokens dans `theme.dart`
-- Pas de secrets commités
-- `flutter analyze` + `flutter test` verts avant chaque commit
+## La règle de parité
 
-## Pistes court terme
-- Export CSV/JSON de la timeline
-- Intégration des rallies découpés par la branche `feature/video-analysis`
+`annotator/core.py` est un port ligne à ligne de `app/lib/state/match_provider.dart`, et
+`annotator/rules.py` de `app/lib/domain/rules/`. Les deux doivent produire exactement le
+même état pour la même séquence d'actions.
+
+Ce n'est pas une question de discipline : `parity/scenario.json` rejoue une séquence
+d'actions des deux côtés et compare les JSON produits. Le hook pre-commit fait échouer le
+commit si le port a dérivé. Voir [`parity/README.md`](parity/README.md).
+
+## Branches
+
+- `main` — l'app + l'agent d'annotation, entièrement local.
+- `feature/video-analysis` — pipeline de vision par ordinateur (détection, tracking,
+  découpe d'échanges), séparé.

@@ -1,221 +1,129 @@
-# MeeHawk
+# CrabCoach — instructions projet
 
-## Project Overview
+App Flutter de scoring beach volley en direct, plus un agent Python qui annote des vidéos
+de match avec Gemini. 100 % local : aucun compte, aucun backend, aucune donnée qui sort
+de l'appareil.
 
-MeeHawk est une application de scoring en temps réel pour le beach volley. L'utilisateur enregistre les actions d'un match en live (points, service, réception, attaque, bloc) sans avoir besoin de vidéo.
-
-Le traitement vidéo (détection, tracking, découpe) est sur la branche `feature/video-analysis`.
+Ce fichier ne contient que ce qui n'est pas déductible du code. Pour ce que fait l'app et
+comment la lancer, voir `README.md`.
 
 ## Structure du repo
 
-Rôle de chaque dossier racine — à lire en reprenant une session avant d'explorer le code.
-
 | Dossier | Rôle |
 |---|---|
-| `app/` | L'application Flutter (scoring live + historique). Voir `Architecture` plus bas pour `app/lib/`. Cible web + iOS + Android + macOS (desktop ajouté pour tester le stockage fichier local — build natif nécessite Xcode complet, pas seulement les Command Line Tools). |
-| `mcp/` (package `meehawk-mcp`) | Serveur MCP (`server.py`) exposant les actions de scoring (`add_point`, `add_ball_impact`, `start_match`, `undo_point`…) comme outils MCP — permet d'annoter un match en direct depuis une session Claude, en miroir de l'UI Flutter. Contient aussi `agent.py`, un pipeline d'annotation vidéo Gemini/Vertex AI. Déclaré dans `.mcp.json` sous `meehawk-annotation`. |
-| `annotator/` (package `meehawk-annotator`) | Refactor de `mcp/` (commit `acdf159`, "package Python propre") : même pipeline d'annotation vidéo (`agent.py`, `core.py`, `rules.py`, `state.py`). C'est la **source de vérité pour la synchro Dart↔Python**, voir table plus bas. ⚠️ `mcp/` et `annotator/` se chevauchent largement (fichiers quasi identiques, les deux reçoivent des fixes) — relation pas totalement clarifiée, à trancher (fusionner ou séparer explicitement les responsabilités) avant que la duplication ne diverge silencieusement. |
-| `match_history/` | **Données runtime, gitignored** (pas du code) — un fichier `.json` par match archivé, écrit par `FileArchiveStorage` (app en desktop/mobile) et lu par l'agent Python pour vérifier son résultat contre un match annoté par un humain. Aucune API entre les deux, juste ce dossier partagé. À ne pas confondre avec `app/lib/features/match_history/`, la feature Flutter. |
-| `landing/` | Page d'accueil statique du futur SaaS CrabCoach (`index.html` autonome, pas de build step). Aucun lien avec `app/`. |
-| `design-system/` | Référence visuelle (tokens, prototype React dans `reference/`). ⚠️ `README.md` y décrit une arborescence `app/lib/theme.dart` / `app/lib/screens/` obsolète (structure d'avant le passage à `features/` + `core/`) — fiable pour la palette/les tokens, pas pour la structure de code. |
-| `docs/` | `ARCHITECTURE.md` (même décalage que `design-system/` — obsolète, ne pas s'y fier pour la structure actuelle) + `reviews/` (rapports d'audit architecture datés, historiques, pas maintenus). |
-| `.claude/` | Config Claude Code du projet : ce `CLAUDE.md`, `settings.json` (hook pre-commit `flutter analyze`/`flutter test`, permissions MCP codegraph), `skills/` (review-arch, review-clean, security-review, mobile-ux-ui). |
-| `.mcp.json` | Serveurs MCP partagés du projet : `codegraph` (recherche sémantique du code), `playwright` (vérification visuelle de l'UI), `meehawk-annotation` (→ `mcp/server.py`). |
+| `app/` | L'app Flutter. Voir « Architecture » plus bas. |
+| `annotator/` | Agent d'annotation vidéo + serveur MCP. Voir `annotator/README.md`. |
+| `parity/` | Scénario partagé qui verrouille la parité Dart ↔ Python. |
+| `match_history/` | **Données runtime, gitignored** — un `.json` par match, écrit par l'app (desktop/mobile) et par l'agent, lu par les deux. Ne pas confondre avec `app/lib/features/match_history/`, la feature Flutter. |
+| `landing/` | Page d'accueil statique du SaaS. `index.html` autonome, aucun lien avec `app/`. |
+| `design-system/` | Archive du handoff de design d'origine. **Pas une source de vérité** — voir son README. |
 
-**Branches :** `main` (cette branche — app locale, sans Firebase/auth), `dev-firestore` (variante Firebase/Firestore complète avec authentification, non pushée sur GitHub), `feature/video-analysis` (pipeline vidéo séparé, voir ci-dessus).
+Config : `pyproject.toml` (racine, projet Python), `.mcp.json` (serveurs MCP partagés),
+`.claude/` (hook pre-commit, skills).
 
-## Tech Stack
+**Branches :** `main` (cette branche), `feature/video-analysis` (pipeline de vision, séparé).
 
-- **Flutter** — App cross-platform (web + iOS + Android)
-- **Riverpod** — State management
-- **very_good_analysis** — Linter (Very Good Ventures)
-- Auth : aucune pour le moment
+## Architecture — `app/lib/`
 
-## Architecture
-
-Structure par **feature** (tranche verticale), avec séparation stricte des responsabilités au sein de chaque feature.
+Cinq couches, dépendances strictement descendantes.
 
 ```
-lib/
-├── main.dart
-├── app.dart                    # MaterialApp + ref.listen persistence (source unique d'archivage)
-├── core/
-│   ├── theme.dart              # Dark theme, constantes visuelles
-│   ├── rules/                  # Logique domaine pure — ZERO import Flutter
-│   │   ├── attack_inference.dart
-│   │   ├── match_format.dart
-│   │   ├── rally_analyzer.dart
-│   │   ├── service_rotation.dart
-│   │   ├── set_rules.dart      # contient aussi maxTeamTouches
-│   │   └── team_side.dart
-│   └── widgets/                # Widgets partagés entre ≥2 features
-│       ├── ball_icon.dart
-│       ├── court.dart          # Court widget (utilisé par match et match_history)
-│       └── court_constants.dart # kCourtMargin
-└── features/
-    ├── home/
-    │   └── home_screen.dart
-    ├── match_setup/
-    │   └── match_setup_screen.dart
-    ├── match/
-    │   ├── match_screen.dart
-    │   ├── domain/             # entities, match_state, popup types (sealed classes)
-    │   ├── providers/          # match_provider (MatchNotifierBase + MatchNotifier)
-    │   ├── persistence/        # match_codec, match_storage
-    │   └── widgets/            # timeline, top_score, bottom_actions…
-    └── match_history/
-        ├── screens/            # history_screen, match_replay_screen, analytics/
-        ├── domain/             # match_archive
-        ├── providers/          # replay_notifier
-        ├── persistence/        # archive_storage (interface) + archive_storage_prefs
-        │                       # (web, SharedPreferences) + archive_storage_file
-        │                       # (desktop/mobile, écrit dans /match_history/ à la
-        │                       # racine du repo) + archive_json (schéma partagé)
-        └── services/           # pdf_exporter
+features/   Écrans.
+    ↓
+core/       Thème + widgets partagés par ≥ 2 features.
+    ↓
+state/      Notifiers Riverpod.
+    ↓
+data/       Codecs et stockage.
+    ↓
+domain/     Entités + règles pures. Zéro import Flutter.
 ```
 
-**Règles d'architecture :**
+**Règles non négociables :**
 
-- Direction des dépendances : `UI → providers → domain → rules`. Jamais l'inverse.
-- `core/rules/` ne doit jamais `import 'package:flutter/...'`.
-- Une feature A n'importe jamais `features/B/widgets/` — seulement l'écran d'entrée ou les types domain publics de B.
-- Si un widget est utilisé par ≥ 2 features, il appartient à `core/widgets/`. Extraire les constantes de layout partagées dans un fichier séparé pour éviter les imports circulaires.
-- Imports absolus uniquement : `package:<app>/...` (jamais relatifs). `very_good_analysis` l'enforce via `always_use_package_imports`.
-- Les méthodes de règles métier vivent en `core/rules/` (méthodes statiques pures, testables sans Flutter), pas dans les notifiers.
-- `app.dart` est la **source unique** de persistence/archivage via `ref.listen`. Ne pas dupliquer de logique de sauvegarde dans les écrans (lifecycle callbacks redondants).
-- Avant tout commit cross-feature : vérifier l'absence de cycle A → B et B → A. Un cycle signale qu'une dépendance doit transiter par `core/`.
+1. **Jamais de flèche vers le haut.** `domain/` n'importe rien du repo, `core/` n'importe
+   jamais `features/`. Vérifiable :
+   ```bash
+   cd app/lib
+   grep -rn "package:flutter" domain/
+   grep -rn "package:app/\(data\|state\|core\|features\)" domain/
+   grep -rn "package:app/features" core/
+   ```
+   Les trois doivent être vides.
 
-## Navigation
+2. **Une feature n'importe d'une autre que son écran d'entrée** (pour naviguer). Le graphe
+   actuel est acyclique : `home → {match_setup, match, match_history}`, `match_setup → match`,
+   `match → match_history`. Avant tout commit cross-feature, vérifier qu'aucune arête
+   inverse n'a été ajoutée.
 
-```
-HomeScreen → MatchSetupScreen → MatchScreen
-HomeScreen → HistoryScreen → MatchReplayScreen
-                            → AnalyticsScreen
-```
+3. **Les règles de jeu vivent dans `domain/rules/`**, en méthodes statiques pures. Un
+   widget qui décide qui gagne un point est un bug d'architecture — c'est le cas qu'on
+   vient de corriger dans `court.dart`.
 
-## Python annotation package — synchronisation obligatoire
+4. **`app.dart` est la source unique de persistance**, via un seul `ref.listen`. Ne jamais
+   sauvegarder depuis un lifecycle d'écran.
 
-Le dossier `annotator/` contient un port Python exact de la logique métier Flutter.
-**Toute modification d'un des fichiers Dart listés ci-dessous doit être répercutée immédiatement dans le fichier Python correspondant.**
+5. **Imports absolus uniquement** (`package:app/...`), enforcé par `very_good_analysis`.
 
-| Dart (source de vérité) | Python (port à maintenir) |
+## Parité Dart ↔ Python — obligatoire
+
+`annotator/` porte la logique métier Flutter en Python. Les deux doivent produire le même
+état pour la même séquence d'actions.
+
+| Dart (source de vérité) | Python (port) |
 |---|---|
-| `app/lib/features/match/providers/match_provider.dart` — `MatchNotifier` | `annotator/core.py` — `MatchAnnotator` |
-| `app/lib/features/match/persistence/match_codec.dart` — `MatchCodec` | `annotator/state.py` — `MatchCodec` + helpers |
-| `app/lib/features/match/domain/match_state.dart` — `MatchState`, `initialMatchState` | `annotator/state.py` — `MatchState`, `initial_match_state` |
-| `app/lib/core/rules/service_rotation.dart` — `ServiceRotation` | `annotator/rules.py` — `ServiceRotation` |
-| `app/lib/core/rules/set_rules.dart` — `SetRules` | `annotator/rules.py` — `SetRules` |
-| `app/lib/core/rules/attack_inference.dart` — `AttackInference` | `annotator/rules.py` — `AttackInference` |
-| `app/lib/core/rules/rally_analyzer.dart` — `RallyAnalyzer` | `annotator/rules.py` — `RallyAnalyzer` |
-| `app/lib/core/rules/match_format.dart` — `MatchFormat` | `annotator/state.py` — `MatchFormat` |
+| `app/lib/state/match_provider.dart` | `annotator/core.py` |
+| `app/lib/domain/match_state.dart` | `annotator/state.py` |
+| `app/lib/data/match_codec.dart` | `annotator/state.py` — `MatchCodec` |
+| `app/lib/domain/rules/*.dart` | `annotator/rules.py` |
+| `app/lib/domain/match_archive.dart` — `idFor` | `annotator/importer.py` — `match_id_for` |
 
-**Règle opérationnelle :** Avant chaque commit touchant un de ces fichiers Dart, ouvrir le fichier Python miroir et appliquer le changement équivalent. Vérifier ensuite `uv run --project annotator python -c "from annotator import MatchAnnotator; ..."` pour valider.
+**Le Dart est la source de vérité.** Toute modification d'un fichier de gauche se répercute
+dans celui de droite, dans le même commit.
 
-## Development
+Ce n'est pas déclaratif : `parity/scenario.json` est rejoué des deux côtés et les états
+comparés (`app/test/parity_test.dart` + `annotator/tests/test_parity.py`). Le hook
+pre-commit lance `pytest`, donc une dérive bloque le commit. Après un changement de règle
+volontaire, régénérer le golden (`UPDATE_PARITY_GOLDEN=1 flutter test test/parity_test.dart`)
+puis relancer `uv run pytest` — s'il échoue, le port n'a pas suivi. Voir `parity/README.md`.
 
-```bash
-# Build + serve
-cd app && flutter build web && python3 -m http.server 8080 --directory build/web
+## Design — l'utilisateur est sur le terrain
 
-# Analyze
-cd app && flutter analyze
+Chaque élément visuel sert une action, pas une explication.
 
-# Tests
-cd app && flutter test
-```
+- **Pas de pop-up de confirmation** pour une action réversible (undo existe). Pop-up =
+  friction = erreur en match.
+- **Pas de texte superflu** : libellés courts, icônes explicites, aucune instruction à l'écran.
+- **Actions reconnaissables sans hover ni tooltip** — l'app tourne au doigt, en plein soleil.
+- **Feedback < 100 ms** sur toute action.
+- **Hiérarchie** : score en grand, actions en moyen, contexte (sets, serveur) en petit.
+- **Dark theme**, accent réservé à l'état actif.
+- **Aucune animation décorative** : une animation sert le feedback, jamais l'esthétique.
+- **Aucune couleur en dur** : tout passe par les tokens `MH` de `core/theme.dart`.
 
-## Règles de développement
+## Règles métier beach volley
 
-### Vérification frontend (obligatoire)
-
-Pour toute modification touchant l'UX :
-1. `flutter build web`
-2. Regard critique sur le code : clair, intuitif, bien aligné, sans texte tronqué, boutons accessibles
-3. Corriger avant de présenter
-
-### Contrôle qualité overflow (à exécuter sur demande)
-
-Checklist anti-overflow à appliquer sur tous les widgets modifiés ou créés :
-
-**Règles `Row` :**
-- Tout `Text` dans un `Row` qui n'est pas seul doit être dans un `Flexible` ou `Expanded`
-- `overflow: TextOverflow.ellipsis` sur tout `Text` dans un contexte contraint
-- Pas de `Spacer()` si les voisins ne sont pas eux-mêmes contraints
-- Les `Row` imbriqués dans un `Expanded` peuvent encore déborder si leurs enfants sont non contraints
-
-**Patterns dangereux à identifier :**
-```dart
-// ❌ Overflow garanti sur écran étroit
-Row(children: [Badge(), Text('texte long'), Spacer(), Text('autre')]);
-
-// ✅ Correct
-Row(children: [Badge(), Flexible(child: Text('...', overflow: TextOverflow.ellipsis)), SizedBox(width:8), Text('court')]);
-```
-
-**Vérification systématique :**
-- Grep tous les `Row(` dans les fichiers modifiés
-- Pour chaque `Row`, vérifier que chaque `Text` enfant direct est dans `Flexible`/`Expanded`
-- Vérifier que `IntrinsicWidth` n'est pas utilisé dans un `Flexible` (double passe + débordement possible)
-- Tester mentalement avec un nom d'équipe de 20 caractères et un écran de 360px de large
-
-### Design — Principes fondamentaux
-
-**L'utilisateur n'a pas de temps à perdre sur le terrain.** Chaque élément visuel doit servir une action, pas expliquer.
-
-- **Pas de pop-up** pour confirmer des actions réversibles (undo existe). Pop-up = friction = erreur en match.
-- **Pas de texte superflu** : libellés courts, icônes explicites, zéro instruction contextuelle à l'écran.
-- **Actions visibles au premier regard** : les éléments cliquables doivent être reconnaissables sans hover ni tooltip.
-- **Feedback visuel immédiat** : toute action doit produire un retour visible < 100 ms (couleur, animation, score).
-- **Hiérarchie visuelle claire** : score en grand, actions en moyen, contexte (sets, serveur) en petit.
-- **Dark theme** cohérent, couleurs neutres pour les éléments secondaires, accent uniquement sur l'état actif.
-- **Pas d'animation décorative** : les animations servent le feedback (transition de score, point accordé), pas l'esthétique.
-
-### Flutter — Bonnes pratiques
-
-**Widgets :**
-- `const` sur tout widget immuable (court-circuite les rebuilds).
-- `StatelessWidget` par défaut ; `StatefulWidget` uniquement si état local non partagé.
-- Un widget = une responsabilité, max ~100 lignes.
-- Noms explicites : `ServeZonePicker`, `TopScore`, pas `MyWidget`, `Panel`.
-
-**Performance :**
-- Jamais `Opacity` pour les animations → utiliser `FadeTransition` (controller) ou `AnimatedOpacity` (state).
-- `AnimatedBuilder` : toujours passer le sous-arbre statique en `child`, jamais inline dans `builder`.
-- `RepaintBoundary` autour des `CustomPaint` coûteux qui se redessinent indépendamment (ex : canvas terrain vs marqueur animé).
-- `ListView.builder` / `GridView.builder` pour toute liste potentiellement longue.
-- Préférer `borderRadius` sur `BoxDecoration` plutôt que `ClipRRect` quand aucun enfant ne déborde.
-- Éviter `IntrinsicHeight` / `IntrinsicWidth` (double passe de layout).
-- Pour une opacité statique sur un widget peint : passer l'alpha directement dans la `Paint.color`, pas via un widget `Opacity`.
-
-**State :**
-- Riverpod pour tout état partagé entre widgets ou écrans.
-- `setState` uniquement pour état purement local et éphémère (ex : focus d'un champ).
-- `ListView.builder` pour les listes variables.
-
-**Modélisation de domaine :**
-- `sealed class` + sous-classes `final` pour tout type discriminé (plusieurs variantes avec des champs différents). Ne jamais modéliser ça avec `enum + champs optionnels` : les champs non-nullables sur les sous-classes et l'exhaustivité des `switch`/`is` sont supérieurs.
-- Quand une sous-classe redéfinit N méthodes en no-ops pour bloquer le comportement parent, extraire une classe de base abstraite avec les no-ops comme défaut. Toute nouvelle méthode oubliée sera safe par défaut.
-- Un fichier `< 15 lignes` contenant une seule déclaration (constante, provider trivial) → fusionner dans le fichier conceptuellement lié.
-- Un fichier `> 500 lignes` avec des classes privées multiples mélange les responsabilités — signal de découpage.
-
-**Lint :**
-- Linter : `very_good_analysis` — inclure dans `analysis_options.yaml`.
-- Désactiver uniquement `public_member_api_docs: false` et `lines_longer_than_80_chars: false` pour le code applicatif.
-- `flutter analyze` doit être propre avant chaque commit.
-
-### Règles métier beach volley
-
-- Maximum 3 contacts par équipe par possession.
-- **Bloc** : action valide uniquement si l'équipe qui bloque n'a eu **0 contact** de son côté dans la possession en cours. Si elle a déjà eu un contact (réception, passe), elle est en attaque — pas en position de bloquer une balle entrante.
-- **Attaque** : l'attaquant est le dernier joueur à toucher la balle du côté gagnant.
-- **Faute** : l'équipe perdante envoie la balle hors limites ou dans le filet.
+- Maximum 3 contacts par équipe et par possession ; la 4ᵉ touche est une faute automatique.
+- **Bloc** : valide uniquement si l'équipe qui bloque a eu 0 contact dans la possession en
+  cours. Sinon elle est en attaque, pas en position de bloquer. Le bloqueur peut rejouer la
+  balle juste après son bloc, mais ce second contact consomme une touche.
+- **Attaque** : attribuée au dernier joueur à toucher la balle du côté gagnant.
+- **Balle dehors** : la faute revient au **dernier contact réel**, jamais au côté où la
+  balle est retombée. Sans contact préalable, c'est une faute de service.
 - **Ace de service** : la balle arrive du côté adverse sans être touchée (netCrossings = 1).
-- **Faute de service** : balle dans le filet ou hors avant de croiser (netCrossings = 0).
-- Attribution toujours sur le **dernier contact réel** — jamais sur un joueur supposé.
+- **Faute de service** : balle au filet ou dehors avant d'avoir croisé (netCrossings = 0).
 
-### Communs
+## Avant chaque commit
 
-- Pas de valeurs magiques : constantes dans `core/` ou dans le fichier de domaine concerné.
-- Pas de secrets commis.
-- Commit + push après chaque modification significative.
-- `flutter analyze` + `flutter test` verts avant chaque commit (hook de pré-commit enforce cette règle).
+`flutter analyze` + `flutter test` + `uv run pytest` doivent être verts. Le hook
+`.claude/hooks/pre-commit-check.sh` l'enforce.
+
+Ne jamais commiter de secret. Pas de `Co-Authored-By: Claude`.
+
+## Vérification frontend
+
+Pour toute modification qui touche l'UX : `flutter build web`, puis relecture critique
+(alignement, texte tronqué, boutons atteignables au pouce). Corriger avant de présenter.
+
+La checklist anti-overflow détaillée est dans le skill `mobile-ux-ui` — l'invoquer plutôt
+que de la dupliquer ici.
