@@ -21,7 +21,7 @@ scenario.json ──┬──> MatchNotifier (Dart)  ──> MatchCodec.toJson  
 
 ```bash
 cd app && flutter test test/parity_test.dart
-uv run --project annotator pytest annotator/tests/test_parity.py
+uv run pytest annotator/tests/test_parity.py
 ```
 
 Régénérer le golden après un changement de règle **intentionnel** :

@@ -3,9 +3,9 @@
 Reads ``cost_log.jsonl``, written by :func:`annotator.cost.log_run`.
 
 Usage:
-    uv run --project annotator python -m annotator.report
-    uv run --project annotator python -m annotator.report --last 5
-    uv run --project annotator python -m annotator.report --label set1-v5
+    uv run meehawk-report
+    uv run meehawk-report --last 5
+    uv run meehawk-report --label set1-v5
 """
 from __future__ import annotations
 

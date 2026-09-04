@@ -100,6 +100,23 @@ uv run meehawk-annotate "https://youtube.com/watch?v=..." --label essai1
 Un hook pre-commit (`.claude/hooks/pre-commit-check.sh`) bloque le commit si
 `flutter analyze`, `flutter test` ou `pytest` échouent.
 
+### Place disque
+
+Rien de lourd n'est versionné — l'historique git fait quelques mégaoctets. Mais le dossier
+de travail grossit vite, et pour deux raisons distinctes :
+
+- **Caches régénérables.** `app/build` (jusqu'à 4 Go, dont ~3 Go rien que pour le build
+  Android) et `app/.dart_tool` (~600 Mo). `flutter clean && rm -rf app/.dart_tool` les
+  efface ; `flutter pub get` les reconstruit.
+- **Vidéos de match.** Quelques centaines de mégaoctets chacune, et le même fichier est
+  utilisé à deux endroits : le cache yt-dlp (`annotator/downloads/`) et les assets servis
+  par l'app web (`app/web/videos/`). `meehawk-import` crée un **lien physique** plutôt
+  qu'une copie, donc une vidéo n'occupe la place qu'une fois. Si tu déposes un fichier à la
+  main dans les deux dossiers, tu paies la place deux fois — utilise `ln` plutôt que `cp`.
+
+`git gc` de temps en temps : les renommages massifs laissent beaucoup d'objets non
+compactés (343 Mo → 7 Mo après la restructuration).
+
 ## La règle de parité
 
 `annotator/core.py` est un port ligne à ligne de `app/lib/state/match_provider.dart`, et

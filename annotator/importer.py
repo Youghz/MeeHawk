@@ -6,13 +6,14 @@ between them — the schema (``annotator/state.py::MatchCodec``, mirrored by
 ``app/lib/data/match_codec.dart``) is the entire contract.
 
 Usage:
-    uv run --project annotator python -m annotator.importer match_state_run1.json
-    uv run --project annotator python -m annotator.importer state.json --video clip.mp4
+    uv run meehawk-import match_state_run1.json
+    uv run meehawk-import state.json --video clip.mp4
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import sys
@@ -34,6 +35,31 @@ def match_id_for(started_at: str) -> str:
     return f"match_{re.sub(r'[-:.]|Z', '', started_at)}"
 
 
+def _publish_video(video_path: Path, match_id: str) -> str:
+    """Make [video_path] servable by the web app. Returns the URL to store.
+
+    Hard-links rather than copies: a match video is a few hundred megabytes and
+    already sits in the yt-dlp cache, so copying it would keep two identical
+    copies on disk forever. The file is immutable once downloaded, which is what
+    makes sharing an inode safe here. Falls back to a copy across filesystems.
+    """
+    if not video_path.exists():
+        raise FileNotFoundError(f"Video not found: {video_path}")
+
+    WEB_VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
+    dest = WEB_VIDEOS_DIR / f"{match_id}{video_path.suffix}"
+
+    if dest.exists():
+        dest.unlink()
+    try:
+        os.link(video_path, dest)
+    except OSError:
+        shutil.copy2(video_path, dest)
+
+    print(f"  → video: /videos/{dest.name}", file=sys.stderr)
+    return f"/videos/{dest.name}"
+
+
 def import_match(
     state: dict[str, Any],
     match_id: str | None = None,
@@ -53,13 +79,7 @@ def import_match(
     }
 
     if video_path is not None:
-        if not video_path.exists():
-            raise FileNotFoundError(f"Video not found: {video_path}")
-        dest_name = f"{match_id}{video_path.suffix}"
-        WEB_VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(video_path, WEB_VIDEOS_DIR / dest_name)
-        archive["videoUrl"] = f"/videos/{dest_name}"
-        print(f"  → video: {archive['videoUrl']}", file=sys.stderr)
+        archive["videoUrl"] = _publish_video(video_path, match_id)
 
     MATCH_HISTORY_DIR.mkdir(parents=True, exist_ok=True)
     out = MATCH_HISTORY_DIR / f"{match_id}.json"
