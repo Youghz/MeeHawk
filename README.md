@@ -39,6 +39,7 @@ Voir [`annotator/README.md`](annotator/README.md).
 app/          Application Flutter (web, iOS, Android, macOS)
 annotator/    Agent d'annotation vidéo Python + serveur MCP
 parity/       Scénario partagé qui verrouille la parité Dart ↔ Python
+validation/   Corpus d'évaluation de l'agent — matchs annotés à la main
 landing/      Page d'accueil statique du SaaS (index.html autonome)
 design-system/ Archive du handoff de design d'origine — pas une source de vérité
 match_history/ Données runtime, gitignored : un .json par match archivé

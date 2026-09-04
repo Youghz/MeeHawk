@@ -23,6 +23,7 @@ meehawk-annotate = "annotator.agent:main"
 meehawk-import = "annotator.importer:main"
 meehawk-report = "annotator.report:main"
 meehawk-eval = "annotator.eval:main"
+meehawk-promote = "annotator.promote:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["annotator"]

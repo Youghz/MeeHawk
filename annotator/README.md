@@ -66,9 +66,12 @@ uv run meehawk-import annotator/match_state_set1-v6.json --video clip.mp4
 # Coût des runs passés
 uv run meehawk-report --last 10
 
-# Noter une run contre un match annoté à la main
-uv run meehawk-eval annotator/match_state_essai.json \
-    --truth match_history/match_20260522T030751000.json
+# Noter une run contre le corpus de validation
+uv run meehawk-eval annotator/match_state_essai.json
+
+# Ajouter un match annoté à la main au corpus
+uv run meehawk-promote match_20260601T104500000 --by "Hugo" \
+    --video-source "https://youtube.com/watch?v=XXXX"
 ```
 
 Prérequis : `yt-dlp` et `ffmpeg` sur le PATH (`brew install yt-dlp ffmpeg`), et
@@ -78,12 +81,14 @@ Prérequis : `yt-dlp` et `ffmpeg` sur le PATH (`brew install yt-dlp ffmpeg`), et
 ## Évaluer une run
 
 ```bash
-uv run meehawk-eval annotator/match_state_set1-v6.json \
-    --truth match_history/match_20260522T030751000.json
+uv run meehawk-eval annotator/match_state_set1-v6.json
 ```
 
-Les matchs de `match_history/` sont au même format que la sortie de l'agent : la
-comparaison est directe.
+La run est notée contre les matchs humains de `../validation/` — même format que la
+sortie de l'agent, donc comparaison directe. **Seuls les matchs de provenance `human`
+servent de référence** : noter l'agent contre une ancienne sortie d'agent mesurerait la
+reproductibilité, pas la justesse. Voir [`../validation/README.md`](../validation/README.md)
+pour ajouter un match au corpus.
 
 **L'alignement d'abord.** Comparer `history[i]` à `truth[i]` est un piège : un seul
 rallye manqué décale tout et l'accuracy s'effondre. Un agent qui rate le rallye 3 sur 31
@@ -112,10 +117,10 @@ L'attribution n'est comptée que sur des impacts proches (< 0.08 en unités terr
 comparer le joueur de deux touches situées à des endroits différents du terrain ne
 mesure rien.
 
-**Limite à connaître :** le corpus fait deux matchs, 73 rallyes, une paire d'équipes
-chacun. C'est assez pour détecter une régression franche, pas pour mesurer un gain de
-3 %. Pour vraiment régler les prompts, il faut 3–4 matchs de plus, tournés dans des
-conditions différentes.
+**Limite à connaître :** le corpus ne contient qu'**un seul** match humain, 67 rallyes,
+une paire d'équipes. C'est assez pour détecter une régression franche, pas pour mesurer
+un gain de 3 %. Et sans `videoTimeSec` côté humain, la détection des rallyes (pass 1)
+n'est pas encore évaluable.
 
 ## Modules
 
@@ -130,7 +135,9 @@ conditions différentes.
 | `retry.py` | Backoff sur 429 / 503 / coupures réseau |
 | `video.py` | yt-dlp et ffmpeg |
 | `cost.py` | Comptage de tokens et coût par run |
-| `eval.py` | Notation d'une run contre un match annoté à la main |
+| `eval.py` | Notation d'une run contre le corpus de validation |
+| `corpus.py` | Chargement de `validation/`, garde-fou de provenance |
+| `promote.py` | Ajoute un match annoté au corpus |
 | `report.py` | Tableau des runs passés |
 | `importer.py` | Écrit un match dans `match_history/` |
 | `mcp_server.py` | Serveur MCP (déclaré dans `.mcp.json`) |

@@ -16,9 +16,11 @@ insertion or a deletion, the scoreboard resynchronises. What the agent missed
 or invented is then reported as such, instead of being smeared over every
 subsequent metric.
 
+Only human-annotated matches count as references — see :mod:`annotator.corpus`.
+
 Usage:
-    uv run meehawk-eval annotator/match_state_run1.json \\
-        --truth match_history/match_20260522T030751000.json
+    uv run meehawk-eval annotator/match_state_run1.json
+    uv run meehawk-eval annotator/match_state_run1.json --truth match_20260522T030751000
 """
 from __future__ import annotations
 
@@ -29,8 +31,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
 
-REPO_ROOT = Path(__file__).parent.parent
-MATCH_HISTORY_DIR = REPO_ROOT / "match_history"
+from . import corpus
 
 #: Two rallies are candidates for the same point if their post-point scores match.
 #: Impacts are then compared positionally within the rally.
@@ -362,35 +363,44 @@ def format_report(report: Report, *, truth_name: str, agent_name: str) -> str:
 
 def main() -> None:
     ap = argparse.ArgumentParser(
-        description="Score an annotated match against a human-scored one."
+        description="Score an annotated run against the human-scored corpus.",
     )
     ap.add_argument("run", help="match_state JSON produced by the agent")
     ap.add_argument(
         "--truth",
-        help="Reference match. Defaults to the only file in match_history/ "
-             "when there is exactly one.",
+        help="Reference: a corpus match id, or a path to a match JSON. "
+             "Defaults to the whole human-annotated corpus.",
     )
     ap.add_argument("--json", action="store_true", help="Machine-readable output")
     args = ap.parse_args()
 
-    run_path = Path(args.run)
-    if args.truth:
-        truth_path = Path(args.truth)
-    else:
-        candidates = sorted(MATCH_HISTORY_DIR.glob("*.json"))
-        if len(candidates) != 1:
-            ap.error(
-                f"--truth is required: {len(candidates)} matches in "
-                f"{MATCH_HISTORY_DIR}, cannot pick one"
-            )
-        truth_path = candidates[0]
+    run_state = load_state(Path(args.run))
+    run_name = Path(args.run).name
 
-    report = evaluate(load_state(truth_path), load_state(run_path))
+    # An explicit path bypasses the corpus — useful for a one-off comparison,
+    # at the cost of the provenance guard.
+    if args.truth and Path(args.truth).exists():
+        references = [(Path(args.truth).name, load_state(Path(args.truth)))]
+    else:
+        try:
+            entries = corpus.ground_truth(args.truth)
+        except corpus.CorpusError as exc:
+            ap.error(str(exc))
+        references = [(e.id, e.load()) for e in entries]
+
+    reports = [
+        (name, evaluate(truth_state, run_state)) for name, truth_state in references
+    ]
 
     if args.json:
-        print(json.dumps(report.to_json(), indent=2))
-    else:
-        print(format_report(report, truth_name=truth_path.name, agent_name=run_path.name))
+        print(json.dumps(
+            {name: report.to_json() for name, report in reports}, indent=2
+        ))
+        return
+
+    for name, report in reports:
+        print(format_report(report, truth_name=name, agent_name=run_name))
+        print()
 
 
 if __name__ == "__main__":

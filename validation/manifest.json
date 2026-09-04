@@ -1,0 +1,41 @@
+{
+  "description": "Corpus de validation de l'agent d'annotation. Seules les entrées provenance=human sont des vérités terrain.",
+  "matches": [
+    {
+      "id": "match_20260520T145725000",
+      "provenance": "agent",
+      "annotated_by": "agent gemini-2.5-flash (2026-05-20)",
+      "rallies": 6,
+      "impacts": 56,
+      "teams": [
+        "Team A",
+        "Team B"
+      ],
+      "video": {
+        "source": "extrait local de 2 min",
+        "local": "app/web/videos/match_20260520T145725000.mp4",
+        "sha1": "6a0f65827fbab160a77b02a7b419c6a0613c8409",
+        "bytes": 23066108
+      },
+      "notes": "Sortie d'agent, PAS une vérité terrain. Conservée pour comparer des runs entre elles, jamais comme référence."
+    },
+    {
+      "id": "match_20260522T030751000",
+      "provenance": "human",
+      "annotated_by": "Youghz",
+      "rallies": 67,
+      "impacts": 558,
+      "teams": [
+        "Team E1",
+        "Team E2"
+      ],
+      "video": {
+        "source": "https://www.youtube.com/watch?v=D7rdK4buv50",
+        "local": "app/web/videos/match_20260522T030751000.mp4",
+        "sha1": "143b6db99da157fd1b9c99ebeecf10578db0e67f",
+        "bytes": 436480139
+      },
+      "notes": "Set 1 complet (13-22) + début du set 2. Annoté à la main dans l'app. Pas de videoTimeSec : la saisie manuelle n'en produit pas, donc la détection de rallyes ne peut pas être évaluée contre ce match."
+    }
+  ]
+}

@@ -14,7 +14,8 @@ comment la lancer, voir `README.md`.
 | `app/` | L'app Flutter. Voir « Architecture » plus bas. |
 | `annotator/` | Agent d'annotation vidéo + serveur MCP. Voir `annotator/README.md`. |
 | `parity/` | Scénario partagé qui verrouille la parité Dart ↔ Python. |
-| `match_history/` | **Données runtime, gitignored** — un `.json` par match, écrit par l'app (desktop/mobile) et par l'agent, lu par les deux. Ne pas confondre avec `app/lib/features/match_history/`, la feature Flutter. |
+| `validation/` | Corpus d'évaluation de l'agent : matchs annotés à la main, **versionnés**. Seule la provenance `human` fait référence — voir son README. |
+| `match_history/` | **Données runtime, gitignored** — un `.json` par match, écrit par l'app (desktop/mobile) et par l'agent, lu par les deux. Ce n'est **pas** le corpus d'évaluation : l'app y réécrit en continu. Ne pas confondre non plus avec `app/lib/features/match_history/`, la feature Flutter. |
 | `landing/` | Page d'accueil statique du SaaS. `index.html` autonome, aucun lien avec `app/`. |
 | `design-system/` | Archive du handoff de design d'origine. **Pas une source de vérité** — voir son README. |
 
