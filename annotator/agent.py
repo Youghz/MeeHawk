@@ -13,7 +13,7 @@ API quota to exhaust.
 
 Usage
 -----
-  uv run --project annotator python -m annotator.agent VIDEO_URL \\
+  uv run meehawk-annotate VIDEO_URL \\
       --label my_run \\
       --model gemini-2.5-flash \\
       --context "First 20 minutes only (00:00-20:00)."
@@ -165,13 +165,30 @@ def _annotate_clip(
     return RallyAnnotation.model_validate_json(response.text), response.usage_metadata
 
 
-def _record_rally(annotator: MatchAnnotator, rally: RallyAnnotation) -> None:
-    """Feed one annotated rally into the match state."""
+def _record_rally(
+    annotator: MatchAnnotator, rally: RallyAnnotation, rally_start_sec: float
+) -> None:
+    """Feed one annotated rally into the match state.
+
+    Impacts are stamped with an absolute video time so the app can seek to a
+    rally and the evaluator can score rally detection. The server-position
+    impact always gets one — it is the clip boundary, which comes from pass 1
+    and is therefore trustworthy. Other impacts are stamped only when the model
+    offered an offset within the clip.
+    """
     for imp in rally.impacts:
+        if imp.time_offset_sec is not None:
+            video_time = rally_start_sec + max(0.0, imp.time_offset_sec)
+        elif imp.is_server_position:
+            video_time = rally_start_sec
+        else:
+            video_time = None
+
         annotator.add_ball_impact(
             x=imp.x, y=imp.y, team_side=imp.team_side, is_outside=imp.is_outside,
             is_server_position=imp.is_server_position, is_block=imp.is_block,
             player_id=imp.player_id, touch_type=imp.touch_type,
+            video_time_sec=video_time,
         )
     if rally.needs_review:
         annotator.add_ambiguous_point(winner=rally.winner, note=rally.review_note or "")
@@ -248,7 +265,7 @@ def annotate(
                 clip_path.unlink(missing_ok=True)
 
             usage.add(meta)
-            _record_rally(annotator, rally)
+            _record_rally(annotator, rally, ts.start_seconds)
             prog.advance(task)
 
     return annotator, usage, n_rallies

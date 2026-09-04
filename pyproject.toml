@@ -22,6 +22,7 @@ meehawk-mcp = "annotator.mcp_server:main"
 meehawk-annotate = "annotator.agent:main"
 meehawk-import = "annotator.importer:main"
 meehawk-report = "annotator.report:main"
+meehawk-eval = "annotator.eval:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["annotator"]

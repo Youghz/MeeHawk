@@ -63,13 +63,59 @@ uv run meehawk-annotate video.mp4 --label essai --import-to-app
 # Importer un état déjà produit
 uv run meehawk-import annotator/match_state_set1-v6.json --video clip.mp4
 
-# Coût et précision des runs passés
+# Coût des runs passés
 uv run meehawk-report --last 10
+
+# Noter une run contre un match annoté à la main
+uv run meehawk-eval annotator/match_state_essai.json \
+    --truth match_history/match_20260522T030751000.json
 ```
 
 Prérequis : `yt-dlp` et `ffmpeg` sur le PATH (`brew install yt-dlp ffmpeg`), et
 `GOOGLE_CLOUD_PROJECT` (Vertex AI) ou `GEMINI_API_KEY` dans l'environnement ou
 `annotator/.env`.
+
+## Évaluer une run
+
+```bash
+uv run meehawk-eval annotator/match_state_set1-v6.json \
+    --truth match_history/match_20260522T030751000.json
+```
+
+Les matchs de `match_history/` sont au même format que la sortie de l'agent : la
+comparaison est directe.
+
+**L'alignement d'abord.** Comparer `history[i]` à `truth[i]` est un piège : un seul
+rallye manqué décale tout et l'accuracy s'effondre. Un agent qui rate le rallye 3 sur 31
+mais annote parfaitement les 30 autres afficherait ~50 %. L'évaluateur aligne donc les
+séquences par distance d'édition, en s'ancrant sur la progression du score — monotone,
+donc auto-resynchronisante. Ce qui a été manqué ou inventé est rapporté comme tel, au
+lieu d'être étalé sur toutes les métriques suivantes.
+
+**Les côtés sont testés dans les deux sens.** L'agent choisit « e1 = équipe de gauche »
+depuis la caméra ; l'humain a pu saisir depuis l'autre bord. Sans ce test, une run
+correcte mais inversée noterait zéro partout et passerait pour un échec total.
+
+Métriques, du plus grossier au plus fin — elles correspondent à des corrections
+différentes :
+
+| Métrique | Ce qu'elle attrape |
+|---|---|
+| rappel / précision des rallyes | pass 1 rate ou invente des échanges |
+| erreur sur le début de rallye | bornes temporelles décalées |
+| exactitude du vainqueur | pass 2 lit mal l'issue de l'échange |
+| MAE des touches par rallye | touches inventées ou oubliées |
+| distance moyenne des impacts | coordonnées imprécises |
+| exactitude joueur / type de touche | attribution fine |
+
+L'attribution n'est comptée que sur des impacts proches (< 0.08 en unités terrain) :
+comparer le joueur de deux touches situées à des endroits différents du terrain ne
+mesure rien.
+
+**Limite à connaître :** le corpus fait deux matchs, 73 rallyes, une paire d'équipes
+chacun. C'est assez pour détecter une régression franche, pas pour mesurer un gain de
+3 %. Pour vraiment régler les prompts, il faut 3–4 matchs de plus, tournés dans des
+conditions différentes.
 
 ## Modules
 
@@ -83,7 +129,8 @@ Prérequis : `yt-dlp` et `ffmpeg` sur le PATH (`brew install yt-dlp ffmpeg`), et
 | `prompts/` | Prompts en markdown, éditables sans toucher au code |
 | `retry.py` | Backoff sur 429 / 503 / coupures réseau |
 | `video.py` | yt-dlp et ffmpeg |
-| `cost.py` | Comptage de tokens, coût, précision vs `ground_truth.json` |
+| `cost.py` | Comptage de tokens et coût par run |
+| `eval.py` | Notation d'une run contre un match annoté à la main |
 | `report.py` | Tableau des runs passés |
 | `importer.py` | Écrit un match dans `match_history/` |
 | `mcp_server.py` | Serveur MCP (déclaré dans `.mcp.json`) |

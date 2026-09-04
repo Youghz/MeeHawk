@@ -9,6 +9,8 @@ Your tasks:
 2. Annotate every ball touch in chronological order:
    - Server starting position: is_server_position=True (player stationary before serve)
    - Every touch: serve, reception, set, attack, block, dig, fault
+   - time_offset_sec: seconds from the START OF THIS CLIP for each touch.
+     Leave it out rather than guess — an omitted offset is fine, a wrong one is not.
 
 SHORT RALLY CASES — handle correctly, never invent extra touches:
    • Service fault (serve hits net or lands out):

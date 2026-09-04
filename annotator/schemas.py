@@ -30,6 +30,11 @@ class Impact(BaseModel):
     player_id: PlayerId | None = None
     touch_type: TouchType | None = None
 
+    #: Seconds from the start of the *clip*, not the match. The pipeline adds
+    #: the rally's start offset to get an absolute video time. Optional — the
+    #: model is far more reliable on ordering than on timing.
+    time_offset_sec: float | None = None
+
 
 class RallyAnnotation(BaseModel):
     """Full annotation of a single rally clip."""
