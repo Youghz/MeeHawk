@@ -9,6 +9,7 @@ import 'package:app/domain/match_state.dart';
 import 'package:app/features/match_history/widgets/video_scrubber.dart';
 import 'package:app/features/match_history/widgets/web_video_controller.dart';
 import 'package:app/state/match_provider.dart';
+import 'package:app/state/video_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -38,12 +39,21 @@ class _VideoPlayerWidgetState extends ConsumerState<VideoPlayerWidget> {
   @override
   void initState() {
     super.initState();
-    _controller = WebVideoController(widget.videoUrl);
+    _controller = WebVideoController(widget.videoUrl)
+      // Publish playback position so the court can reveal a rally as it is
+      // played, and so annotations land with the moment they happened.
+      ..addListener(_publishPosition);
+  }
+
+  void _publishPosition() {
+    ref.read(videoPositionProvider.notifier).moveTo(_controller.value.position);
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller
+      ..removeListener(_publishPosition)
+      ..dispose();
     super.dispose();
   }
 

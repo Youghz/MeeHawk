@@ -196,13 +196,20 @@ mixin _MatchPointLogic on MatchNotifierBase {
 }
 
 class MatchNotifier extends MatchNotifierBase with _MatchPointLogic {
+  /// The optional seed starts the notifier on an existing match — used by the
+  /// replay screen to correct an archive. Omit it for the live match, which
+  /// rehydrates from [bootstrapState] instead.
+  MatchNotifier([this._seed]);
+
   /// One-shot bootstrap state set by main() when rehydrating from storage.
   /// Consumed on first build().
   static MatchState? bootstrapState;
 
+  final MatchState? _seed;
+
   @override
   MatchState build() {
-    final b = bootstrapState;
+    final b = _seed ?? bootstrapState;
     bootstrapState = null;
     return b ?? initialMatchState();
   }
@@ -333,6 +340,9 @@ class MatchNotifier extends MatchNotifierBase with _MatchPointLogic {
         playerId: playerId,
         isServerPosition: pending.isServerPosition,
         isBlock: pending.isBlock,
+        // The touch happened when the court was tapped, not when the picker was
+        // confirmed — carry the pending impact's timestamp rather than re-read it.
+        videoTimeSec: pending.videoTimeSec,
       ),
     );
   }

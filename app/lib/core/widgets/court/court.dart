@@ -11,7 +11,9 @@ import 'package:app/domain/match_state.dart';
 import 'package:app/domain/rules/point_resolution.dart';
 import 'package:app/domain/rules/possession.dart';
 import 'package:app/domain/rules/touch_attribution.dart';
+import 'package:app/domain/rules/video_timeline.dart';
 import 'package:app/state/match_provider.dart';
+import 'package:app/state/video_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -24,6 +26,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // [PointResolution] and [Possession].
 
 mixin _CourtGestures on ConsumerState<Court> {
+  /// Where the attached video stands right now, stamped onto every impact this
+  /// mixin records. Null during a live match — nothing to anchor to.
+  double? get _videoTime => ref.read(videoPositionProvider);
+
   // Manual double-tap detection to avoid Flutter's 300ms single-tap delay.
   Offset? _swipeDragStart;
   DateTime? _lastTapTime;
@@ -112,6 +118,7 @@ mixin _CourtGestures on ConsumerState<Court> {
             teamSide: teamSide,
             playerId: playerId,
             isBlock: true,
+            videoTimeSec: _videoTime,
           ),
         );
   }
@@ -140,6 +147,7 @@ mixin _CourtGestures on ConsumerState<Court> {
             isOutside: false,
             teamSide: teamSide,
             playerId: playerId,
+            videoTimeSec: _videoTime,
           ),
         );
   }
@@ -165,6 +173,7 @@ mixin _CourtGestures on ConsumerState<Court> {
             isOutside: false,
             teamSide: teamSide,
             playerId: playerId,
+            videoTimeSec: _videoTime,
           ),
         );
     // If addBallImpact already resolved the point internally (4th-touch
@@ -190,6 +199,7 @@ mixin _CourtGestures on ConsumerState<Court> {
               teamSide: xNorm < 0.5 ? state.leftTeam : state.rightTeam,
               playerId: state.servingPlayerId,
               isServerPosition: true,
+              videoTimeSec: _videoTime,
             ),
           );
     } else {
@@ -237,6 +247,7 @@ mixin _CourtGestures on ConsumerState<Court> {
             isOutside: true,
             teamSide: landingSide,
             playerId: TouchAttribution.lastPlayerWhoTouched(state.rallyImpacts),
+            videoTimeSec: _videoTime,
           ),
         );
 
@@ -282,6 +293,7 @@ mixin _CourtGestures on ConsumerState<Court> {
                 isOutside: isOutside,
                 teamSide: teamSide,
                 isBlock: isBlock,
+                videoTimeSec: _videoTime,
               ),
             ),
           );
@@ -302,6 +314,7 @@ mixin _CourtGestures on ConsumerState<Court> {
               teamSide: teamSide,
               playerId: playerId,
               isBlock: isBlock,
+              videoTimeSec: _videoTime,
             ),
           );
     }
@@ -368,15 +381,34 @@ class _CourtState extends ConsumerState<Court>
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(matchProvider);
+    final videoPosition = ref.watch(videoPositionProvider);
     final leftTeam = state.leftTeam;
     final rightTeam = state.rightTeam;
     final leftColor = leftTeam == TeamSide.e1 ? MH.them : MH.us;
     final rightColor = rightTeam == TeamSide.e1 ? MH.them : MH.us;
 
-    final replayIdx = state.selectedPointIndex;
+    // Three ways the court can be showing something:
+    //   1. a point picked on the timeline  → that rally, whole
+    //   2. otherwise, a video position     → the rally at that second, revealed
+    //                                        up to it
+    //   3. otherwise                       → the rally being scored right now
+    // An explicit pick wins: the user asked for that rally, scrubbing did not.
+    final selectedIdx = state.selectedPointIndex;
+    final videoIdx = selectedIdx == null && videoPosition != null
+        ? VideoTimeline.rallyIndexAt(state.history, videoPosition)
+        : null;
+
+    final replayIdx = selectedIdx ?? videoIdx;
     final isReplay = replayIdx != null && replayIdx < state.history.length;
-    final impactsToShow =
-        isReplay ? state.history[replayIdx].impacts : state.rallyImpacts;
+    final List<BallImpact> impactsToShow;
+    if (videoIdx != null) {
+      impactsToShow =
+          VideoTimeline.impactsUpTo(state.history[videoIdx], videoPosition!);
+    } else if (isReplay) {
+      impactsToShow = state.history[replayIdx].impacts;
+    } else {
+      impactsToShow = state.rallyImpacts;
+    }
 
     final leftPlayers = state.teams[leftTeam]!.players;
     final rightPlayers = state.teams[rightTeam]!.players;

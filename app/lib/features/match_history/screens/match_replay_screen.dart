@@ -7,35 +7,49 @@ import 'package:app/core/widgets/timeline.dart';
 import 'package:app/core/widgets/top_score.dart';
 import 'package:app/domain/date_format.dart';
 import 'package:app/domain/match_archive.dart';
+import 'package:app/domain/match_state.dart';
 import 'package:app/features/match_history/screens/analytics_screen.dart';
 import 'package:app/features/match_history/widgets/match_notes.dart';
 import 'package:app/features/match_history/widgets/video_player_widget.dart';
 import 'package:app/state/archive_provider.dart';
 import 'package:app/state/match_provider.dart';
 import 'package:app/state/replay_notifier.dart';
+import 'package:app/state/video_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class MatchReplayScreen extends StatelessWidget {
+class MatchReplayScreen extends ConsumerWidget {
   const MatchReplayScreen({required this.archive, super.key});
 
   final MatchArchive archive;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final editing = ref.watch(editingArchiveProvider);
+
+    // Viewing is read-only by construction: ReplayNotifier inherits no-op
+    // mutations, so no gesture can rewrite a scored match by accident. Turning
+    // on correction swaps in the real scoring notifier, seeded with the archive.
+    // The key forces a rebuild of the scope so the new notifier is built.
     return ProviderScope(
+      key: ValueKey(editing),
       overrides: [
-        matchProvider.overrideWith(() => ReplayNotifier(archive.state)),
+        matchProvider.overrideWith(
+          () => editing
+              ? MatchNotifier(archive.state)
+              : ReplayNotifier(archive.state),
+        ),
       ],
-      child: _ReplayContent(archive: archive),
+      child: _ReplayContent(archive: archive, editing: editing),
     );
   }
 }
 
 class _ReplayContent extends ConsumerStatefulWidget {
-  const _ReplayContent({required this.archive});
+  const _ReplayContent({required this.archive, required this.editing});
   final MatchArchive archive;
+  final bool editing;
 
   @override
   ConsumerState<_ReplayContent> createState() => _ReplayContentState();
@@ -49,6 +63,22 @@ class _ReplayContentState extends ConsumerState<_ReplayContent> {
   void initState() {
     super.initState();
     _archive = widget.archive;
+  }
+
+  /// Save a correction back to the archive.
+  ///
+  /// The live match persists through `app.dart`, but that listener watches the
+  /// root scope; this screen runs its notifier in a nested one, so corrections
+  /// would never reach storage otherwise.
+  void _persist(MatchState next) {
+    final updated = MatchArchive(
+      id: _archive.id,
+      startedAt: _archive.startedAt,
+      state: next,
+      videoUrl: _archive.videoUrl,
+    );
+    _archive = updated;
+    unawaited(ref.read(archiveListProvider.notifier).upsert(updated));
   }
 
   @override
@@ -114,6 +144,13 @@ class _ReplayContentState extends ConsumerState<_ReplayContent> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.editing) {
+      ref.listen(matchProvider, (previous, next) {
+        if (previous != null && next.hasSamePersistedStateAs(previous)) return;
+        _persist(next);
+      });
+    }
+
     return Scaffold(
       backgroundColor: MH.paper,
       appBar: AppBar(
@@ -137,6 +174,17 @@ class _ReplayContentState extends ConsumerState<_ReplayContent> {
           ],
         ),
         actions: [
+          IconButton(
+            icon: Icon(
+              widget.editing ? Icons.edit : Icons.edit_outlined,
+              color: widget.editing ? MH.ball : null,
+            ),
+            tooltip: widget.editing
+                ? 'Terminer la correction'
+                : 'Corriger les annotations',
+            onPressed: () =>
+                ref.read(editingArchiveProvider.notifier).toggle(),
+          ),
           IconButton(
             icon: const Icon(Icons.videocam_outlined),
             tooltip: _archive.videoUrl == null ? 'Attacher une vidéo' : 'Modifier la vidéo',
@@ -189,7 +237,10 @@ class _ReplayContentState extends ConsumerState<_ReplayContent> {
             }
           },
           behavior: HitTestBehavior.translucent,
-          child: _ReplayLayout(videoUrl: _archive.videoUrl),
+          child: _ReplayLayout(
+            videoUrl: _archive.videoUrl,
+            editing: widget.editing,
+          ),
         ),
       ),
     );
@@ -197,14 +248,16 @@ class _ReplayContentState extends ConsumerState<_ReplayContent> {
 }
 
 class _ReplayLayout extends StatelessWidget {
-  const _ReplayLayout({this.videoUrl});
+  const _ReplayLayout({required this.editing, this.videoUrl});
 
   final String? videoUrl;
+  final bool editing;
 
   @override
   Widget build(BuildContext context) => SingleChildScrollView(
         child: Column(
           children: [
+            if (editing) const _EditingBanner(),
             if (videoUrl != null)
               VideoPlayerWidget(key: ValueKey(videoUrl), videoUrl: videoUrl!),
             const TopScore(),
@@ -214,6 +267,29 @@ class _ReplayLayout extends StatelessWidget {
             const MatchNotes(),
             const SizedBox(height: 24),
           ],
+        ),
+      );
+}
+
+/// Makes correction mode unmistakable: in this mode every court gesture
+/// rewrites a stored match, which for a validation-corpus match would silently
+/// invalidate every score already measured against it.
+class _EditingBanner extends StatelessWidget {
+  const _EditingBanner();
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+        color: MH.ball,
+        child: SizedBox(
+          width: double.infinity,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Text(
+              'CORRECTION — les gestes modifient ce match',
+              textAlign: TextAlign.center,
+              style: MH.mono(color: Colors.white, letterSpacing: 1.2),
+            ),
+          ),
         ),
       );
 }
